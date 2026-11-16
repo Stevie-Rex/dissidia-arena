@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { DISCORD_SUGGESTIONS, FRIENDS, GAMES, playerById, type FriendStatus, type GameId } from '../data/mock'
 import { useApp } from '../state/AppState'
 import { Avatar, Btn, Card, DiscordButton, Gem, Logo, Modal, Pill, Sub } from './ui'
@@ -27,7 +27,7 @@ export function GameSwitcher({ className }: { className?: string }) {
 }
 
 function TopNav() {
-  const { game, signedIn, startQueue, phase, live, requireSignIn } = useApp()
+  const { game, signedIn, startQueue, phase, live, requireSignIn, user } = useApp()
   const navigate = useNavigate()
   const link = ({ isActive }: { isActive: boolean }) =>
     cx('text-sm transition-colors', isActive ? 'text-crystal-soft' : 'text-soft hover:text-fg')
@@ -65,7 +65,7 @@ function TopNav() {
         )}
         {signedIn ? (
           <Link to="/players/me" aria-label="Your profile">
-            <Avatar name="You" ring="you" size={28} />
+            <Avatar name={user?.displayName ?? 'You'} src={user?.avatarUrl} ring="you" size={28} />
           </Link>
         ) : (
           <Btn onClick={() => requireSignIn('Sign in')}>Sign in</Btn>
@@ -314,6 +314,28 @@ function ChatDock() {
   )
 }
 
+/** Shown when Discord sign-in bounced back with ?auth_error=… */
+function AuthErrorBanner() {
+  const [params, setParams] = useSearchParams()
+  const err = params.get('auth_error')
+  if (!err) return null
+  const dismiss = () => {
+    params.delete('auth_error')
+    setParams(params, { replace: true })
+  }
+  return (
+    <div className="mx-auto mt-3 max-w-7xl px-4">
+      <Card tone="chaos" className="flex-row items-center">
+        <span className="text-sm">
+          {err === 'denied' ? 'Discord sign-in was cancelled.' : "Couldn't reach Discord to sign you in. Try again in a moment."}
+        </span>
+        <span className="flex-1" />
+        <Pill onClick={dismiss}>Dismiss</Pill>
+      </Card>
+    </div>
+  )
+}
+
 /** 1f — mobile tab bar. */
 function MobileTabs() {
   const { game } = useApp()
@@ -345,6 +367,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen pb-20 md:pb-8">
       <TopNav />
+      <AuthErrorBanner />
       <div className="mx-auto flex max-w-7xl gap-6 px-4 pt-6">
         <main className="min-w-0 flex-1">
           <Outlet />

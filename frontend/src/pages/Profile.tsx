@@ -9,7 +9,7 @@ import { ACCENTS, BANNERS, loadCustom, type BlockId } from './profileCustom'
 /** 1s — banner profile with per-game stats. Your own profile uses your saved customisation. */
 export default function Profile() {
   const { id = '' } = useParams()
-  const { game: currentGame, signedIn, requireSignIn } = useApp()
+  const { game: currentGame, signedIn, requireSignIn, user, signOut } = useApp()
   const navigate = useNavigate()
   const [game, setGame] = useState<GameId>(currentGame)
   const p = playerById(id)
@@ -26,6 +26,10 @@ export default function Profile() {
     ? loadCustom()
     : { accent: ACCENTS[0], title: p.title ?? '', bio: p.bio, blocks: ['rank', 'mains', 'history'] as BlockId[], banner: p.id === 'player-b' ? 1 : 0 }
   const s = p.stats[game]
+  // Your identity comes from Discord; stats are still mock until the ladder API exists.
+  const name = isMe && user ? user.displayName : p.name
+  const discord = isMe && user ? user.username : p.discord
+  const region = isMe && user ? user.region : p.region
   const history = MATCHES.filter((m) => m.game === game && (m.a.playerId === p.id || m.b.playerId === p.id))
 
   const blocks: Record<BlockId, ReactNode> = {
@@ -94,18 +98,23 @@ export default function Profile() {
       <Art label={BANNERS[custom.banner]} className="h-28" />
       <div className="-mt-12 flex items-end gap-3 pl-3">
         <span className="rounded-full border-[3px] bg-ink" style={{ borderColor: custom.accent }}>
-          <Avatar name={p.name} size={64} className="border-0" />
+          <Avatar name={name} src={isMe ? user?.avatarUrl : undefined} size={64} className="border-0" />
         </span>
         <div className="flex flex-col">
-          <span className="text-xl font-semibold">{p.name}</span>
+          <span className="text-xl font-semibold">{name}</span>
           <Sub>
             {custom.title && <span className="text-gold-soft">{custom.title} · </span>}
-            {p.region} · Discord: {p.discord}
+            {region} · Discord: {discord}
             {custom.bio && ` · "${custom.bio}"`}
           </Sub>
         </div>
         <span className="flex-1" />
-        {isMe && <Pill onClick={() => navigate('/players/me/edit')}>Edit profile</Pill>}
+        {isMe && (
+          <div className="flex gap-2">
+            <Pill onClick={() => navigate('/players/me/edit')}>Edit profile</Pill>
+            <Pill onClick={() => void signOut()}>Sign out</Pill>
+          </div>
+        )}
       </div>
       <div className="flex gap-2">
         {(['nt', '012'] as GameId[]).map((g) => (

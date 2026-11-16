@@ -95,15 +95,28 @@ const ringClass = {
 
 export function Avatar({
   name,
+  src,
   size = 24,
   ring = 'default',
   className,
 }: {
   name?: string
+  src?: string
   size?: number
   ring?: keyof typeof ringClass
   className?: string
 }) {
+  if (src)
+    return (
+      <img
+        src={src}
+        alt=""
+        width={size}
+        height={size}
+        className={cx('inline-block flex-none rounded-full border-[1.5px] bg-raised object-cover', ringClass[ring], className)}
+        style={{ width: size, height: size }}
+      />
+    )
   const initials = name
     ? name
         .split(' ')

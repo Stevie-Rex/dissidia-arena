@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GAMES, playerById, type GameId, type Region } from '../data/mock'
+import { api, type Me } from '../lib/api'
 
 export interface QueueSettings {
   game: GameId
@@ -34,14 +35,15 @@ export interface PartyMember {
 }
 
 interface AppState {
+  /** Signed-in Discord user, null when signed out, undefined while loading. */
+  user: Me | null | undefined
   signedIn: boolean
   onboarded: boolean
   signIn: () => void
-  signOut: () => void
-  finishOnboarding: (opts: { games: GameId[]; region: Region; ids: Partial<Record<GameId, string>> }) => void
+  signOut: () => Promise<void>
+  finishOnboarding: (opts: { games: GameId[]; region: Region; ids: Partial<Record<GameId, string>> }) => Promise<void>
   myGames: GameId[]
   region: Region
-  setRegion: (r: Region) => void
   ids: Partial<Record<GameId, string>>
 
   game: GameId
@@ -100,11 +102,16 @@ const ACCEPT_SECONDS = 15
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
-  const [signedIn, setSignedIn] = useStored('dc.signedIn', false)
-  const [onboarded, setOnboarded] = useStored('dc.onboarded', false)
-  const [myGames, setMyGames] = useStored<GameId[]>('dc.games', ['012', 'nt'])
-  const [region, setRegion] = useStored<Region>('dc.region', 'NA')
-  const [ids, setIds] = useStored<Partial<Record<GameId, string>>>('dc.ids', {})
+  const [user, setUser] = useState<Me | null | undefined>(undefined)
+  const signedIn = !!user
+  const onboarded = !!user?.onboarded
+  const myGames = useMemo<GameId[]>(() => user?.games ?? ['012', 'nt'], [user])
+  const region: Region = user?.region ?? 'NA'
+  const ids = useMemo(() => user?.gameIds ?? {}, [user])
+
+  useEffect(() => {
+    api.me().then(setUser, () => setUser(null))
+  }, [])
   const [game, setGameRaw] = useStored<GameId>('dc.game', 'nt')
 
   const [signInPrompt, setSignInPrompt] = useState<string | null>(null)
@@ -160,27 +167,25 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   )
 
   const signIn = useCallback(() => {
-    // Mock of the Discord OAuth round-trip.
-    setSignedIn(true)
-    setSignInPrompt(null)
-    if (!onboarded) navigate('/welcome')
-  }, [navigate, onboarded, setSignedIn])
+    // Full-page redirect: backend -> Discord consent -> backend callback -> back here.
+    const { pathname, search } = window.location
+    window.location.assign(api.discordLoginUrl(pathname + search))
+  }, [])
 
-  const signOut = useCallback(() => {
-    setSignedIn(false)
+  const signOut = useCallback(async () => {
+    await api.logout()
+    setUser(null)
     setPhase('idle')
     setLive(null)
-  }, [setSignedIn])
+    navigate('/')
+  }, [navigate])
 
   const finishOnboarding: AppState['finishOnboarding'] = useCallback(
-    ({ games, region: r, ids: newIds }) => {
-      setMyGames(games)
-      setRegion(r)
-      setIds(newIds)
-      setOnboarded(true)
+    async ({ games, region: r, ids: newIds }) => {
+      setUser(await api.updateMe({ games, region: r, gameIds: newIds, onboarded: true }))
       if (games.length === 1) setGame(games[0])
     },
-    [setGame, setIds, setMyGames, setOnboarded, setRegion],
+    [setGame],
   )
 
   // Queue timers
@@ -320,6 +325,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AppState>(
     () => ({
+      user,
       signedIn,
       onboarded,
       signIn,
@@ -327,7 +333,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       finishOnboarding,
       myGames,
       region,
-      setRegion,
       ids,
       game,
       setGame,
@@ -358,7 +363,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       acceptInvite,
     }),
     [
-      signedIn, onboarded, signIn, signOut, finishOnboarding, myGames, region, setRegion, ids, game, setGame,
+      user, signedIn, onboarded, signIn, signOut, finishOnboarding, myGames, region, ids, game, setGame,
       signInPrompt, requireSignIn, queue, setQueue, phase, elapsed, acceptLeft, opponentId, startQueue,
       cancelQueue, acceptMatch, declineMatch, live, sendChat, reportGame, confirmResult, leaveMatch, party,
       inviteToParty, removeFromParty, toggleReady, invite, dismissInvite, acceptInvite,

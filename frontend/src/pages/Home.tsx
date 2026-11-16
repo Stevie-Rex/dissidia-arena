@@ -5,7 +5,7 @@ import { Art, Btn, Card, DiscordButton, Note, Pill, Sub } from '../components/ui
 
 /** 1e — two-game front door; 1c hero when signed out. */
 export default function Home() {
-  const { signedIn, signIn, setGame, startQueue, setQueue } = useApp()
+  const { signedIn, signIn, setGame, startQueue, setQueue, region } = useApp()
   const navigate = useNavigate()
   const me = playerById('me')!
 
@@ -66,7 +66,7 @@ export default function Home() {
             <b>Your seasons</b>
             <span className="flex-1" />
             <Sub>
-              012 #{me.stats['012'].rank} NA · NT #{me.stats.nt.rank} NA
+              012 #{me.stats['012'].rank} {region} · NT #{me.stats.nt.rank} {region}
             </Sub>
           </div>
         </Card>
