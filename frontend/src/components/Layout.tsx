@@ -54,7 +54,7 @@ function TopNav() {
         {live && (
           <Link to="/match/live">
             <Pill active className="hidden sm:inline-block">
-              ● In match vs {playerById(live.opponentId)?.name}
+              ● In match vs {live.opponent.displayName}
             </Pill>
           </Link>
         )}
@@ -152,7 +152,7 @@ function FriendsSidebar() {
 
 /** 1l — persistent queue bar while searching, on any page. */
 function QueueBar() {
-  const { phase, elapsed, queue, cancelQueue, region } = useApp()
+  const { phase, elapsed, queue, cancelQueue, region, searching } = useApp()
   if (phase !== 'searching') return null
   const info = GAMES[queue.game]
   return (
@@ -168,7 +168,7 @@ function QueueBar() {
         </div>
         <div className="flex items-center">
           <Sub>
-            {info.searching} in queue · {region}
+            {searching[queue.game]} in queue · {region}
           </Sub>
           <span className="flex-1" />
           <Pill onClick={cancelQueue}>Cancel</Pill>
@@ -180,33 +180,39 @@ function QueueBar() {
 
 /** Match-found takeover with accept countdown. */
 function MatchFound() {
-  const { phase, opponentId, acceptLeft, acceptMatch, declineMatch, queue } = useApp()
-  if (phase !== 'found' || !opponentId) return null
-  const opp = playerById(opponentId)!
-  const me = playerById('me')!
+  const { pending, acceptLeft, acceptMatch, declineMatch } = useApp()
+  if (!pending) return null
+  const waiting = pending.you.accepted
   return (
     <Modal className="max-w-md border-chaos">
       <div className="flex flex-col items-center gap-4 text-center">
         <Sub>
-          Match found · {GAMES[queue.game].short} {queue.mode} Bo{queue.bestOf}
+          Match found · {GAMES[pending.game].short} {pending.mode} Bo{pending.bestOf} · {pending.platform}
         </Sub>
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-center gap-1">
-            <Avatar name="You" size={52} ring="crystal" />
-            <span className="text-crystal-soft">you · {me.stats[queue.game].rating}</span>
+            <Avatar name={pending.you.displayName} src={pending.you.avatarUrl} size={52} ring="crystal" />
+            <span className="text-crystal-soft">you{pending.you.accepted && ' ✓'}</span>
           </div>
           <Gem size={16} />
           <div className="flex flex-col items-center gap-1">
-            <Avatar name={opp.name} size={52} ring="chaos" />
+            <Avatar name={pending.opponent.displayName} src={pending.opponent.avatarUrl} size={52} ring="chaos" />
             <span className="text-chaos-soft">
-              {opp.name} · {opp.stats[queue.game].rating}
+              {pending.opponent.displayName}
+              {pending.opponent.accepted && ' ✓'}
             </span>
           </div>
         </div>
-        <Btn size="lg" className="w-full" onClick={acceptMatch}>
-          Accept · 0:{String(acceptLeft).padStart(2, '0')}
-        </Btn>
-        <Pill onClick={declineMatch}>Decline</Pill>
+        {waiting ? (
+          <Sub>Waiting for {pending.opponent.displayName} · 0:{String(acceptLeft).padStart(2, '0')}</Sub>
+        ) : (
+          <>
+            <Btn size="lg" className="w-full" onClick={acceptMatch}>
+              Accept · 0:{String(acceptLeft).padStart(2, '0')}
+            </Btn>
+            <Pill onClick={declineMatch}>Decline</Pill>
+          </>
+        )}
       </div>
     </Modal>
   )
@@ -258,8 +264,8 @@ function ChatDock() {
   const { pathname } = useLocation()
   const [open, setOpen] = useState(true)
   const [text, setText] = useState('')
-  if (!live || pathname === '/match/live') return null
-  const opp = playerById(live.opponentId)!
+  if (!live || live.status !== 'active' || pathname === '/match/live') return null
+  const opp = live.opponent.displayName
   if (!open)
     return (
       <button
@@ -267,25 +273,25 @@ function ChatDock() {
         onClick={() => setOpen(true)}
         className="fixed bottom-16 right-4 z-40 rounded-full border-[1.5px] border-muted bg-card px-3 py-1.5 text-sm shadow-lg md:bottom-4"
       >
-        💬 {opp.name}
+        💬 {opp}
       </button>
     )
-  const last = live.chat.slice(-3)
+  const last = live.messages.slice(-3)
   return (
     <Card className="fixed bottom-16 right-4 z-40 w-64 border-muted shadow-[0_16px_40px_rgba(0,0,0,.65)] md:bottom-4">
       <div className="flex items-center gap-2">
         <Link to="/match/live" className="font-semibold hover:text-crystal-soft">
-          {opp.name}
+          {opp}
         </Link>
-        <Sub>game {live.gameNo}</Sub>
+        <Sub>game {live.games.length + 1}</Sub>
         <span className="flex-1" />
         <button type="button" className="text-muted hover:text-fg" onClick={() => setOpen(false)} aria-label="Minimise">
           —
         </button>
       </div>
-      {last.map((m, i) => (
-        <div key={i} className="text-xs">
-          <span className="text-muted">{m.from === 'me' ? 'you' : m.from === 'them' ? opp.name.split(' ').pop() : '—'}:</span>{' '}
+      {last.map((m) => (
+        <div key={m.id} className="text-xs">
+          <span className="text-muted">{m.from === 'you' ? 'you' : m.from === 'opponent' ? opp : '—'}:</span>{' '}
           {m.text}
         </div>
       ))}

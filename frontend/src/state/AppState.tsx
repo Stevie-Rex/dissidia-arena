@@ -1,33 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GAMES, playerById, type GameId, type Region } from '../data/mock'
-import { api, type Me } from '../lib/api'
+import { GAMES, type GameId, type Region } from '../data/mock'
+import {
+  api,
+  errorCode,
+  errorMessage,
+  OPEN_STATUSES,
+  type GameDetails,
+  type Match,
+  type Me,
+  type QueueSettings,
+  type QueueState,
+  type Side,
+} from '../lib/api'
 
-export interface QueueSettings {
-  game: GameId
-  mode: '1v1' | '3v3'
-  bestOf: number
-  platform: string
-}
+export type { QueueSettings }
 
 export type QueuePhase = 'idle' | 'searching' | 'found' | 'match'
-
-export interface ChatMessage {
-  from: 'me' | 'them' | 'system'
-  text: string
-}
-
-export interface LiveMatch {
-  opponentId: string
-  settings: QueueSettings
-  region: Region
-  gameNo: number
-  reports: ('me' | 'them')[]
-  confirmed: boolean
-  ratingBefore: number
-  ratingAfter?: number
-  chat: ChatMessage[]
-}
 
 export interface PartyMember {
   playerId: string
@@ -58,17 +47,25 @@ interface AppState {
   phase: QueuePhase
   elapsed: number
   acceptLeft: number
-  opponentId: string | null
+  /** Players searching per game in your region. */
+  searching: Record<GameId, number>
+  queueError: { message: string; code?: string } | null
+  /** Match waiting for both players to accept. */
+  pending: Match | null
   startQueue: () => void
   cancelQueue: () => void
   acceptMatch: () => void
   declineMatch: () => void
 
-  live: LiveMatch | null
+  /** Match being played, or the one that just finished until closeMatch(). */
+  live: Match | null
+  matchError: string | null
   sendChat: (text: string) => void
-  reportGame: (winner: 'me' | 'them') => void
+  reportGame: (winner: Side, details: GameDetails) => void
   confirmResult: () => void
-  leaveMatch: () => void
+  disputeResult: () => void
+  abandonMatch: () => void
+  closeMatch: () => void
 
   party: PartyMember[]
   inviteToParty: (playerId: string) => void
@@ -97,8 +94,18 @@ function useStored<T>(key: string, initial: T) {
   return [v, setV] as const
 }
 
-const SEARCH_SECONDS = 6
-const ACCEPT_SECONDS = 15
+const POLL_ACTIVE_MS = 2000
+const POLL_IDLE_MS = 10000
+
+const normalizeQueue = (q: QueueSettings): QueueSettings => {
+  const info = GAMES[q.game]
+  return {
+    game: q.game,
+    mode: info.modes.includes(q.mode) ? q.mode : '1v1',
+    bestOf: info.bestOf.includes(q.bestOf) ? q.bestOf : info.bestOf[info.bestOf.length - 1],
+    platform: info.platforms.includes(q.platform) ? q.platform : info.platforms[0],
+  }
+}
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
@@ -116,46 +123,33 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const [signInPrompt, setSignInPrompt] = useState<string | null>(null)
 
-  const [queue, setQueueRaw] = useState<QueueSettings>({ game: 'nt', mode: '1v1', bestOf: 3, platform: 'PS4' })
-  const [phase, setPhase] = useState<QueuePhase>('idle')
-  const [elapsed, setElapsed] = useState(0)
-  const [acceptLeft, setAcceptLeft] = useState(ACCEPT_SECONDS)
-  const [opponentId, setOpponentId] = useState<string | null>(null)
-  const [live, setLive] = useState<LiveMatch | null>(null)
+  const [queue, setQueueRaw] = useState<QueueSettings>(() => normalizeQueue({ game, mode: '1v1', bestOf: 3, platform: 'PS4' }))
+  // Mirrors `queue` synchronously so setQueue(...) then startQueue() in one handler uses the new settings.
+  const queueRef = useRef(queue)
+  const [server, setServer] = useState<QueueState | null>(null)
+  const [live, setLive] = useState<Match | null>(null)
+  const liveRef = useRef(live)
+  useEffect(() => {
+    liveRef.current = live
+  }, [live])
+  const [queueError, setQueueError] = useState<AppState['queueError']>(null)
+  const [matchError, setMatchError] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
 
   const [party, setParty] = useState<PartyMember[]>([{ playerId: 'me', ready: false }])
   const [invite, setInvite] = useState<{ fromId: string } | null>(null)
   const inviteShown = useRef(false)
 
-  const setGame = useCallback(
-    (g: GameId) => {
-      setGameRaw(g)
-      setQueueRaw((q) => {
-        const info = GAMES[g]
-        return {
-          game: g,
-          mode: info.modes.includes(q.mode) ? q.mode : '1v1',
-          bestOf: info.bestOf.includes(q.bestOf) ? q.bestOf : info.bestOf[info.bestOf.length - 1],
-          platform: info.platforms.includes(q.platform) ? q.platform : info.platforms[0],
-        }
-      })
+  const setQueue = useCallback(
+    (q: Partial<QueueSettings>) => {
+      const next = normalizeQueue({ ...queueRef.current, ...q })
+      queueRef.current = next
+      setQueueRaw(next)
+      if (q.game) setGameRaw(q.game)
     },
     [setGameRaw],
   )
-
-  // Keep queue settings in sync with the stored game on first load.
-  useEffect(() => {
-    setGame(game)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const setQueue = useCallback(
-    (q: Partial<QueueSettings>) => {
-      if (q.game) setGame(q.game)
-      setQueueRaw((prev) => ({ ...prev, ...q }))
-    },
-    [setGame],
-  )
+  const setGame = useCallback((g: GameId) => setQueue({ game: g }), [setQueue])
 
   const requireSignIn = useCallback(
     (reason: string) => {
@@ -175,7 +169,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await api.logout()
     setUser(null)
-    setPhase('idle')
+    setServer(null)
     setLive(null)
     navigate('/')
   }, [navigate])
@@ -188,31 +182,60 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [setGame],
   )
 
-  // Queue timers
+  // ---- server-driven queue / match state
+
+  const applyState = useCallback((st: QueueState) => {
+    setServer(st)
+    if (st.match && st.match.status !== 'pending') {
+      setLive(st.match)
+    } else if (!st.match) {
+      const prev = liveRef.current
+      // Our match closed on the other player's action (confirm, dispute, leave): fetch the final state.
+      if (prev && OPEN_STATUSES.includes(prev.status)) api.match(prev.id).then(setLive, () => setLive(null))
+    }
+  }, [])
+
+  const refresh = useCallback(() => api.queueState().then(applyState, () => {}), [applyState])
+
+  const phase: QueuePhase =
+    live && OPEN_STATUSES.includes(live.status)
+      ? 'match'
+      : server?.match?.status === 'pending'
+        ? 'found'
+        : server?.queue
+          ? 'searching'
+          : 'idle'
+  const pending = phase === 'found' ? server!.match : null
+
   useEffect(() => {
-    if (phase !== 'searching') return
-    const t = setInterval(() => setElapsed((e) => e + 1), 1000)
+    if (!signedIn) return
+    void refresh()
+    const t = setInterval(refresh, phase === 'idle' ? POLL_IDLE_MS : POLL_ACTIVE_MS)
     return () => clearInterval(t)
+  }, [signedIn, phase, refresh])
+
+  // Clock for the search timer and accept countdown.
+  useEffect(() => {
+    if (phase !== 'searching' && phase !== 'found') return
+    const tick = () => setNow(Date.now())
+    const first = setTimeout(tick, 0) // `now` may be stale from the last time the clock ran
+    const t = setInterval(tick, 1000)
+    return () => {
+      clearTimeout(first)
+      clearInterval(t)
+    }
   }, [phase])
 
-  useEffect(() => {
-    if (phase === 'searching' && elapsed >= SEARCH_SECONDS) {
-      setOpponentId(queue.game === 'nt' ? 'player-g' : 'player-h')
-      setAcceptLeft(ACCEPT_SECONDS)
-      setPhase('found')
-    }
-  }, [elapsed, phase, queue.game])
+  const joinedAt = server?.queue?.joinedAt
+  const elapsed = joinedAt ? Math.max(0, Math.floor((now - Date.parse(joinedAt)) / 1000)) : 0
+  const acceptLeft = pending ? Math.max(0, Math.ceil((Date.parse(pending.acceptDeadline) - now) / 1000)) : 0
 
+  // Both accepted: open the match room.
+  const prevPhase = useRef(phase)
   useEffect(() => {
-    if (phase !== 'found') return
-    if (acceptLeft <= 0) {
-      setPhase('idle')
-      setOpponentId(null)
-      return
-    }
-    const t = setTimeout(() => setAcceptLeft((a) => a - 1), 1000)
-    return () => clearTimeout(t)
-  }, [acceptLeft, phase])
+    if (prevPhase.current === 'found' && phase === 'match') navigate('/match/live')
+    prevPhase.current = phase
+  }, [phase, navigate])
 
   // A friend invites you to their party once, shortly after sign-in.
   useEffect(() => {
@@ -226,77 +249,55 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const startQueue = useCallback(() => {
     if (!requireSignIn('Sign in to queue')) return
-    setElapsed(0)
-    setPhase('searching')
-  }, [requireSignIn])
+    setQueueError(null)
+    api.joinQueue(queueRef.current).then(applyState, (e) => {
+      setQueueError({ message: errorMessage(e), code: errorCode(e) })
+      navigate('/queue')
+    })
+  }, [requireSignIn, applyState, navigate])
 
   const cancelQueue = useCallback(() => {
-    setPhase('idle')
-    setElapsed(0)
-  }, [])
+    api.leaveQueue().then(applyState, () => {})
+  }, [applyState])
 
   const acceptMatch = useCallback(() => {
-    if (!opponentId) return
-    const me = playerById('me')!
-    setLive({
-      opponentId,
-      settings: queue,
-      region,
-      gameNo: 1,
-      reports: [],
-      confirmed: false,
-      ratingBefore: me.stats[queue.game].rating,
-      chat: [
-        { from: 'system', text: `match found ${new Date().toTimeString().slice(0, 5)}` },
-        { from: 'them', text: `lobby up, pw ${Math.floor(1000 + Math.random() * 9000)}` },
-      ],
-    })
-    setPhase('match')
-    navigate('/match/live')
-  }, [navigate, opponentId, queue, region])
+    if (!pending) return
+    api.matchAction(pending.id, 'accept').then(refresh, refresh)
+  }, [pending, refresh])
 
   const declineMatch = useCallback(() => {
-    setPhase('idle')
-    setOpponentId(null)
-  }, [])
+    if (!pending) return
+    api.matchAction(pending.id, 'decline').then(refresh, refresh)
+  }, [pending, refresh])
 
-  const sendChat = useCallback((text: string) => {
-    if (!text.trim()) return
-    setLive((m) => (m ? { ...m, chat: [...m.chat, { from: 'me', text }] } : m))
-    // Canned reply from the opponent so the room feels alive.
-    setTimeout(() => {
-      const replies = ['ok', 'gg', 'one sec', 'ready when you are', 'nice']
-      setLive((m) => (m ? { ...m, chat: [...m.chat, { from: 'them', text: replies[Math.floor(Math.random() * replies.length)] }] } : m))
-    }, 1500)
-  }, [])
-
-  const reportGame = useCallback((winner: 'me' | 'them') => {
-    setLive((m) => {
-      if (!m) return m
-      const reports = [...m.reports, winner]
-      const need = Math.ceil(m.settings.bestOf / 2)
-      const done = reports.filter((r) => r === 'me').length >= need || reports.filter((r) => r === 'them').length >= need
-      return {
-        ...m,
-        reports,
-        gameNo: done ? m.gameNo : m.gameNo + 1,
-        chat: [...m.chat, { from: 'system', text: `G${reports.length} reported: ${winner === 'me' ? 'you' : 'them'}` }],
-      }
+  /** Runs an in-room action; on error (e.g. the opponent already reported) shows it and reloads the match. */
+  const onLive = useCallback((call: (m: Match) => Promise<Match>) => {
+    const m = liveRef.current
+    if (!m) return
+    setMatchError(null)
+    call(m).then(setLive, (e) => {
+      setMatchError(errorMessage(e))
+      api.match(m.id).then(setLive, () => {})
     })
   }, [])
 
-  const confirmResult = useCallback(() => {
-    setLive((m) => {
-      if (!m) return m
-      const won = m.reports.filter((r) => r === 'me').length > m.reports.filter((r) => r === 'them').length
-      return { ...m, confirmed: true, ratingAfter: m.ratingBefore + (won ? 12 : -12) }
-    })
-  }, [])
-
-  const leaveMatch = useCallback(() => {
-    setLive(null)
-    setPhase('idle')
-    setOpponentId(null)
+  const sendChat = useCallback(
+    (text: string) => {
+      if (text.trim()) onLive((m) => api.sendMessage(m.id, text))
+    },
+    [onLive],
+  )
+  const reportGame = useCallback(
+    (winner: Side, details: GameDetails) =>
+      onLive((m) => api.reportGame(m.id, m.games.length + 1, m[winner].id, details)),
+    [onLive],
+  )
+  const confirmResult = useCallback(() => onLive((m) => api.matchAction(m.id, 'confirm')), [onLive])
+  const disputeResult = useCallback(() => onLive((m) => api.matchAction(m.id, 'dispute')), [onLive])
+  const abandonMatch = useCallback(() => onLive((m) => api.matchAction(m.id, 'leave')), [onLive])
+  const closeMatch = useCallback(() => {
+    setLive((m) => (m && OPEN_STATUSES.includes(m.status) ? m : null))
+    setMatchError(null)
   }, [])
 
   const inviteToParty = useCallback((playerId: string) => {
@@ -344,16 +345,21 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       phase,
       elapsed,
       acceptLeft,
-      opponentId,
+      searching: server?.searching ?? { '012': 0, nt: 0 },
+      queueError,
+      pending,
       startQueue,
       cancelQueue,
       acceptMatch,
       declineMatch,
       live,
+      matchError,
       sendChat,
       reportGame,
       confirmResult,
-      leaveMatch,
+      disputeResult,
+      abandonMatch,
+      closeMatch,
       party,
       inviteToParty,
       removeFromParty,
@@ -364,8 +370,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }),
     [
       user, signedIn, onboarded, signIn, signOut, finishOnboarding, myGames, region, ids, game, setGame,
-      signInPrompt, requireSignIn, queue, setQueue, phase, elapsed, acceptLeft, opponentId, startQueue,
-      cancelQueue, acceptMatch, declineMatch, live, sendChat, reportGame, confirmResult, leaveMatch, party,
+      signInPrompt, requireSignIn, queue, setQueue, phase, elapsed, acceptLeft, server, queueError, pending,
+      startQueue, cancelQueue, acceptMatch, declineMatch, live, matchError, sendChat, reportGame, confirmResult,
+      disputeResult, abandonMatch, closeMatch, party,
       inviteToParty, removeFromParty, toggleReady, invite, dismissInvite, acceptInvite,
     ],
   )

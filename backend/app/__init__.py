@@ -15,9 +15,11 @@ def create_app(config_object: object = Config) -> Flask:
     from .routes.auth import bp as auth_bp
     from .routes.health import bp as health_bp
     from .routes.me import bp as me_bp
+    from .routes.queue import bp as queue_bp
 
     app.register_blueprint(health_bp, url_prefix="/api")
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(me_bp, url_prefix="/api")
+    app.register_blueprint(queue_bp, url_prefix="/api")
 
     return app

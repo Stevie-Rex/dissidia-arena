@@ -10,18 +10,21 @@ function Group<T extends string | number>({
   set,
   fmt,
   disabled,
+  unavailable = [],
 }: {
   items: T[]
   value: T
   set: (v: T) => void
   fmt?: (v: T) => string
   disabled?: boolean
+  unavailable?: T[]
 }) {
   return (
     <div className="flex gap-1.5">
       {items.map((it) => (
-        <Pill key={String(it)} active={value === it} disabled={disabled} onClick={() => set(it)}>
+        <Pill key={String(it)} active={value === it} disabled={disabled || unavailable.includes(it)} onClick={() => set(it)}>
           {fmt ? fmt(it) : String(it)}
+          {unavailable.includes(it) && ' · soon'}
         </Pill>
       ))}
     </div>
@@ -30,11 +33,11 @@ function Group<T extends string | number>({
 
 /** 1j — single queue page: settings + big button. Searching continues in the queue bar if you leave. */
 export default function Queue() {
-  const { queue, setQueue, phase, elapsed, startQueue, cancelQueue, region, live, party } = useApp()
+  const { queue, setQueue, phase, elapsed, startQueue, cancelQueue, region, searching: counts, queueError } = useApp()
   const info = GAMES[queue.game]
   const searching = phase === 'searching'
 
-  if (live)
+  if (phase === 'match')
     return (
       <div className="flex flex-col items-center gap-3 py-10">
         <Sub>You're already in a match.</Sub>
@@ -50,14 +53,20 @@ export default function Queue() {
         <h1 className="text-xl font-semibold">Queue · {info.name}</h1>
         <span className="flex-1" />
         <Sub>
-          {info.searching} searching in {region}
+          {counts[queue.game]} searching in {region}
         </Sub>
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-2">
         <Group disabled={searching} items={['012', 'nt'] as GameId[]} value={queue.game} set={(g) => setQueue({ game: g })} fmt={(g) => GAMES[g].short} />
         <span className="text-muted">·</span>
-        <Group disabled={searching} items={info.modes} value={queue.mode} set={(m) => setQueue({ mode: m })} />
+        <Group
+          disabled={searching}
+          items={info.modes}
+          value={queue.mode}
+          set={(m) => setQueue({ mode: m })}
+          unavailable={['3v3']}
+        />
         <span className="text-muted">·</span>
         <Group disabled={searching} items={info.bestOf} value={queue.bestOf} set={(b) => setQueue({ bestOf: b })} fmt={(b) => `Bo${b}`} />
         {info.platforms.length > 1 && (
@@ -84,20 +93,25 @@ export default function Queue() {
         ) : (
           <>
             <span className="text-lg font-semibold">Find match</span>
-            <Sub>~1:30 est.</Sub>
+            <Sub>{queue.platform}</Sub>
           </>
         )}
       </button>
 
-      {queue.mode === '3v3' && (
-        <Sub>
-          3v3: queue solo or{' '}
-          <Link to="/party" className="text-gold-note hover:text-crystal-soft">
-            invite 2 friends as a party
-          </Link>{' '}
-          ({party.length}/3 in party)
-        </Sub>
+      {queueError && (
+        <span className="text-sm text-chaos-soft">
+          {queueError.message}
+          {(queueError.code === 'game_id_required' || queueError.code === 'not_onboarded') && (
+            <>
+              {' '}
+              <Link to={queueError.code === 'not_onboarded' ? '/welcome' : '/players/me/edit'} className="text-gold-note hover:text-crystal-soft">
+                {queueError.code === 'not_onboarded' ? 'Finish setup →' : 'Add it to your profile →'}
+              </Link>
+            </>
+          )}
+        </span>
       )}
+      {queue.mode === '3v3' && <Sub>3v3 and party queue are coming soon. Pick 1v1 to play now.</Sub>}
       <Note>While you search, a timer and cancel button stay on screen, so you can leave this page</Note>
     </div>
   )
