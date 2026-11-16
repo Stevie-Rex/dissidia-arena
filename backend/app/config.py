@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 
@@ -10,7 +11,7 @@ def _database_url() -> str:
     if url := os.environ.get("DATABASE_URL"):
         return url
     return (
-        f"mysql+pymysql://{os.environ['MARIADB_USER']}:{os.environ['MARIADB_PASSWORD']}"
+        f"mysql+pymysql://{quote(os.environ['MARIADB_USER'], safe='')}:{quote(os.environ['MARIADB_PASSWORD'], safe='')}"
         f"@{os.environ.get('DB_HOST', 'localhost')}:3306/{os.environ['MARIADB_DATABASE']}"
         "?charset=utf8mb4"
     )

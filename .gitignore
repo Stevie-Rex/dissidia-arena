@@ -6,3 +6,6 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# Secrets: copy .env.example to .env
+.env
