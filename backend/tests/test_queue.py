@@ -81,6 +81,7 @@ def test_join_and_leave(make_player):
         ({**NT_BO3, "game": "ff7"}, "game"),
         ({**NT_BO3, "mode": "3v3"}, "mode"),  # phase 1 is 1v1 only
         ({**NT_BO3, "bestOf": 5}, "bestOf"),
+        ({**NT_BO3, "bestOf": 1}, "bestOf"),  # ranked is Bo3 only
         ({**NT_BO3, "bestOf": True}, "bestOf"),
         ({**NT_BO3, "platform": "PPSSPP"}, "platform"),
     ],
@@ -109,7 +110,7 @@ def test_pairs_compatible_players_only(make_player):
     (_, c1), (_, c2), (_, c3), (_, c4) = make_player(), make_player(region="EU"), make_player(), make_player()
     c1.post("/api/queue", json=NT_BO3)
     assert c2.post("/api/queue", json=NT_BO3).get_json()["match"] is None  # other region
-    assert c3.post("/api/queue", json={**NT_BO3, "bestOf": 1}).get_json()["match"] is None  # other format
+    assert c3.post("/api/queue", json={**NT_BO3, "platform": "PC"}).get_json()["match"] is None  # no cross-play
     assert c4.post("/api/queue", json=NT_BO3).get_json()["match"] is not None
     assert db.session.query(QueueEntry).count() == 2
 
@@ -210,7 +211,7 @@ def test_report_validation(make_player):
 
 
 def test_report_details_are_filtered(make_player):
-    a, ca, b, cb, mid = started(make_player, {**NT_BO3, "bestOf": 1})
+    a, ca, b, cb, mid = started(make_player)
     res = ca.post(
         f"/api/matches/{mid}/games",
         json={"gameNo": 1, "winnerId": a.id, "details": {"character": "Squall", "stage": "x" * 100, "evil": "y"}},
@@ -224,8 +225,9 @@ def test_cannot_report_before_accept(make_player):
 
 
 def test_dispute(make_player):
-    a, ca, b, cb, mid = started(make_player, {**NT_BO3, "bestOf": 1})
+    a, ca, b, cb, mid = started(make_player)
     report(ca, mid, 1, a)
+    report(ca, mid, 2, a)
     assert ca.post(f"/api/matches/{mid}/dispute").status_code == 403
     assert cb.post(f"/api/matches/{mid}/dispute").get_json()["status"] == "disputed"
 
@@ -250,3 +252,70 @@ def test_chat(make_player):
     assert msgs[-1]["from"] == "opponent" and msgs[-1]["text"] == "lobby pw 1234"
     assert ca.post(f"/api/matches/{mid}/messages", json={"text": "   "}).status_code == 400
     assert ca.post(f"/api/matches/{mid}/messages", json={"text": "x" * 501}).status_code == 400
+
+
+# ---------------------------------------------------------------- region widening
+
+
+def _age(user, seconds):
+    """Pretend this player joined the queue `seconds` ago."""
+    entry = db.session.scalar(db.select(QueueEntry).filter_by(user_id=user.id))
+    entry.joined_at = mm.now() - timedelta(seconds=seconds)
+    db.session.commit()
+
+
+def test_cross_region_after_both_waited(make_player):
+    (a, ca), (b, cb) = make_player(region="EU"), make_player(region="NA")
+    ca.post("/api/queue", json=NT_BO3)
+    cb.post("/api/queue", json=NT_BO3)
+    _age(a, mm.REGION_WIDEN_SECONDS + 5)
+    # B only just joined, so it still gets its window to find someone local.
+    assert cb.get("/api/queue").get_json()["match"] is None
+    _age(b, mm.REGION_WIDEN_SECONDS + 1)
+    match = cb.get("/api/queue").get_json()["match"]
+    assert match is not None
+    assert match["opponent"]["region"] == "EU" and match["you"]["region"] == "NA"
+    assert match["region"] == "EU"  # the host's (A waited longer)
+
+
+def test_same_region_preferred_over_longer_waiting_foreigner(make_player):
+    (eu, ceu), (na1, cna1), (na2, cna2) = make_player(region="EU"), make_player(), make_player()
+    ceu.post("/api/queue", json=NT_BO3)
+    cna1.post("/api/queue", json=NT_BO3)
+    _age(eu, 300)
+    _age(na1, 200)
+    match = cna2.post("/api/queue", json=NT_BO3).get_json()["match"]
+    assert match["opponent"]["id"] == na1.id
+
+
+# ---------------------------------------------------------------- worker tick
+
+
+def _enqueue(user, region="NA", **settings):
+    s = {"game": "nt", "mode": "1v1", "best_of": 3, "platform": "PS4", **settings}
+    db.session.add(QueueEntry(user_id=user.id, region=region, joined_at=mm.now(), source="discord", **s))
+    db.session.commit()
+
+
+def test_tick_pairs_players_who_never_poll(make_player):
+    (a, _), (b, _), (c, _), (d, _), (e, _) = (make_player() for _ in range(5))
+    for u in (a, b, c, d):
+        _enqueue(u)
+    _enqueue(e, platform="PC")
+    result = mm.tick()
+    db.session.commit()
+    assert len(result["created"]) == 2
+    assert db.session.query(QueueEntry).count() == 1  # e has no PC opponent
+
+
+def test_tick_expires_accept_windows(make_player, monkeypatch):
+    a, ca, b, cb, mid = matched_pair(make_player)
+    ca.post(f"/api/matches/{mid}/accept")
+    later = mm.now() + timedelta(seconds=mm.ACCEPT_SECONDS + 1)
+    monkeypatch.setattr(mm, "now", lambda: later)
+    result = mm.tick()
+    db.session.commit()
+    assert [m.id for m in result["expired"]] == [mid]
+    assert db.session.get(Match, mid).status == "cancelled"
+    # A accepted, so A is back in the queue; B didn't.
+    assert [e.user_id for e in db.session.query(QueueEntry)] == [a.id]

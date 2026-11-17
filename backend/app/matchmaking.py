@@ -11,7 +11,7 @@ grab the same opponent. SQLite (tests) ignores the locking clauses.
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from .extensions import db
@@ -19,11 +19,17 @@ from .models import Match, MatchGame, MatchMessage, QueueEntry, User
 
 ACCEPT_SECONDS = 30
 MAX_MESSAGE_LEN = 500
+# The community is small, so after this long a player will also take an opponent from
+# another region. Both players must have waited this long, so a fresh joiner still gets a
+# window to find someone local first.
+REGION_WIDEN_SECONDS = 60
 
 # What each game can be queued for. Phase 1 is 1v1 only (NT 3v3 needs parties).
+# Ranked is Bo3 for both scenes (NT's in-game "first to 2"), so the queue isn't split by format.
+# NT has no cross-play, so PS4 and PC stay separate pools.
 GAME_RULES = {
-    "012": {"modes": ("1v1",), "best_of": (3, 5), "platforms": ("PPSSPP",)},
-    "nt": {"modes": ("1v1",), "best_of": (1, 3), "platforms": ("PS4", "PC")},
+    "012": {"modes": ("1v1",), "best_of": (3,), "platforms": ("PPSSPP",)},
+    "nt": {"modes": ("1v1",), "best_of": (3,), "platforms": ("PS4", "PC")},
 }
 
 OPEN_STATUSES = ("pending", "active", "reported")
@@ -104,11 +110,18 @@ def leave_queue(user: User) -> bool:
 
 
 def try_match(entry: QueueEntry) -> Match | None:
-    """Pair this entry with the longest-waiting compatible player, if there is one."""
+    """
+    Pair this entry with a compatible player, if there is one: same region first, then
+    (once both have waited REGION_WIDEN_SECONDS) anyone. Longest-waiting wins ties.
+    """
     # Lock our own row first so a concurrent request can't pair us at the same time.
     mine = db.session.scalar(select(QueueEntry).where(QueueEntry.id == entry.id).with_for_update())
     if mine is None:  # someone else already matched us
         return None
+    cutoff = now() - timedelta(seconds=REGION_WIDEN_SECONDS)
+    region_ok = QueueEntry.region == mine.region
+    if mine.joined_at <= cutoff:
+        region_ok = or_(region_ok, QueueEntry.joined_at <= cutoff)
     other = db.session.scalar(
         select(QueueEntry)
         .where(
@@ -117,9 +130,9 @@ def try_match(entry: QueueEntry) -> Match | None:
             QueueEntry.mode == mine.mode,
             QueueEntry.best_of == mine.best_of,
             QueueEntry.platform == mine.platform,
-            QueueEntry.region == mine.region,
+            region_ok,
         )
-        .order_by(QueueEntry.joined_at, QueueEntry.id)
+        .order_by(case((QueueEntry.region == mine.region, 0), else_=1), QueueEntry.joined_at, QueueEntry.id)
         .limit(1)
         .with_for_update(skip_locked=True)
     )
@@ -134,7 +147,7 @@ def try_match(entry: QueueEntry) -> Match | None:
         mode=mine.mode,
         best_of=mine.best_of,
         platform=mine.platform,
-        region=mine.region,
+        region=first.region,  # the host's; each player's own region is in match_dict
         status="pending",
         player_a_id=first.user_id,
         player_b_id=second.user_id,
@@ -170,6 +183,35 @@ def state(user: User) -> dict:
         "match": match_dict(match, user) if match else None,
         "searching": searching_counts(user.region),
     }
+
+
+def tick() -> dict[str, list[Match]]:
+    """
+    Advance matchmaking for everyone, not just whoever happens to be polling: expire
+    overdue accept windows (re-queueing accepters), then pair everyone who can be paired.
+    Run on a timer by the matchmaker worker so bot-only players get matched too.
+    Returns what changed so the caller can notify players.
+    """
+    expired = []
+    due = db.session.scalars(
+        select(Match.id).where(Match.status == "pending", Match.accept_deadline <= now())
+    ).all()
+    for match_id in due:
+        match = lock_match(match_id)
+        if match and match.status == "pending":
+            expire_if_due(match)
+            if match.status != "pending":
+                expired.append(match)
+    db.session.flush()
+
+    created = []
+    for entry_id in db.session.scalars(select(QueueEntry.id).order_by(QueueEntry.joined_at, QueueEntry.id)).all():
+        entry = db.session.get(QueueEntry, entry_id)
+        if entry is None:  # paired earlier in this loop
+            continue
+        if match := try_match(entry):
+            created.append(match)
+    return {"created": created, "expired": expired}
 
 
 def entry_dict(entry: QueueEntry) -> dict:
@@ -363,6 +405,7 @@ def _player_dict(match: Match, player: User, accepted: bool) -> dict:
         "id": player.id,
         "displayName": player.display_name or player.username,
         "avatarUrl": player.avatar_url,
+        "region": player.region,
         "gameId": player.game_ids.get(match.game),
         "accepted": accepted,
     }
