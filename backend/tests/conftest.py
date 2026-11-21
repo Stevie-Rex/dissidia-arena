@@ -9,6 +9,7 @@ import pytest
 from app import create_app
 from app.config import Config
 from app.extensions import db
+from app.models import User
 
 
 class TestConfig(Config):
@@ -33,3 +34,27 @@ def app():
 @pytest.fixture
 def client(app):
     return app.test_client()
+
+
+@pytest.fixture
+def make_player(app):
+    """Returns (user, client) for a signed-in, onboarded player with its own session."""
+    n = iter(range(1, 1000))
+
+    def make(region="NA", game_ids=None, onboarded=True):
+        i = next(n)
+        user = User(
+            discord_id=1000 + i,
+            username=f"p{i}",
+            region=region,
+            onboarded=onboarded,
+            game_ids={"nt": f"psn_{i}", "012": f"ppsspp_{i}"} if game_ids is None else game_ids,
+        )
+        db.session.add(user)
+        db.session.commit()
+        client = app.test_client()
+        with client.session_transaction() as s:
+            s["user_id"] = user.id
+        return user, client
+
+    return make

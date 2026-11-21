@@ -12,6 +12,7 @@ def create_app(config_object: object = Config) -> Flask:
     migrate.init_app(app, db)
 
     from . import models  # noqa: F401  (register models with SQLAlchemy/Alembic)
+    from .routes.appearance import bp as appearance_bp
     from .routes.auth import bp as auth_bp
     from .routes.health import bp as health_bp
     from .routes.me import bp as me_bp
@@ -21,10 +22,12 @@ def create_app(config_object: object = Config) -> Flask:
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(me_bp, url_prefix="/api")
     app.register_blueprint(queue_bp, url_prefix="/api")
+    app.register_blueprint(appearance_bp, url_prefix="/api")
 
-    from . import bot, worker
+    from . import bot, rewards, worker
 
     worker.register(app)
     bot.register(app)
+    rewards.register(app)
 
     return app

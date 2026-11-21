@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
+from . import rewards
 from .extensions import db
 from .models import Match, MatchGame, MatchMessage, QueueEntry, User
 
@@ -353,7 +354,8 @@ def _clean_details(details: dict | None) -> dict:
     return {k: v[:64] for k, v in details.items() if k in ("character", "helper", "stage") and isinstance(v, str)}
 
 
-def confirm(match: Match, user: User) -> None:
+def confirm(match: Match, user: User) -> list[str]:
+    """Completes the match and credits the ranked win. Returns reward keys the winner just unlocked."""
     _side(match, user)
     _require_status(match, "reported")
     if user.id == match.reported_by_id:
@@ -361,6 +363,7 @@ def confirm(match: Match, user: User) -> None:
     match.status = "completed"
     match.finished_at = now()
     _system(match, "Result confirmed.")
+    return rewards.record_ranked_win(match)
 
 
 def dispute(match: Match, user: User) -> None:
@@ -445,6 +448,8 @@ def match_dict(match: Match, viewer: User) -> dict:
         "winner": rel(match.winner_id),
         "reportedBy": rel(match.reported_by_id),
         "endedBy": rel(match.ended_by_id),
+        # Rewards this match earned for the viewer (only ever non-empty for the winner of a completed match).
+        "rewardsUnlocked": rewards.rewards_from_match(match, me.id) if match.status == "completed" else [],
         "messages": [
             {"id": m.id, "from": "system" if m.user_id is None else rel(m.user_id), "text": m.text, "at": iso(m.created_at)}
             for m in match.messages

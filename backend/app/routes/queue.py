@@ -101,7 +101,16 @@ def report_game(match_id: int):
 @bp.post("/matches/<int:match_id>/confirm")
 @login_required
 def confirm(match_id: int):
-    return _match_action(match_id, mm.confirm)
+    match = mm.lock_match(match_id)
+    user = current_user()
+    if match is None:
+        raise mm.MatchmakingError("not_found", "match not found", 404)
+    new = mm.confirm(match, user)
+    db.session.commit()
+    body = mm.match_dict(match, user)
+    # Spec: the result response lists rewards this match unlocked for the viewer.
+    body["newlyUnlocked"] = new if match.winner_id == user.id else []
+    return jsonify(body)
 
 
 @bp.post("/matches/<int:match_id>/dispute")

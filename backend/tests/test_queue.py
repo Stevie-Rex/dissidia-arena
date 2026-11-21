@@ -9,30 +9,6 @@ from app.models import Match, QueueEntry, User
 NT_BO3 = {"game": "nt", "mode": "1v1", "bestOf": 3, "platform": "PS4"}
 
 
-@pytest.fixture
-def make_player(app):
-    """Returns (user, client) for a signed-in, onboarded player with its own session."""
-    n = iter(range(1, 1000))
-
-    def make(region="NA", game_ids=None, onboarded=True):
-        i = next(n)
-        user = User(
-            discord_id=1000 + i,
-            username=f"p{i}",
-            region=region,
-            onboarded=onboarded,
-            game_ids={"nt": f"psn_{i}", "012": f"ppsspp_{i}"} if game_ids is None else game_ids,
-        )
-        db.session.add(user)
-        db.session.commit()
-        client = app.test_client()
-        with client.session_transaction() as s:
-            s["user_id"] = user.id
-        return user, client
-
-    return make
-
-
 def matched_pair(make_player, settings=NT_BO3):
     (a, ca), (b, cb) = make_player(), make_player()
     assert ca.post("/api/queue", json=settings).status_code == 201

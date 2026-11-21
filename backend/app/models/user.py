@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, BigInteger, Boolean, DateTime, String, func
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.extensions import db
@@ -26,6 +26,10 @@ class User(db.Model):
     games: Mapped[list[str]] = mapped_column(JSON, default=lambda: list(GAMES), nullable=False)
     game_ids: Mapped[dict[str, str]] = mapped_column(JSON, default=dict, nullable=False)
 
+    # Cached count of completed ranked matches won (both games). Updated in the same transaction
+    # that confirms a result; drives appearance unlocks (app.rewards).
+    ranked_wins: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
 
@@ -48,4 +52,5 @@ class User(db.Model):
             "region": self.region,
             "games": self.games,
             "gameIds": self.game_ids,
+            "rankedWins": self.ranked_wins,
         }
