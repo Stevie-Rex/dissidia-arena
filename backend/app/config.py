@@ -35,5 +35,9 @@ class Config:
     DISCORD_REDIRECT_URI = os.environ.get(
         "DISCORD_REDIRECT_URI", "http://localhost:5173/api/auth/discord/callback"
     )
+    # Discord bot (same application): Bot -> Reset Token. Only needed to run `flask bot`.
+    DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
+    # Optional: sync slash commands to this one server instantly while developing.
+    DISCORD_DEV_GUILD_ID = os.environ.get("DISCORD_DEV_GUILD_ID", "")
     # Where to send the browser after login (the Vite dev server in development).
     FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")

@@ -32,6 +32,39 @@ Only the `identify` scope is requested (username + avatar).
 | `PATCH /api/me` | Update `games`, `region`, `gameIds`, `onboarded` (JSON only) |
 | `GET /api/health` | DB connectivity check |
 
+## Matchmaker
+
+Pairing and accept timeouts run on a timer, so players who queue from Discord get matched
+without ever loading the site. The bot runs this loop itself; without the bot, run:
+
+```bash
+FLASK_APP=run.py .venv/bin/flask matchmaker
+```
+
+## Discord bot
+
+Uses the same Discord application as sign-in.
+
+1. Developer portal → your app → **Bot** → *Reset Token*, and put it in `.env` as `DISCORD_BOT_TOKEN`.
+   No privileged intents are needed.
+2. **Installation** (or OAuth2 → URL Generator): scopes `bot` + `applications.commands`, permissions
+   *Send Messages*, *Embed Links*, *View Channels* (and *Mention All Roles* if the ping role isn't mentionable).
+   Open the URL to add the bot to a server.
+3. While developing, set `DISCORD_DEV_GUILD_ID` to your test server's ID so slash commands appear
+   instantly (global sync can take a while the first time).
+4. `FLASK_APP=run.py .venv/bin/flask bot`
+5. In the server, someone with *Manage Server* runs `/arena setup` to pick the game, queue channel
+   and optional ping role.
+
+| Command | |
+|---|---|
+| `/arena setup game queue_channel [ping_role] [mod_role]` | Admins: link this server to 012 or NT |
+| `/queue [platform]` | Search (platform is PS4/PC, NT only). First time asks for in-game ID and region |
+| `/leave` | Stop searching |
+
+Match found / match on / cancelled arrive as DMs with Accept and Decline buttons, or as an @mention
+in the queue channel if the player's DMs are closed. Reporting results is on the website for now.
+
 ## Tests
 
 ```bash

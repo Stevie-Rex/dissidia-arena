@@ -22,8 +22,9 @@ def create_app(config_object: object = Config) -> Flask:
     app.register_blueprint(me_bp, url_prefix="/api")
     app.register_blueprint(queue_bp, url_prefix="/api")
 
-    from . import worker
+    from . import bot, worker
 
     worker.register(app)
+    bot.register(app)
 
     return app

@@ -17,7 +17,8 @@ from sqlalchemy.exc import IntegrityError
 from .extensions import db
 from .models import Match, MatchGame, MatchMessage, QueueEntry, User
 
-ACCEPT_SECONDS = 30
+# Long enough to notice a Discord DM, not so long a no-show stalls the queue.
+ACCEPT_SECONDS = 60
 MAX_MESSAGE_LEN = 500
 # The community is small, so after this long a player will also take an opponent from
 # another region. Both players must have waited this long, so a fresh joiner still gets a

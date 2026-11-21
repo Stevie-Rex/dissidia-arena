@@ -65,6 +65,8 @@ class Match(db.Model):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # Last status the Discord bot told the players about; differs from status = DM pending.
+    notified_status: Mapped[str | None] = mapped_column(String(12))
 
     player_a: Mapped[User] = relationship(foreign_keys=[player_a_id])
     player_b: Mapped[User] = relationship(foreign_keys=[player_b_id])
