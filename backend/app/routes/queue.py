@@ -116,7 +116,14 @@ def confirm(match_id: int):
 @bp.post("/matches/<int:match_id>/dispute")
 @login_required
 def dispute(match_id: int):
-    return _match_action(match_id, mm.dispute)
+    data = _json()
+    return _match_action(match_id, mm.dispute, data.get("games"), data.get("reason"))
+
+
+@bp.put("/matches/<int:match_id>/statement")
+@login_required
+def add_statement(match_id: int):
+    return _match_action(match_id, mm.add_statement, _json().get("text"))
 
 
 @bp.post("/matches/<int:match_id>/leave")

@@ -162,7 +162,7 @@ website: the "Match on" DM links to the match room.
 
 ### Tests
 ```bash
-cd backend && .venv/bin/python -m pytest      # 118 pass: SQLite in memory, Discord mocked
+cd backend && .venv/bin/python -m pytest      # 149 pass: SQLite in memory, Discord mocked
 cd frontend && npm run build && npm run lint   # clean
 cd frontend && npm run test:e2e                # Playwright + axe, API mocked (no backend needed)
 ```
@@ -179,7 +179,9 @@ SQLite ignores row-locking clauses, so concurrent pairing is only truly exercise
 1. **No ratings or seasons.** Completed matches only count toward `ranked_wins` (and so rewards).
    Planned: a `Season` table per game, Glicko-2 ratings per player/game/season, soft reset each season, players hidden
    from the ladder until about 5 matches. Then move Ladder and Profile off mock data.
-2. **Disputes are a dead end.** `disputed` matches aren't reviewed. `GuildConfig.mod_role_id` is stored but unused.
+2. **Disputes aren't reviewed yet.** Players file games and a reason and each add their side (#6), but Rulings come
+   with the Admin panel (#3). Reported results confirm themselves after 2 hours (#7). The Admin log table exists
+   (`app/admin_log.py`) but has no page yet (#5). `GuildConfig.mod_role_id` is stored but unused.
 3. **No penalties.** `Match.ended_by_id` records who declined, timed out or abandoned.
 4. **Pings only fire on Discord `/queue`,** not when someone queues on the website.
 5. Polling everywhere (site every few seconds, bot every 2s). Fine at this scale.

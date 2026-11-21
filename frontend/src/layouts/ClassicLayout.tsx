@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import InterfaceSwitcher from '../components/appearance/InterfaceSwitcher'
 import { MenuCursor } from '../components/appearance/parts'
 import PreviewBanner from '../components/appearance/PreviewBanner'
-import { AuthErrorBanner, GameSwitcher, Overlays } from '../components/Layout'
+import { AuthErrorBanner, DisputeNotice, GameSwitcher, Overlays } from '../components/Layout'
 import { Avatar, SideGlyph } from '../components/ui'
 import { useApp } from '../state/AppState'
 import { useAppearance } from '../state/Appearance'
@@ -133,6 +133,7 @@ export default function ClassicLayout() {
         <PreviewBanner />
         <ClassicHeader />
         <AuthErrorBanner />
+        <DisputeNotice />
         <div className="flex flex-wrap items-start gap-4">
           <CommandMenu commands={commands} current={current} onHelp={setFocusHelp} />
           <main className="flex min-w-0 flex-[999_1_640px] flex-col gap-4">

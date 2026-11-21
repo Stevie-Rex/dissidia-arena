@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useId, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { CHARACTERS, GAMES, HELPERS, STAGES, type GameId } from '../data/mock'
 import { useApp } from '../state/AppState'
 import type { GameDetails, Match, Side } from '../lib/api'
@@ -9,12 +9,25 @@ import { cx } from '../lib/format'
 
 /** 1p — match room: connect info + report on the left, opponent-only chat on the right. */
 export default function MatchRoom() {
-  const { live, matchError, sendChat, reportGame, confirmResult, disputeResult, abandonMatch, closeMatch, startQueue } =
-    useApp()
+  const {
+    live: current, viewed, matchError, sendChat, reportGame, confirmResult, disputeResult, saveStatement, openMatch,
+    abandonMatch, closeMatch, startQueue,
+  } = useApp()
   const navigate = useNavigate()
   const [text, setText] = useState('')
   const [copied, setCopied] = useState(false)
+  const [disputing, setDisputing] = useState(false)
   const chatEnd = useRef<HTMLDivElement>(null)
+
+  // ?match=<id> (links from DMs and the dispute notice) shows that match. If it isn't your current
+  // match, such as an old Disputed one, it's loaded separately so queue polling can't swap it out.
+  const [params] = useSearchParams()
+  const linkedId = Number(params.get('match')) || null
+  const showViewed = linkedId !== null && linkedId !== current?.id
+  const live = showViewed ? (viewed?.id === linkedId ? viewed : null) : current
+  useEffect(() => {
+    if (showViewed) openMatch(linkedId)
+  }, [showViewed, linkedId, openMatch])
 
   useEffect(() => {
     chatEnd.current?.scrollIntoView({ block: 'nearest' })
@@ -23,7 +36,7 @@ export default function MatchRoom() {
   if (!live)
     return (
       <div className="flex flex-col items-center gap-3 py-10">
-        <Sub>No active match.</Sub>
+        <Sub>{linkedId ? 'Loading match…' : 'No active match.'}</Sub>
         <Link to="/queue" className="text-gold-note hover:text-crystal-soft">
           Go to queue →
         </Link>
@@ -81,6 +94,7 @@ export default function MatchRoom() {
                 You reported {scoreLine} · {live.winner === 'you' ? 'you win' : `${opp.displayName} wins`}
               </b>
               <Sub>{opp.displayName} needs to confirm or dispute.</Sub>
+              <ConfirmCountdown deadline={live.confirmDeadline} />
             </Card>
           )}
 
@@ -90,12 +104,23 @@ export default function MatchRoom() {
               <b>
                 {opp.displayName} says: {scoreLine} · {live.winner === 'you' ? 'you win' : 'they win'}
               </b>
-              <div className="flex gap-2">
-                <Btn onClick={confirmResult}>Confirm</Btn>
-                <Pill onClick={disputeResult}>Dispute</Pill>
-              </div>
+              <ConfirmCountdown deadline={live.confirmDeadline} />
+              {disputing ? (
+                <DisputeForm
+                  match={live}
+                  onSubmit={(games, reason) => disputeResult(games, reason)}
+                  onCancel={() => setDisputing(false)}
+                />
+              ) : (
+                <div className="flex gap-2">
+                  <Btn onClick={confirmResult}>Confirm</Btn>
+                  <Pill onClick={() => setDisputing(true)}>Dispute</Pill>
+                </div>
+              )}
             </Card>
           )}
+
+          {live.dispute && <DisputePanel match={live} onSave={(text) => saveStatement(live.id, text)} />}
 
           {!canChat && <Finished match={live} onDone={() => done(`/${live.game}`)} onAgain={() => done('/queue', true)} />}
 
@@ -162,7 +187,7 @@ export default function MatchRoom() {
                   maxLength={500}
                   onChange={(e) => setText(e.target.value)}
                   placeholder={`message ${opp.displayName}…`}
-                  className="w-full rounded-md border-[1.5px] border-line-strong bg-panel px-3 py-2 text-sm placeholder:text-muted focus:border-crystal focus:outline-none"
+                  className={FIELD}
                 />
               </form>
             </>
@@ -224,7 +249,7 @@ function Finished({ match, onDone, onAgain }: { match: Match; onDone: () => void
         ? (['cosmos', `You won ${match.score.you}–${match.score.opponent}`, 'Result confirmed. Ratings are coming soon.'] as const)
         : (['chaos', `You lost ${match.score.you}–${match.score.opponent}`, 'Result confirmed. Ratings are coming soon.'] as const)
       : match.status === 'disputed'
-        ? (['gold', 'Result disputed', 'A moderator will review this match.'] as const)
+        ? (['gold', 'Result disputed', 'An Admin will review this match.'] as const)
         : match.status === 'abandoned'
           ? (['chaos', match.endedBy === 'you' ? 'You left the match' : `${opp} left the match`, 'The match was abandoned.'] as const)
           : (['gold', 'Match cancelled', 'Not everyone accepted in time.'] as const)
@@ -284,6 +309,172 @@ function ReportGame({
         <Btn onClick={() => onReport('you', details)}>Me</Btn>
         <Pill onClick={() => onReport('opponent', details)}>Them</Pill>
       </div>
+    </Card>
+  )
+}
+
+const FIELD =
+  'w-full rounded-md border-[1.5px] border-line-strong bg-panel px-3 py-2 text-sm placeholder:text-muted focus:border-crystal focus:outline-none'
+const MAX_STATEMENT = 2000
+
+/** Time left until a reported result confirms itself (H:MM:SS, ticking). */
+function ConfirmCountdown({ deadline }: { deadline: string | null }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+  if (!deadline) return null
+  const left = Math.max(0, Math.floor((Date.parse(deadline) - now) / 1000))
+  const h = Math.floor(left / 3600)
+  const mm = String(Math.floor((left % 3600) / 60)).padStart(2, '0')
+  const ss = String(left % 60).padStart(2, '0')
+  return (
+    <span className="text-xs text-muted" role="timer" aria-live="off">
+      {left > 0 ? `Confirms automatically in ${h}:${mm}:${ss}` : 'Confirming automatically…'}
+    </span>
+  )
+}
+
+/** Which games you dispute, and why. Both are required. */
+function DisputeForm({
+  match,
+  onSubmit,
+  onCancel,
+}: {
+  match: Match
+  onSubmit: (games: number[], reason: string) => void
+  onCancel: () => void
+}) {
+  const [games, setGames] = useState<number[]>([])
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const reasonId = useId()
+  const errorId = useId()
+  const toggle = (n: number) => setGames((gs) => (gs.includes(n) ? gs.filter((g) => g !== n) : [...gs, n].sort((x, y) => x - y)))
+
+  return (
+    <form
+      aria-label="Dispute the result"
+      aria-describedby={error ? errorId : undefined}
+      className="flex flex-col gap-2"
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (!games.length) return setError('Tick the games you dispute.')
+        if (!reason.trim()) return setError('Say why you are disputing.')
+        setError(null)
+        onSubmit(games, reason.trim())
+      }}
+    >
+      <fieldset className="flex flex-col gap-1">
+        <legend className="mb-1 text-xs text-muted">Which games do you dispute?</legend>
+        {match.games.map((g) => (
+          <label key={g.n} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={games.includes(g.n)} onChange={() => toggle(g.n)} />
+            Game {g.n} · reported as {g.winner === 'you' ? 'your win' : `${match.opponent.displayName}'s win`}
+          </label>
+        ))}
+      </fieldset>
+      <label htmlFor={reasonId} className="text-xs text-muted">
+        Why are you disputing?
+      </label>
+      <textarea
+        id={reasonId}
+        value={reason}
+        maxLength={MAX_STATEMENT}
+        rows={3}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="What really happened in those games"
+        className={FIELD}
+      />
+      {error && (
+        <span id={errorId} role="alert" className="text-xs text-chaos-soft">
+          {error}
+        </span>
+      )}
+      <div className="flex gap-2">
+        <Btn type="submit">Submit dispute</Btn>
+        <Pill onClick={onCancel}>Cancel</Pill>
+      </div>
+    </form>
+  )
+}
+
+/** The dispute as both players see it, with your statement editable until there's a Ruling. */
+function DisputePanel({ match, onSave }: { match: Match; onSave: (text: string) => void }) {
+  const d = match.dispute!
+  const opp = match.opponent.displayName
+  const mine = d.statements.you
+  const theirs = d.statements.opponent
+  const [draft, setDraft] = useState(mine?.text ?? '')
+  const [editing, setEditing] = useState(!mine)
+  const fieldId = useId()
+  const open = match.status === 'disputed'
+  const filer = d.by === 'you' ? 'You' : opp
+
+  // A newly saved statement came back from the server: show it rather than the editor.
+  const [seen, setSeen] = useState(mine?.updatedAt)
+  if (mine && mine.updatedAt !== seen) {
+    setSeen(mine.updatedAt)
+    setDraft(mine.text)
+    setEditing(false)
+  }
+
+  return (
+    <Card tone="gold" role="region" aria-label="Dispute">
+      <Sub>dispute</Sub>
+      {d.reason === null ? (
+        <span className="text-sm text-muted">No details (filed before the dispute form)</span>
+      ) : (
+        <>
+          <b className="text-sm">Disputed games: {d.games.join(', ')}</b>
+          <span className="text-sm">
+            {filer} wrote: <q>{d.reason}</q>
+          </span>
+        </>
+      )}
+
+      <Sub>{opp}'s side</Sub>
+      <span className="whitespace-pre-wrap text-sm">{theirs ? theirs.text : `${opp} has not added their side yet.`}</span>
+
+      <Sub>your side</Sub>
+      {open && editing ? (
+        <form
+          className="flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (draft.trim()) onSave(draft.trim())
+          }}
+        >
+          <label htmlFor={fieldId} className="sr-only">
+            Your side
+          </label>
+          <textarea
+            id={fieldId}
+            value={draft}
+            maxLength={MAX_STATEMENT}
+            rows={3}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="What happened, for the Admin who reviews this"
+            className={FIELD}
+          />
+          <div className="flex gap-2">
+            <Btn type="submit" disabled={!draft.trim()}>
+              Save your side
+            </Btn>
+            {mine && <Pill onClick={() => setEditing(false)}>Cancel</Pill>}
+          </div>
+        </form>
+      ) : (
+        <>
+          <span className="whitespace-pre-wrap text-sm">{mine ? mine.text : 'You did not add your side.'}</span>
+          {open && (
+            <Pill className="self-start" onClick={() => setEditing(true)}>
+              Edit your side
+            </Pill>
+          )}
+        </>
+      )}
     </Card>
   )
 }

@@ -67,5 +67,5 @@ An Admin closing a match so it counts for no one: as a Ruling on a Disputed matc
 _Avoid_: Cancel, annul, null
 
 **Admin log**:
-The permanent record of every Admin and Master action: who acted, when, and the reason they gave. No one can edit or delete it.
+The permanent record of every Admin and Master action, plus system actions such as auto-confirm: who acted (no one, for a system action), when, and the reason they gave. No one can edit or delete it.
 _Avoid_: Audit trail, history

@@ -271,6 +271,31 @@ export function ChatDock() {
   )
 }
 
+/** Your reported result was disputed: ask for your side until you've given it (hidden in that match's room). */
+export function DisputeNotice() {
+  const { disputes, live, viewed } = useApp()
+  const { pathname } = useLocation()
+  const waiting = disputes.filter(
+    (d) => d.youReported && !d.statementAdded && !(pathname === '/match/live' && (live?.id === d.id || viewed?.id === d.id)),
+  )
+  if (!waiting.length) return null
+  return (
+    <div className="mx-auto mt-3 flex w-full max-w-7xl flex-col gap-2 px-4">
+      {waiting.map((d) => (
+        <Card key={d.id} tone="gold" role="status" className="flex-row flex-wrap items-center">
+          <span className="text-sm">
+            {d.opponent} disputed your result ({GAMES[d.game].short}). An Admin will look at both sides.
+          </span>
+          <span className="flex-1" />
+          <Link to={`/match/live?match=${d.id}`} className="da-btn px-3 py-1 text-xs">
+            Add your side
+          </Link>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
 /** Shown when Discord sign-in bounced back with ?auth_error=… */
 export function AuthErrorBanner() {
   const [params, setParams] = useSearchParams()
