@@ -1,27 +1,12 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 
 from .. import matchmaking as mm
 from ..auth import current_user, login_required
 from ..extensions import db
+from .common import json_body, matchmaking_error
 
 bp = Blueprint("queue", __name__)
-
-
-@bp.errorhandler(mm.MatchmakingError)
-def matchmaking_error(e: mm.MatchmakingError):
-    db.session.rollback()
-    body = {"error": e.code, "message": e.message}
-    if e.fields:
-        body["fields"] = e.fields
-    return jsonify(body), e.status
-
-
-def _json() -> dict:
-    # Requiring JSON means a cross-site HTML form can't hit these endpoints.
-    if not request.is_json:
-        raise mm.MatchmakingError("unsupported_media_type", "expected application/json", 415)
-    data = request.get_json(silent=True)
-    return data if isinstance(data, dict) else {}
+bp.register_error_handler(mm.MatchmakingError, matchmaking_error)
 
 
 def _state():
@@ -40,7 +25,7 @@ def get_queue():
 @bp.post("/queue")
 @login_required
 def join_queue():
-    mm.join_queue(current_user(), _json())
+    mm.join_queue(current_user(), json_body())
     resp = _state()
     resp.status_code = 201
     return resp
@@ -91,7 +76,7 @@ def decline(match_id: int):
 @bp.post("/matches/<int:match_id>/games")
 @login_required
 def report_game(match_id: int):
-    data = _json()
+    data = json_body()
     game_no, winner_id = data.get("gameNo"), data.get("winnerId")
     if not isinstance(game_no, int) or not isinstance(winner_id, int):
         raise mm.MatchmakingError("validation", "gameNo and winnerId must be integers", 400)
@@ -116,14 +101,14 @@ def confirm(match_id: int):
 @bp.post("/matches/<int:match_id>/dispute")
 @login_required
 def dispute(match_id: int):
-    data = _json()
+    data = json_body()
     return _match_action(match_id, mm.dispute, data.get("games"), data.get("reason"))
 
 
 @bp.put("/matches/<int:match_id>/statement")
 @login_required
 def add_statement(match_id: int):
-    return _match_action(match_id, mm.add_statement, _json().get("text"))
+    return _match_action(match_id, mm.add_statement, json_body().get("text"))
 
 
 @bp.post("/matches/<int:match_id>/leave")
@@ -135,4 +120,4 @@ def leave(match_id: int):
 @bp.post("/matches/<int:match_id>/messages")
 @login_required
 def post_message(match_id: int):
-    return _match_action(match_id, mm.post_message, _json().get("text"))
+    return _match_action(match_id, mm.post_message, json_body().get("text"))

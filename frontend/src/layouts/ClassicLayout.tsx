@@ -5,6 +5,7 @@ import { MenuCursor } from '../components/appearance/parts'
 import PreviewBanner from '../components/appearance/PreviewBanner'
 import { AuthErrorBanner, DisputeNotice, GameSwitcher, Overlays } from '../components/Layout'
 import { Avatar, SideGlyph } from '../components/ui'
+import { roleLinks } from '../lib/api'
 import { useApp } from '../state/AppState'
 import { useAppearance } from '../state/Appearance'
 import { WINDOWS } from '../theme/appearance'
@@ -19,7 +20,7 @@ interface Command {
 }
 
 function useCommands(): Command[] {
-  const { game } = useApp()
+  const { game, user } = useApp()
   return [
     { id: 'battle', label: 'Battle', to: '/queue', match: /^\/($|queue|match)/, help: 'Find a ranked match. Bo3, your region first.' },
     { id: 'hub', label: 'Hub', to: `/${game}`, match: /^\/(012|nt)$/, help: "This game's hub: who's online, recent matches and news." },
@@ -29,6 +30,7 @@ function useCommands(): Command[] {
     { id: 'party', label: 'Party', to: '/party', match: /^\/(party|friends)/, help: 'Group up with friends.' },
     { id: 'rewards', label: 'Rewards', to: '/rewards', match: /^\/rewards/, help: 'Win ranked battles to unlock window themes, fonts and colours.' },
     { id: 'config', label: 'Config', to: '/config', match: /^\/config/, help: 'Interface, window theme, menu font and cursor.' },
+    ...roleLinks(user?.role).map((l) => ({ ...l, id: l.to.slice(1), match: new RegExp(`^${l.to}`) })),
   ]
 }
 

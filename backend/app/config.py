@@ -41,3 +41,6 @@ class Config:
     DISCORD_DEV_GUILD_ID = os.environ.get("DISCORD_DEV_GUILD_ID", "")
     # Where to send the browser after login (the Vite dev server in development).
     FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    # The site owner's Discord user ID. That user is the Master (see GLOSSARY.md): they appoint and
+    # remove Admins. Power comes only from this value, so it can't be taken over from the website.
+    MASTER_DISCORD_ID = os.environ.get("MASTER_DISCORD_ID", "").strip()

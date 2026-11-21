@@ -5,7 +5,7 @@ import { useApp } from '../state/AppState'
 import type { GameDetails, Match, Side } from '../lib/api'
 import { Avatar, Btn, Card, Pill, Select, SideGlyph, Sub } from '../components/ui'
 import VictoryReward from '../components/appearance/VictoryReward'
-import { cx } from '../lib/format'
+import { FIELD, cx } from '../lib/format'
 
 /** 1p — match room: connect info + report on the left, opponent-only chat on the right. */
 export default function MatchRoom() {
@@ -313,8 +313,6 @@ function ReportGame({
   )
 }
 
-const FIELD =
-  'w-full rounded-md border-[1.5px] border-line-strong bg-panel px-3 py-2 text-sm placeholder:text-muted focus:border-crystal focus:outline-none'
 const MAX_STATEMENT = 2000
 
 /** Time left until a reported result confirms itself (H:MM:SS, ticking). */

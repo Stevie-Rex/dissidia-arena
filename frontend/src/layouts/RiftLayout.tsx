@@ -4,7 +4,7 @@ import InterfaceSwitcher from '../components/appearance/InterfaceSwitcher'
 import LockPanel from '../components/appearance/LockPanel'
 import { AuthErrorBanner, DisputeNotice, FriendsSidebar, GameSwitcher, MobileTabs, Overlays } from '../components/Layout'
 import { Avatar, Btn, Logo, Pill } from '../components/ui'
-import { OPEN_STATUSES } from '../lib/api'
+import { OPEN_STATUSES, roleLinks } from '../lib/api'
 import { cx } from '../lib/format'
 import { useApp } from '../state/AppState'
 import { useAppearance } from '../state/Appearance'
@@ -18,6 +18,7 @@ function RiftHeader() {
     { to: `/${game}/meta`, label: 'FIGHTERS' },
     { to: `/${game}/ladder`, label: 'RANKINGS' },
     { to: '/rewards', label: 'REWARDS' },
+    ...roleLinks(user?.role).map((l) => ({ ...l, label: l.label.toUpperCase() })),
   ]
   const link = ({ isActive }: { isActive: boolean }) =>
     cx('flex min-h-11 items-center px-3 no-underline underline-offset-8', isActive && 'underline decoration-gold decoration-1')
@@ -73,6 +74,7 @@ function RiftHeader() {
 
 function RiftFooter() {
   const { prefs } = useAppearance()
+  const { user } = useApp()
   const world = WORLDS.find((w) => w.key === prefs.world)?.name ?? 'Dissidia'
   return (
     <footer className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-line px-[clamp(20px,4vw,56px)] py-7 text-[13px] text-muted">
@@ -90,6 +92,12 @@ function RiftFooter() {
         <Link to="/discord" className="hover:text-fg">
           Discord bot
         </Link>
+        {/* The header nav is hidden on small screens. */}
+        {roleLinks(user?.role).map((l) => (
+          <Link key={l.to} to={l.to} className="hover:text-fg md:hidden">
+            {l.label}
+          </Link>
+        ))}
       </nav>
       <span className="font-heading tracking-[0.1em]">INTERFACE: RIFT · WORLD: {world.toUpperCase()}</span>
     </footer>

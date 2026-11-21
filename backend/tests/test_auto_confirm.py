@@ -97,7 +97,7 @@ def test_auto_confirm_writes_a_system_admin_log_entry(make_player, monkeypatch):
     assert entry["actor"] is None  # a system action
     assert entry["action"] == "auto_confirm"
     assert entry["matchId"] == mid
-    assert entry["targetId"] == b.id  # the player who didn't respond
+    assert entry["target"]["id"] == b.id  # the player who didn't respond
     assert "2 hours" in entry["reason"]
     assert entry["details"] == {"winnerId": a.id, "reportedById": a.id, "score": "2-0"}
     assert entry["at"] is not None
