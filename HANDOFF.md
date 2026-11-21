@@ -2,8 +2,8 @@
 
 _Last updated 2026-11-21. Branch: `feat/queue-matchmaking`._
 
-**Next phase: implement the website's new look** (the Rift and Classic interfaces), working from the theme spec and
-theme package. The bot is finished for now. Read this file, then the spec, then `backend/README.md` for setup.
+**The website's new look is built** (Rift and Classic interfaces, with the reward ladder).
+The bot is finished for now. Read this file, then the spec, then `backend/README.md` for setup.
 The code is the source of truth. This file covers what the code doesn't say.
 
 ## What this project is
@@ -23,7 +23,7 @@ A hub for the small Dissidia competitive community (at most ~100 players). Playe
 | NT platforms | No cross-play: PS4 and PC are separate queues |
 | Seasons | Separate per game (not built yet) |
 | Bot | One bot, added to each game's server, each server bound to one game. **Leave it as it is for now.** |
-| Interfaces | Rift is the default; Classic unlocks at 25 ranked wins (see the spec) |
+| Interfaces | Rift is the default; Classic unlocks at 10 ranked wins, then a new window skin every 5 wins (15 to 45), the 8-bit font at 50 and a custom window colour at 60. Wins count across both games (see the spec) |
 
 ## The design work
 
@@ -135,6 +135,12 @@ owner's test server.
   `pending` → `active` → `reported` → `completed` | `disputed`, plus `cancelled` and `abandoned`.
   Functions never commit; callers do.
 - REST API: `app/routes/queue.py`. `flask matchmaker` (`app/worker.py`) runs `tick()` every 2s when the bot isn't running.
+- **Rewards and appearance: `app/rewards.py`** (the ladder lives in `REWARDS`; mirror goal changes in
+  `frontend/src/theme/tokens.json`). `confirm()` credits the winner's `ranked_wins` and grants unlocks, each tagged
+  with the match that earned it (`UserUnlock.match_id`), so the match shows the reward card to the winner whoever
+  confirmed. API: `GET/PATCH /api/me/appearance`, `GET /api/rewards` (`app/routes/appearance.py`).
+  `flask backfill-rewards` recounts wins from completed matches and grants missing unlocks (idempotent; run it on any
+  database that had completed matches before this shipped).
 
 **Discord bot** (tested live 2026-11-21, works): `app/bot.py`, `app/discord_service.py`, `GuildConfig` model.
 `/arena setup`, `/queue [platform]`, `/leave`; a profile form on first queue; Accept/Decline DMs that survive restarts;
@@ -143,19 +149,34 @@ website: the "Match on" DM links to the match room.
 
 **Frontend** (React 19, Vite, Tailwind 4, React Router; `frontend/`)
 - Real API: queue page, match-found modal and match room (`src/state/AppState.tsx` polls).
+- **Interfaces:** `src/state/Appearance.tsx` (appearance context; caches to `localStorage['da-appearance']`, which the
+  inline script in `index.html` applies before paint), `src/layouts/{Shell,RiftLayout,ClassicLayout}.tsx`,
+  `src/components/appearance/*` (switcher, lock panel, preview banner, worlds, reward cards, Config window, victory
+  card). `Card`/`Btn`/`Pill` in `ui.tsx` use `da-card`/`da-btn`/`da-pill`, styled per interface in `index.css`, so
+  older pages become Classic windows without changes. Swatches of other worlds/windows set `data-world`/`data-window`
+  on the swatch itself. Decisions taken: you are always Cosmos; the Cycle of War gauge shows your ranked W/L until
+  seasons exist; Classic's Battle-HUD styling is the match room's score bar; nav maps to real pages.
 - **Mock data (`src/data/mock.ts`):** Ladder, Tournaments, Party, Meta, Profile, Hub, Discord pages. `mock.ts` also
   holds per-game UI settings (`GAMES`) and the `GameId`/`Region` types that real pages import, so don't delete it
   wholesale.
 
 ### Tests
 ```bash
-cd backend && .venv/bin/python -m pytest      # 68 pass: SQLite in memory, Discord mocked
+cd backend && .venv/bin/python -m pytest      # 118 pass: SQLite in memory, Discord mocked
 cd frontend && npm run build && npm run lint   # clean
+cd frontend && npm run test:e2e                # Playwright + axe, API mocked (no backend needed)
 ```
+The e2e suite covers lock panel, preview (incl. no flash on reload), switching, 403 revert, the command menu keys,
+custom colour, colour contrast in all 6 worlds and 9 windows, and phone width. axe ignores `clip-path`, so the Rift
+hero's Cosmos half is excluded from axe and its colour pairs are checked directly in the test.
+
+**macOS port 5000:** AirPlay Receiver (Control Center) listens on `*:5000`. Flask still binds `127.0.0.1:5000` and the
+Vite proxy reaches it, but if requests to `/api` ever return Apple 403s, turn off AirPlay Receiver or move the port.
+`.claude/launch.json` has `api` and `web` entries for the preview tools.
 SQLite ignores row-locking clauses, so concurrent pairing is only truly exercised on MariaDB.
 
 ## Known gaps (not the design phase's job unless asked)
-1. **No ratings or seasons.** Completed matches only affect anything once `ranked_wins` lands with this design work.
+1. **No ratings or seasons.** Completed matches only count toward `ranked_wins` (and so rewards).
    Planned: a `Season` table per game, Glicko-2 ratings per player/game/season, soft reset each season, players hidden
    from the ladder until about 5 matches. Then move Ladder and Profile off mock data.
 2. **Disputes are a dead end.** `disputed` matches aren't reviewed. `GuildConfig.mod_role_id` is stored but unused.

@@ -33,11 +33,22 @@ Read `docs/theme-spec.md` (the tech spec, exported from the Docs artifact) for b
 
 ## Rewards
 
+Classic unlocks at 10 ranked wins (counted across both games), then a new window skin every 5 wins.
+
 | Key | Unlocks | Ranked wins |
 | --- | --- | --- |
-| `classic_interface` | Classic interface | 25 |
+| `classic_interface` | Classic interface and the Classic window theme | 10 |
+| `window_crystal` | Crystal window theme | 15 |
+| `window_magitek` | Magitek window theme | 20 |
+| `window_midgar` | Midgar window theme | 25 |
+| `window_garden` | Garden window theme | 30 |
+| `window_gaia` | Gaia window theme | 35 |
+| `window_spira` | Spira window theme | 40 |
+| `window_ivalice` | Ivalice window theme | 45 |
 | `font_8bit` | 8-bit menu font | 50 |
-| `window_custom` | Custom window theme and RGB sliders | 100 |
+| `window_custom` | Custom window theme and RGB sliders | 60 |
+
+Rift worlds, the other menu fonts and the cursor are free. The `rewards` array in `tokens.json` holds this ladder; `python/rewards.py` and `js/appearance.js` still carry the old 3-reward catalogue and are replaced by the app's own backend and frontend ports.
 
 The server enforces these (`validate_changes` returns 403 for a locked value). The browser only shows the locks.
 

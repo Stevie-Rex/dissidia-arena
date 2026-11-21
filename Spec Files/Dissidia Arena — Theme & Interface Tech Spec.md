@@ -4,7 +4,7 @@ Nov 21, 2026 · @Steve O'Shea
 
 ## Overview
 
-Dissidia Arena ships with two interfaces: **Rift** is the default for every player, and **Classic** (pixel menu windows) unlocks as a reward at 25 ranked wins. Players switch between them with an Interface control that appears on every page.
+Dissidia Arena ships with two interfaces: **Rift** is the default for every player, and **Classic** (pixel menu windows) unlocks as a reward at 10 ranked wins. After that, a new Classic window skin unlocks every 5 ranked wins, then the 8-bit font at 50 and a custom window colour at 60. Players switch between them with an Interface control that appears on every page.
 
 This spec tells an implementing agent (Claude Code) exactly what to build. The theme package `dissidia-theme/` holds the design tokens, CSS, fonts and assets, and is the source of truth for every colour and size. Where this spec and the package disagree, the package wins for values and this spec wins for behaviour.
 
@@ -13,7 +13,7 @@ This spec tells an implementing agent (Claude Code) exactly what to build. The t
 - The Rift interface and its 6 world themes
 - The Classic interface with 8 window themes, 4 menu fonts, a glove or arrow cursor and a custom window colour
 - The Interface switcher, the lock panel and Classic preview mode
-- Reward unlocks at 25, 50 and 100 ranked wins, checked on the server
+- A ladder of 10 reward unlocks from 10 to 60 ranked wins, checked on the server
 - Saving each player's appearance choices to the database
 - The victory screen that announces an unlocked reward
 
@@ -21,7 +21,7 @@ This spec tells an implementing agent (Claude Code) exactly what to build. The t
 
 - Matchmaking, combat rules and the battle engine
 - Sound and music
-- New rewards beyond the three listed here
+- New rewards beyond the ten listed here
 
 **How to use this with Claude Code**: export this doc as Markdown, put it in the repo as `docs/theme-spec.md`, and copy the `dissidia-theme/` folder into the project. Then ask Claude Code to follow the build order in the last section. The design canvas with every screen is at [Dissidia Arena — Cosmos vs Chaos concepts](https://claude.ai/artifact/CA79rRUkA48PgBKa68qXbu) (Final page).
 
@@ -31,9 +31,9 @@ Appearance is made of five independent layers, each set by its own `data-` attri
 
 | Layer | Attribute | Applies to | Values | Default | Locked by |
 | --- | --- | --- | --- | --- | --- |
-| Interface | `data-interface` | Whole site layout | `rift`, `classic` | `rift` | `classic` needs 25 ranked wins |
+| Interface | `data-interface` | Whole site layout | `rift`, `classic` | `rift` | `classic` needs 10 ranked wins |
 | World theme | `data-world` | Rift only | `dissidia`, `crystal`, `magitek`, `mako`, `gaia`, `ivalice` | `dissidia` | Never |
-| Window theme | `data-window` | Classic only | `classic`, `crystal`, `magitek`, `midgar`, `garden`, `gaia`, `spira`, `ivalice`, `custom` | `classic` | `custom` needs 100 ranked wins |
+| Window theme | `data-window` | Classic only | `classic`, `crystal`, `magitek`, `midgar`, `garden`, `gaia`, `spira`, `ivalice`, `custom` | `classic` | `classic` comes with the Classic interface (10 wins). The other presets unlock one every 5 wins, from `crystal` at 15 to `ivalice` at 45. `custom` needs 60. |
 | Menu font | `data-menu-font` | Classic only | `auto`, `bit16`, `bit8`, `story`, `modern` | `auto` (the window theme's own font) | `bit8` needs 50 ranked wins |
 | Cursor | `data-cursor` | Classic only | `glove`, `arrow` | `glove` | Never |
 
@@ -118,12 +118,12 @@ Rift is a light editorial page split into a Cosmos side and a Chaos side, with g
 | Component | What it does | Key rules |
 | --- | --- | --- |
 | Header | Crystal mark, "Dissidia Arena" in Cinzel Decorative, nav (Play, Fighters, Rankings, Rewards) with ◆ separators, Interface switcher | Nav links are at least 44px tall. The switcher is two buttons in a bordered group with `aria-pressed`. A lock icon shows on Classic while it is locked. |
-| Lock panel | Opens under the header when a locked player taps Classic | Shows wins so far against 25 as a progress bar, plus Preview Classic and Not now buttons. The Classic button has `aria-expanded`. |
+| Lock panel | Opens under the header when a locked player taps Classic | Shows wins so far against 10 as a progress bar, plus Preview Classic and Not now buttons. The Classic button has `aria-expanded`. |
 | Fracture hero | Cosmos half and Chaos half meeting along a jagged crystal crack | See below |
 | Worlds picker | Six crystal-shaped swatches with the game's Roman numeral | Each is a `<button aria-pressed>`. Choosing one sets `data-world` and saves it. |
 | Trials | Four mode cards numbered I to IV (Duel, Clash, Ranked, Custom) with gold corner brackets | Whole card is one link |
 | Cycle of War | Season gauge split into 20 segments, like an ATB bar | `role="img"` with an `aria-label` that states both percentages |
-| Rewards | Three cards for the three rewards, each with a progress bar and status | Status reads "18 / 25" or "Unlocked" |
+| Rewards | One card per reward on the ladder (10 in all), each with a progress bar and status | Status reads "7 / 10" or "Unlocked" |
 | Chronicle | Dark band with a lore quote in Cormorant Garamond italic | Uses Chaos tokens |
 | Footer | Fan project note and the current interface and world | — |
 
@@ -169,14 +169,14 @@ Classic draws every part of the page as an old-school RPG menu window, with a co
 | Control | Behaviour |
 | --- | --- |
 | Interface | Rift or Classic. Choosing Rift switches straight back. |
-| Window theme | List of 9 rows, each with a mini swatch of that window. Choosing one sets `data-window` and saves it. Custom shows a lock and "Unlocks at 100 wins" until earned. |
+| Window theme | List of 9 rows, each with a mini swatch of that window. Choosing one sets `data-window` and saves it. Each preset other than Classic, and Custom, shows a lock and "Unlocks at N wins" (15 to 45 for the presets, 60 for Custom) until earned. |
 | Menu font | 2 by 2 grid of buttons, each label shown in its own font. A locked font is `disabled` with "Unlocks at 50 wins" and 55% opacity. `auto` uses the window theme's default font. |
 | Cursor | Glove or Arrow toggle |
 | Window colour | Three range inputs, R, G and B, each 0 to 31. Only shown once Custom is unlocked. Moving one switches the window theme to Custom. |
 
 **Custom window colour.** The sliders follow the 0 to 31 scale of the old Config screens. Each channel is multiplied by 3, so the base colour is at most rgb(93, 93, 93) and white text always passes 4.5:1. Then `--win-top` is the base × 1.2, `--win-bot` is the base × 0.45 and `--win-track` is the base × 0.25. `customWindow(r, g, b)` in `appearance.js` does this. The default is R 6, G 10, B 26.
 
-**Preview banner.** While a locked player previews Classic, a window with a `--win-cursor` border sits above the header. It reads "PREVIEW: Win N more ranked battles to keep the Classic interface." and has a Back to Rift button. It has `role="status"`.
+**Preview banner.** While a locked player previews Classic, a window with a `--win-cursor` border sits above the header. It reads "PREVIEW: Win N more ranked battles to keep the Classic interface.", where N counts down to 10 wins. and has a Back to Rift button. It has `role="status"`.
 
 **Battle HUD.** It uses the same windows, fonts and cursor: a score bar, the arena view, a party window for each side with HP bars, and a command window (Attack, Skill, Guard, Burst).
 
@@ -184,26 +184,37 @@ Classic draws every part of the page as an old-school RPG menu window, with a co
 
 Rewards are earned by **ranked wins** and are permanent once earned. The server decides what is unlocked; the browser only shows locks and must never be trusted to enforce them.
 
+Classic unlocks at 10 ranked wins, then a new window skin every 5 wins. Wins count across both games.
+
 | Reward key | Unlocks | Ranked wins needed | Where it shows |
 | --- | --- | --- | --- |
-| `classic_interface` | The Classic interface and all 8 preset window themes | 25 | Interface switcher, lock panel, Rewards section |
-| `font_8bit` | The 8-bit menu font (`bit8`) | 50 | Classic Config, Menu font |
-| `window_custom` | The Custom window theme and the RGB sliders | 100 | Classic Config, Window theme and Window colour |
+| `classic_interface` | The Classic interface and the Classic window theme (`interface=classic`, `window_theme=classic`) | 10 | Interface switcher, lock panel, Rewards section |
+| `window_crystal` | The Crystal window theme | 15 | Classic Config, Window theme |
+| `window_magitek` | The Magitek window theme | 20 | Classic Config, Window theme |
+| `window_midgar` | The Midgar window theme | 25 | Classic Config, Window theme |
+| `window_garden` | The Garden window theme | 30 | Classic Config, Window theme |
+| `window_gaia` | The Gaia window theme | 35 | Classic Config, Window theme |
+| `window_spira` | The Spira window theme | 40 | Classic Config, Window theme |
+| `window_ivalice` | The Ivalice window theme | 45 | Classic Config, Window theme |
+| `font_8bit` | The 8-bit menu font (`menu_font=bit8`) | 50 | Classic Config, Menu font |
+| `window_custom` | The Custom window theme and the RGB sliders (`window_theme=custom`, `window_rgb`) | 60 | Classic Config, Window theme and Window colour |
 
-The goals live in one place: `REWARDS` in `python/rewards.py`, mirrored in `tokens.json` for the front end. Change a number there and nothing else.
+Rift worlds, the other menu fonts and the cursor are free.
+
+The goals live in one place: the backend's reward catalogue (ported from `REWARDS` in `python/rewards.py`), mirrored in the `rewards` array of `tokens.json` for the front end. Change a number there and nothing else.
 
 **Rules**
 
-1. A ranked win is a finished ranked match where the player's side won. Duel and Clash both count. Custom rooms and practice do not.
+1. A ranked win is a finished ranked match where the player's side won, counted across both games. Duel and Clash both count. Custom rooms and practice do not.
 2. When the server records a match result, it recalculates the winner's ranked win count. It then inserts a `user_unlocks` row for each reward whose goal is now met and that the player does not already hold.
 3. The match result response lists any rewards unlocked by that match in `newly_unlocked`. The front end uses this to show the victory reward screen.
 4. Unlocks are never removed, even if rules change later or a match is voided.
-5. Every write to appearance settings is checked. Saving `interface=classic`, `menu_font=bit8` or `window_theme=custom` without the matching unlock returns 403.
+5. Every write to appearance settings is checked. Saving any value listed in the table above (`interface=classic`, a locked `window_theme`, `menu_font=bit8` or `window_rgb`) without the reward that unlocks it returns 403.
 6. Players who already have the wins when this ships get their unlocks from a one-off backfill (see Build order).
 
-**Preview mode** lets a locked player try Classic. It is client-only: it sets `data-interface="classic"` and `data-preview="classic"`, stores `da-preview` in `sessionStorage`, and saves nothing to the server. It ends when the player taps Back to Rift or closes the tab. During preview the locked fonts and Custom stay locked.
+**Preview mode** lets a locked player try Classic. It is client-only: it sets `data-interface="classic"` and `data-preview="classic"`, stores `da-preview` in `sessionStorage`, and saves nothing to the server. It ends when the player taps Back to Rift or closes the tab. During preview only the Classic window theme is available: the locked window skins, the 8-bit font and Custom stay locked.
 
-**Victory reward screen.** When `newly_unlocked` is not empty, the match result page shows a reward card above the scoreboard. It holds the reward name, a full progress bar (25 / 25), a "Received Classic Interface!" message in a Classic window, and two actions: Equip Classic now (saves `interface=classic`) and Keep Rift for now. Below it, a list shows the next rewards with progress. The "Final — Victory" artboard is the reference.
+**Victory reward screen.** When `newly_unlocked` is not empty, the match result page shows a reward card above the scoreboard. It holds the reward name, a full progress bar (10 / 10 for Classic, or the goal of whichever reward was earned), a "Received Classic Interface!" message in a Classic window, and two actions: Equip Classic now (saves `interface=classic`) and Keep Rift for now. Below it, a list shows the next rewards with progress. The "Final — Victory" artboard is the reference.
 
 ## Data model and API
 
@@ -256,11 +267,18 @@ CREATE TABLE user_unlocks (
     "menu_font": "auto", "cursor": "glove", "window_rgb": [6, 10, 26]
   },
   "ranked_wins": 18,
-  "unlocks": [],
+  "unlocks": ["classic_interface", "window_crystal"],
   "rewards": [
-    {"key": "classic_interface", "goal": 25, "unlocked": false, "remaining": 7},
+    {"key": "classic_interface", "goal": 10, "unlocked": true, "remaining": 0},
+    {"key": "window_crystal", "goal": 15, "unlocked": true, "remaining": 0},
+    {"key": "window_magitek", "goal": 20, "unlocked": false, "remaining": 2},
+    {"key": "window_midgar", "goal": 25, "unlocked": false, "remaining": 7},
+    {"key": "window_garden", "goal": 30, "unlocked": false, "remaining": 12},
+    {"key": "window_gaia", "goal": 35, "unlocked": false, "remaining": 17},
+    {"key": "window_spira", "goal": 40, "unlocked": false, "remaining": 22},
+    {"key": "window_ivalice", "goal": 45, "unlocked": false, "remaining": 27},
     {"key": "font_8bit", "goal": 50, "unlocked": false, "remaining": 32},
-    {"key": "window_custom", "goal": 100, "unlocked": false, "remaining": 82}
+    {"key": "window_custom", "goal": 60, "unlocked": false, "remaining": 42}
   ]
 }
 ```
@@ -268,7 +286,7 @@ CREATE TABLE user_unlocks (
 `PATCH` takes any subset of `preferences`. It checks that every value is in the allowed list from `tokens.json` (400 if not) and that any locked value is unlocked (403 if not). Each RGB channel must be an integer from 0 to 31. A 403 body names the reward so the front end can open the lock panel:
 
 ```json
-{"error": "locked", "reward": "classic_interface", "goal": 25, "remaining": 7}
+{"error": "locked", "reward": "window_magitek", "goal": 20, "remaining": 2}
 ```
 
 `rewards.py` gives the Flask side three helpers: `required_reward(field, value)` returns the reward key a value needs (or `None`), `rewards_for_wins(wins)` returns the keys earned at that count, and `grant_unlocks(db, user_id, wins)` inserts the missing rows and returns the new keys. Use `INSERT IGNORE` so two results landing at once cannot double-grant.
@@ -307,16 +325,16 @@ The work is done when every item below passes. Unit tests use pytest against a t
 - [ ] A new player sees Rift with the Dissidia world, and Classic shows a lock.
 - [ ] Tapping a locked Classic opens the lock panel with the right number of wins remaining.
 - [ ] Preview shows Classic with the preview banner, saves nothing, and ends with Back to Rift or a new tab.
-- [ ] A player with 25 or more ranked wins can switch to Classic, and the choice persists across log-out, log-in and devices.
+- [ ] A player with 10 or more ranked wins can switch to Classic, and the choice persists across log-out, log-in and devices.
 - [ ] Each world and window theme choice persists in the same way.
-- [ ] The 8-bit font stays disabled until 50 wins. Custom and the RGB sliders stay locked until 100 wins.
+- [ ] Each preset window theme other than Classic stays locked until its goal (Crystal 15, Magitek 20, Midgar 25, Garden 30, Gaia 35, Spira 40, Ivalice 45). The 8-bit font stays disabled until 50 wins. Custom and the RGB sliders stay locked until 60 wins.
 - [ ] Choosing Rift from Classic's Config switches back and keeps the Classic choices for next time.
 
 **Server**
 
 - [ ] `PATCH` with a locked value returns 403 with the reward key and the wins remaining, and changes nothing.
 - [ ] `PATCH` with an unknown value or an RGB channel outside 0 to 31 returns 400.
-- [ ] The result of a 25th ranked win returns `newly_unlocked: ["classic_interface"]` exactly once. Replaying the same result grants nothing new.
+- [ ] The result of a 10th ranked win returns `newly_unlocked: ["classic_interface"]` exactly once, and a 15th returns `["window_crystal"]`. Replaying the same result grants nothing new.
 - [ ] Custom rooms and practice matches do not change `ranked_wins`.
 - [ ] The backfill gives existing players every unlock their wins have already earned.
 
@@ -349,7 +367,7 @@ Build in this order. Each step can be checked before the next one starts, so the
 - Is the front end Jinja templates or React? This spec defaults to Jinja and gives the React variant in Front-end state.
 - Should a forfeit by the other side count as a ranked win?
 - Should the Battle HUD follow the player's interface, or always use Classic windows?
-- Should more rewards follow later, for example unlocking individual worlds or window themes, or a title for 150 wins?
+- Should more rewards follow later, for example unlocking individual worlds, or a title for 100 wins?
 - Should switching interface play a sound, such as a menu cursor blip, once audio exists?
 
 **Fan project note.** The themes are inspired by the Final Fantasy series but use no official logos, character art or fonts. Keep the "a fan project" line in the footer.
