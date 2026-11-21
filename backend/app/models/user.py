@@ -32,6 +32,9 @@ class User(db.Model):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # Set while the player is an Admin (appointed by the Master). The Master is never stored here:
+    # that role comes from MASTER_DISCORD_ID (see app.admin.role).
+    admin_since: Mapped[datetime | None] = mapped_column(DateTime)
 
     @property
     def avatar_url(self) -> str:

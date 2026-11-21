@@ -18,6 +18,8 @@ import { Character, Meta } from './pages/Meta'
 import Discord from './pages/Discord'
 import Rewards from './pages/Rewards'
 import Config from './pages/Config'
+import AdminLog from './pages/AdminLog'
+import MasterPanel from './pages/MasterPanel'
 
 export default function App() {
   return (
@@ -43,6 +45,8 @@ export default function App() {
           <Route path="discord" element={<Discord />} />
           <Route path="rewards" element={<Rewards />} />
           <Route path="config" element={<Config />} />
+          <Route path="admin" element={<AdminLog />} />
+          <Route path="master" element={<MasterPanel />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

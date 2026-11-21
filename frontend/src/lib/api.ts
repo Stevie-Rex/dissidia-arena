@@ -1,6 +1,23 @@
 import type { GameId, Region } from '../data/mock'
 import type { Appearance, Preferences, RewardDef } from '../theme/appearance'
 
+/** Worked out by the server on every request. The Master comes from config and is never stored. */
+export type Role = 'player' | 'admin' | 'master'
+
+/** Admins and the Master can use the Admin area. */
+export const isAdmin = (role: Role | undefined) => role === 'admin' || role === 'master'
+
+/** Nav links by role: the Admin area for Admins and the Master, the Master panel for the Master only. */
+export function roleLinks(role: Role | undefined) {
+  return [
+    ...(isAdmin(role) ? [{ to: '/admin', label: 'Admin', help: 'The Admin log: every Admin, Master and system action.' }] : []),
+    ...(role === 'master' ? [{ to: '/master', label: 'Master panel', help: 'Appoint and remove Admins.' }] : []),
+  ]
+}
+
+/** Matches the server's limit on reasons for Admin and Master actions. */
+export const MAX_REASON = 2000
+
 export interface Me {
   id: number
   discordId: string
@@ -12,6 +29,44 @@ export interface Me {
   games: GameId[]
   gameIds: Partial<Record<GameId, string>>
   rankedWins: number
+  role: Role
+}
+
+/** A player found from the Master panel. */
+export interface PlayerResult {
+  id: number
+  discordId: string
+  username: string
+  displayName: string
+  avatarUrl: string
+  role: Role
+}
+
+export interface AdminInfo extends PlayerResult {
+  since: string
+}
+
+export interface PlayerRef {
+  id: number
+  displayName: string
+}
+
+export interface AdminLogEntry {
+  id: number
+  /** null for a system action, such as auto-confirm. */
+  actor: PlayerRef | null
+  action: string
+  matchId: number | null
+  target: PlayerRef | null
+  reason: string
+  details: Record<string, unknown>
+  at: string
+}
+
+export interface AdminLogPage {
+  entries: AdminLogEntry[]
+  page: number
+  hasMore: boolean
 }
 
 export interface QueueSettings {
@@ -145,6 +200,15 @@ export const api = {
   appearance: () => request<Appearance>('GET', '/me/appearance'),
   saveAppearance: (changes: Partial<Preferences>) => request<Appearance>('PATCH', '/me/appearance', changes),
   rewards: () => request<{ rewards: RewardDef[] }>('GET', '/rewards'),
+
+  adminLog: (page: number) => request<AdminLogPage>('GET', `/admin/log?page=${page}`),
+  stepDown: (reason: string) => request<Me>('POST', '/admin/step-down', { reason }),
+  searchPlayers: (q: string) => request<{ players: PlayerResult[] }>('GET', `/admin/players?q=${encodeURIComponent(q)}`),
+  admins: () => request<{ admins: AdminInfo[] }>('GET', '/admin/admins'),
+  appointAdmin: (userId: number, reason: string) =>
+    request<{ admins: AdminInfo[] }>('POST', '/admin/admins', { userId, reason }),
+  removeAdmin: (userId: number, reason: string) =>
+    request<{ admins: AdminInfo[] }>('POST', `/admin/admins/${userId}/remove`, { reason }),
 
   /** Full-page redirect into Discord's OAuth flow; comes back to `next`. */
   discordLoginUrl: (next: string) => `/api/auth/discord/login?next=${encodeURIComponent(next)}`,

@@ -12,6 +12,8 @@ from sqlalchemy import select
 from .extensions import db
 from .models import AdminLogEntry, User
 
+PAGE_SIZE = 50
+
 
 def record(
     action: str,
@@ -38,21 +40,35 @@ def record(
     )
 
 
-def entries(limit: int = 50) -> list[dict]:
-    """The latest entries, newest first."""
-    q = select(AdminLogEntry).order_by(AdminLogEntry.id.desc()).limit(limit)
-    return [_entry_dict(e) for e in db.session.scalars(q)]
+def entries(limit: int = PAGE_SIZE, offset: int = 0) -> list[dict]:
+    """Entries newest first, with the actor's and target's names (looked up in one query)."""
+    q = select(AdminLogEntry).order_by(AdminLogEntry.id.desc()).limit(limit).offset(offset)
+    rows = list(db.session.scalars(q))
+    ids = {uid for e in rows for uid in (e.actor_id, e.target_id) if uid is not None}
+    names = {
+        u.id: u.display_name or u.username for u in db.session.scalars(select(User).where(User.id.in_(ids)))
+    } if ids else {}
+    return [_entry_dict(e, names) for e in rows]
 
 
-def _entry_dict(e: AdminLogEntry) -> dict:
+def page(n: int) -> dict:
+    """One page of the log, newest first. Pages count from 1."""
+    rows = entries(PAGE_SIZE + 1, (n - 1) * PAGE_SIZE)
+    return {"entries": rows[:PAGE_SIZE], "page": n, "hasMore": len(rows) > PAGE_SIZE}
+
+
+def _entry_dict(e: AdminLogEntry, names: dict[int, str]) -> dict:
     from .matchmaking import iso
+
+    def ref(uid: int | None) -> dict | None:
+        return None if uid is None else {"id": uid, "displayName": names.get(uid, "Unknown player")}
 
     return {
         "id": e.id,
-        "actor": e.actor_id,
+        "actor": ref(e.actor_id),  # null for a system action
         "action": e.action,
         "matchId": e.match_id,
-        "targetId": e.target_id,
+        "target": ref(e.target_id),
         "reason": e.reason,
         "details": e.details,
         "at": iso(e.created_at),

@@ -1,4 +1,5 @@
 import type { Page, Request } from '@playwright/test'
+import type { Role } from '../src/lib/api'
 import tokens from '../src/theme/tokens.json' with { type: 'json' }
 
 type Prefs = {
@@ -54,7 +55,7 @@ export interface MockServer {
  */
 export async function mockApi(
   page: Page,
-  opts: { wins: number | null; prefs?: Partial<Prefs>; losses?: number; getDelayMs?: number },
+  opts: { wins: number | null; prefs?: Partial<Prefs>; losses?: number; getDelayMs?: number; role?: Role },
 ): Promise<MockServer> {
   const server: MockServer = { patches: [] }
   let prefs: Prefs = { ...DEFAULTS, ...opts.prefs }
@@ -70,7 +71,7 @@ export async function mockApi(
       if (!signedIn) return json(401, { error: 'unauthenticated' })
       return json(200, {
         id: 1, discordId: '1', username: 'tester', displayName: 'Tester', avatarUrl: '', onboarded: true,
-        region: 'EU', games: ['012', 'nt'], gameIds: {}, rankedWins: wins,
+        region: 'EU', games: ['012', 'nt'], gameIds: {}, rankedWins: wins, role: opts.role ?? 'player',
       })
     }
     if (path === '/api/me/appearance') {

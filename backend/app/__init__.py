@@ -8,10 +8,16 @@ def create_app(config_object: object = Config) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_object)
 
+    if not app.config.get("MASTER_DISCORD_ID"):
+        app.logger.warning(
+            "MASTER_DISCORD_ID is not set, so nobody is the Master and nobody can appoint Admins."
+        )
+
     db.init_app(app)
     migrate.init_app(app, db)
 
     from . import models  # noqa: F401  (register models with SQLAlchemy/Alembic)
+    from .routes.admin import bp as admin_bp
     from .routes.appearance import bp as appearance_bp
     from .routes.auth import bp as auth_bp
     from .routes.health import bp as health_bp
@@ -23,6 +29,7 @@ def create_app(config_object: object = Config) -> Flask:
     app.register_blueprint(me_bp, url_prefix="/api")
     app.register_blueprint(queue_bp, url_prefix="/api")
     app.register_blueprint(appearance_bp, url_prefix="/api")
+    app.register_blueprint(admin_bp, url_prefix="/api")
 
     from . import bot, rewards, worker
 

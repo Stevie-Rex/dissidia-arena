@@ -32,6 +32,8 @@ interface AppState {
   signIn: () => void
   signOut: () => Promise<void>
   finishOnboarding: (opts: { games: GameId[]; region: Region; ids: Partial<Record<GameId, string>> }) => Promise<void>
+  /** An Admin gives up the role. Rejects with the API error. */
+  stepDown: (reason: string) => Promise<void>
   myGames: GameId[]
   region: Region
   ids: Partial<Record<GameId, string>>
@@ -197,6 +199,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     },
     [setGame],
   )
+
+  const stepDown = useCallback(async (reason: string) => setUser(await api.stepDown(reason)), [])
 
   // ---- server-driven queue / match state
 
@@ -378,6 +382,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       finishOnboarding,
+      stepDown,
       myGames,
       region,
       ids,
@@ -419,7 +424,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       acceptInvite,
     }),
     [
-      user, signedIn, onboarded, signIn, signOut, finishOnboarding, myGames, region, ids, game, setGame,
+      user, signedIn, onboarded, signIn, signOut, finishOnboarding, stepDown, myGames, region, ids, game, setGame,
       signInPrompt, requireSignIn, queue, setQueue, phase, elapsed, acceptLeft, server, queueError, pending,
       startQueue, cancelQueue, acceptMatch, declineMatch, live, matchError, sendChat, reportGame, confirmResult,
       disputeResult, saveStatement, viewed, openMatch, abandonMatch, closeMatch, party,

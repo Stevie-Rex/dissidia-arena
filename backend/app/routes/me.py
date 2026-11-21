@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+from .. import admin
 from ..auth import current_user, login_required
 from ..extensions import db
 from ..models.user import GAMES, REGIONS
@@ -9,10 +10,15 @@ bp = Blueprint("me", __name__)
 MAX_GAME_ID_LEN = 64
 
 
+def me_dict(user) -> dict:
+    """The signed-in user, with their role (worked out on every request)."""
+    return {**user.to_dict(), "role": admin.role(user)}
+
+
 @bp.get("/me")
 @login_required
 def get_me():
-    return jsonify(current_user().to_dict())
+    return jsonify(me_dict(current_user()))
 
 
 @bp.patch("/me")
@@ -56,4 +62,4 @@ def update_me():
         return jsonify({"error": "validation", "fields": errors}), 400
 
     db.session.commit()
-    return jsonify(user.to_dict())
+    return jsonify(me_dict(user))

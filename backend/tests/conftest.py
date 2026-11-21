@@ -9,7 +9,10 @@ import pytest
 from app import create_app
 from app.config import Config
 from app.extensions import db
+from app.matchmaking import now
 from app.models import User
+
+MASTER_DISCORD_ID = 4242
 
 
 class TestConfig(Config):
@@ -20,6 +23,7 @@ class TestConfig(Config):
     DISCORD_CLIENT_SECRET = "client-secret"
     DISCORD_REDIRECT_URI = "http://localhost:5173/api/auth/discord/callback"
     FRONTEND_URL = "http://localhost:5173"
+    MASTER_DISCORD_ID = str(MASTER_DISCORD_ID)
 
 
 @pytest.fixture
@@ -41,10 +45,10 @@ def make_player(app):
     """Returns (user, client) for a signed-in, onboarded player with its own session."""
     n = iter(range(1, 1000))
 
-    def make(region="NA", game_ids=None, onboarded=True):
+    def make(region="NA", game_ids=None, onboarded=True, discord_id=None):
         i = next(n)
         user = User(
-            discord_id=1000 + i,
+            discord_id=discord_id or 1000 + i,
             username=f"p{i}",
             region=region,
             onboarded=onboarded,
@@ -55,6 +59,25 @@ def make_player(app):
         client = app.test_client()
         with client.session_transaction() as s:
             s["user_id"] = user.id
+        return user, client
+
+    return make
+
+
+@pytest.fixture
+def master(make_player):
+    """(user, client) for the Master: the player whose Discord ID is the configured MASTER_DISCORD_ID."""
+    return make_player(discord_id=MASTER_DISCORD_ID)
+
+
+@pytest.fixture
+def make_admin(make_player):
+    """Returns (user, client) for a signed-in Admin."""
+
+    def make(**kwargs):
+        user, client = make_player(**kwargs)
+        user.admin_since = now()
+        db.session.commit()
         return user, client
 
     return make
