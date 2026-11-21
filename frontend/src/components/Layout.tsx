@@ -1,0 +1,399 @@
+import { useState } from 'react'
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { DISCORD_SUGGESTIONS, FRIENDS, GAMES, playerById, type FriendStatus, type GameId } from '../data/mock'
+import { useApp } from '../state/AppState'
+import { Avatar, Btn, Card, DiscordButton, Gem, Logo, Modal, Pill, Sub } from './ui'
+import { cx, fmtTime } from '../lib/format'
+
+export function GameSwitcher({ className }: { className?: string }) {
+  const { game, setGame } = useApp()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const pick = (g: GameId) => {
+    setGame(g)
+    // If we're on a per-game page, jump to the same page for the other game.
+    const m = pathname.match(/^\/(012|nt)(\/.*)?$/)
+    if (m) navigate(`/${g}${m[2]?.startsWith('/characters') ? '/meta' : (m[2] ?? '')}`)
+  }
+  return (
+    <div className={cx('flex gap-1.5', className)}>
+      {(['012', 'nt'] as GameId[]).map((g) => (
+        <Pill key={g} active={game === g} onClick={() => pick(g)}>
+          {GAMES[g].short}
+        </Pill>
+      ))}
+    </div>
+  )
+}
+
+function TopNav() {
+  const { game, signedIn, startQueue, phase, live, requireSignIn, user } = useApp()
+  const navigate = useNavigate()
+  const link = ({ isActive }: { isActive: boolean }) =>
+    cx('text-sm transition-colors', isActive ? 'text-crystal-soft' : 'text-soft hover:text-fg')
+  return (
+    <header className="sticky top-0 z-30 border-b-[1.5px] border-line bg-ink/90 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5">
+        <Logo />
+        <GameSwitcher className="ml-2" />
+        <nav className="ml-4 hidden items-center gap-4 md:flex">
+          <NavLink to={`/${game}`} end className={link}>
+            Hub
+          </NavLink>
+          <NavLink to={`/${game}/ladder`} className={link}>
+            Ladder
+          </NavLink>
+          <NavLink to="/tournaments" className={link}>
+            Tournaments
+          </NavLink>
+          <NavLink to={`/${game}/meta`} className={link}>
+            Meta
+          </NavLink>
+        </nav>
+        <span className="flex-1" />
+        {live && (
+          <Link to="/match/live">
+            <Pill active className="hidden sm:inline-block">
+              ● In match vs {playerById(live.opponentId)?.name}
+            </Pill>
+          </Link>
+        )}
+        {!live && phase === 'idle' && (
+          <Btn className="hidden sm:inline-block" onClick={() => (signedIn ? navigate('/queue') : startQueue())}>
+            Queue
+          </Btn>
+        )}
+        {signedIn ? (
+          <Link to="/players/me" aria-label="Your profile">
+            <Avatar name={user?.displayName ?? 'You'} src={user?.avatarUrl} ring="you" size={28} />
+          </Link>
+        ) : (
+          <Btn onClick={() => requireSignIn('Sign in')}>Sign in</Btn>
+        )}
+      </div>
+    </header>
+  )
+}
+
+const statusText: Record<FriendStatus, string> = {
+  idle: 'idle',
+  queue: 'in queue',
+  match: 'in match · spectate',
+  offline: 'offline',
+}
+const statusRing = { idle: 'crystal', queue: 'you', match: 'violet', offline: 'default' } as const
+
+export function FriendsList({ compact }: { compact?: boolean }) {
+  const { inviteToParty, party } = useApp()
+  const navigate = useNavigate()
+  const [added, setAdded] = useState<string[]>([])
+  const online = FRIENDS.filter((f) => f.status !== 'offline')
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-center">
+        <b>Friends</b>
+        <span className="flex-1" />
+        <Pill>+ Add</Pill>
+      </div>
+      <Sub>Online · {online.length}</Sub>
+      {online.map((f) => {
+        const pl = playerById(f.playerId)!
+        const inParty = party.some((m) => m.playerId === f.playerId)
+        return (
+          <div key={f.playerId} className="flex items-center gap-2">
+            <Avatar name={pl.name} ring={statusRing[f.status]} />
+            <Link to={`/players/${pl.id}`} className="flex min-w-0 flex-col leading-tight hover:text-crystal-soft">
+              <span className="truncate text-sm">{pl.name}</span>
+              <Sub>
+                {statusText[f.status]}
+                {f.game && ` · ${GAMES[f.game].short}`}
+              </Sub>
+            </Link>
+            <span className="flex-1" />
+            {f.status === 'idle' && !compact && (
+              <Pill
+                active={inParty}
+                onClick={() => {
+                  inviteToParty(f.playerId)
+                  navigate('/party')
+                }}
+              >
+                {inParty ? 'In party' : 'Invite'}
+              </Pill>
+            )}
+          </div>
+        )
+      })}
+      <Sub className="mt-2">From your Discord server · {DISCORD_SUGGESTIONS.length}</Sub>
+      {DISCORD_SUGGESTIONS.map((id) => {
+        const pl = playerById(id)!
+        return (
+          <div key={id} className="flex items-center gap-2">
+            <Avatar name={pl.name} />
+            <span className="text-sm text-muted">{pl.name}</span>
+            <span className="flex-1" />
+            <Pill active={added.includes(id)} onClick={() => setAdded((a) => [...a, id])}>
+              {added.includes(id) ? 'Sent' : 'Add'}
+            </Pill>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function FriendsSidebar() {
+  return (
+    <aside className="sticky top-16 hidden h-[calc(100vh-5rem)] w-56 flex-none overflow-y-auto border-l-[1.5px] border-line pl-4 xl:block">
+      <FriendsList />
+    </aside>
+  )
+}
+
+/** 1l — persistent queue bar while searching, on any page. */
+function QueueBar() {
+  const { phase, elapsed, queue, cancelQueue, region } = useApp()
+  if (phase !== 'searching') return null
+  const info = GAMES[queue.game]
+  return (
+    <div className="fixed inset-x-0 bottom-14 z-40 px-3 md:bottom-4">
+      <Card tone="gold" className="mx-auto max-w-md shadow-[0_16px_40px_rgba(0,0,0,.65)]">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-gold" />
+          <b className="text-sm">
+            Searching · {info.short} {queue.mode} Bo{queue.bestOf}
+          </b>
+          <span className="flex-1" />
+          <span className="font-mono text-sm">{fmtTime(elapsed)}</span>
+        </div>
+        <div className="flex items-center">
+          <Sub>
+            {info.searching} in queue · {region}
+          </Sub>
+          <span className="flex-1" />
+          <Pill onClick={cancelQueue}>Cancel</Pill>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+/** Match-found takeover with accept countdown. */
+function MatchFound() {
+  const { phase, opponentId, acceptLeft, acceptMatch, declineMatch, queue } = useApp()
+  if (phase !== 'found' || !opponentId) return null
+  const opp = playerById(opponentId)!
+  const me = playerById('me')!
+  return (
+    <Modal className="max-w-md border-chaos">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <Sub>
+          Match found · {GAMES[queue.game].short} {queue.mode} Bo{queue.bestOf}
+        </Sub>
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col items-center gap-1">
+            <Avatar name="You" size={52} ring="crystal" />
+            <span className="text-crystal-soft">you · {me.stats[queue.game].rating}</span>
+          </div>
+          <Gem size={16} />
+          <div className="flex flex-col items-center gap-1">
+            <Avatar name={opp.name} size={52} ring="chaos" />
+            <span className="text-chaos-soft">
+              {opp.name} · {opp.stats[queue.game].rating}
+            </span>
+          </div>
+        </div>
+        <Btn size="lg" className="w-full" onClick={acceptMatch}>
+          Accept · 0:{String(acceptLeft).padStart(2, '0')}
+        </Btn>
+        <Pill onClick={declineMatch}>Decline</Pill>
+      </div>
+    </Modal>
+  )
+}
+
+/** 1a — sign-in gate. Browsing is open; actions prompt Discord sign-in. */
+function SignInModal() {
+  const { signInPrompt, closeSignIn, signIn } = useApp()
+  if (!signInPrompt) return null
+  return (
+    <Modal onClose={closeSignIn}>
+      <div className="flex flex-col items-center gap-3 text-center">
+        <span className="text-lg font-semibold">{signInPrompt}</span>
+        <Sub>Browsing ladders and matches is open to everyone</Sub>
+        <DiscordButton className="w-full" onClick={signIn} />
+        <Sub>We read your username + avatar only</Sub>
+      </div>
+    </Modal>
+  )
+}
+
+/** 2i — party invite toast. */
+function InviteToast() {
+  const { invite, dismissInvite, acceptInvite } = useApp()
+  if (!invite) return null
+  const from = playerById(invite.fromId)!
+  return (
+    <div className="fixed right-4 top-16 z-40 w-72">
+      <Card tone="gold" className="shadow-[0_16px_40px_rgba(0,0,0,.65)]">
+        <div className="flex items-center gap-2">
+          <Avatar name={from.name} />
+          <b className="text-sm">{from.name} invited you</b>
+        </div>
+        <Sub>NT 3v3 party · 1 slot left</Sub>
+        <div className="flex gap-2">
+          <Btn className="flex-1" onClick={acceptInvite}>
+            Join
+          </Btn>
+          <Pill onClick={dismissInvite}>Not now</Pill>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+/** 1q — chat dock while in a match but browsing elsewhere. */
+function ChatDock() {
+  const { live, sendChat } = useApp()
+  const { pathname } = useLocation()
+  const [open, setOpen] = useState(true)
+  const [text, setText] = useState('')
+  if (!live || pathname === '/match/live') return null
+  const opp = playerById(live.opponentId)!
+  if (!open)
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="fixed bottom-16 right-4 z-40 rounded-full border-[1.5px] border-muted bg-card px-3 py-1.5 text-sm shadow-lg md:bottom-4"
+      >
+        💬 {opp.name}
+      </button>
+    )
+  const last = live.chat.slice(-3)
+  return (
+    <Card className="fixed bottom-16 right-4 z-40 w-64 border-muted shadow-[0_16px_40px_rgba(0,0,0,.65)] md:bottom-4">
+      <div className="flex items-center gap-2">
+        <Link to="/match/live" className="font-semibold hover:text-crystal-soft">
+          {opp.name}
+        </Link>
+        <Sub>game {live.gameNo}</Sub>
+        <span className="flex-1" />
+        <button type="button" className="text-muted hover:text-fg" onClick={() => setOpen(false)} aria-label="Minimise">
+          —
+        </button>
+      </div>
+      {last.map((m, i) => (
+        <div key={i} className="text-xs">
+          <span className="text-muted">{m.from === 'me' ? 'you' : m.from === 'them' ? opp.name.split(' ').pop() : '—'}:</span>{' '}
+          {m.text}
+        </div>
+      ))}
+      <div className="flex gap-1.5">
+        {['gg', 'rematch?', 'lag'].map((q) => (
+          <Pill key={q} onClick={() => sendChat(q)}>
+            {q}
+          </Pill>
+        ))}
+      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          sendChat(text)
+          setText('')
+        }}
+      >
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="type…"
+          className="w-full rounded-md border-[1.5px] border-line-strong bg-panel px-2 py-1 text-xs focus:border-crystal focus:outline-none"
+        />
+      </form>
+    </Card>
+  )
+}
+
+/** Shown when Discord sign-in bounced back with ?auth_error=… */
+function AuthErrorBanner() {
+  const [params, setParams] = useSearchParams()
+  const err = params.get('auth_error')
+  if (!err) return null
+  const dismiss = () => {
+    params.delete('auth_error')
+    setParams(params, { replace: true })
+  }
+  return (
+    <div className="mx-auto mt-3 max-w-7xl px-4">
+      <Card tone="chaos" className="flex-row items-center">
+        <span className="text-sm">
+          {err === 'denied' ? 'Discord sign-in was cancelled.' : "Couldn't reach Discord to sign you in. Try again in a moment."}
+        </span>
+        <span className="flex-1" />
+        <Pill onClick={dismiss}>Dismiss</Pill>
+      </Card>
+    </div>
+  )
+}
+
+/** 1f — mobile tab bar. */
+function MobileTabs() {
+  const { game } = useApp()
+  const tab = ({ isActive }: { isActive: boolean }) =>
+    cx('flex-1 py-3 text-center text-xs', isActive ? 'text-crystal-soft' : 'text-muted')
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t-[1.5px] border-line bg-ink/95 backdrop-blur md:hidden">
+      <NavLink to={`/${game}`} end className={tab}>
+        Hub
+      </NavLink>
+      <NavLink to={`/${game}/ladder`} className={tab}>
+        Ladder
+      </NavLink>
+      <NavLink to="/queue" className={tab}>
+        Queue
+      </NavLink>
+      <NavLink to="/tournaments" className={tab}>
+        Events
+      </NavLink>
+      <NavLink to="/players/me" className={tab}>
+        Profile
+      </NavLink>
+    </nav>
+  )
+}
+
+export default function Layout() {
+  const { signedIn } = useApp()
+  return (
+    <div className="min-h-screen pb-20 md:pb-8">
+      <TopNav />
+      <AuthErrorBanner />
+      <div className="mx-auto flex max-w-7xl gap-6 px-4 pt-6">
+        <main className="min-w-0 flex-1">
+          <Outlet />
+        </main>
+        {signedIn && <FriendsSidebar />}
+      </div>
+      <footer className="mx-auto mt-10 flex max-w-7xl flex-wrap gap-4 border-t border-line px-4 py-4 text-xs text-muted">
+        <Link to="/discord" className="hover:text-crystal-soft">
+          Discord bot
+        </Link>
+        <Link to="/party" className="hover:text-crystal-soft">
+          Party
+        </Link>
+        <Link to="/friends" className="hover:text-crystal-soft xl:hidden">
+          Friends
+        </Link>
+        <Link to="/tournaments" className="hover:text-crystal-soft">
+          Tournaments
+        </Link>
+      </footer>
+      <QueueBar />
+      <ChatDock />
+      <MobileTabs />
+      <MatchFound />
+      <SignInModal />
+      <InviteToast />
+    </div>
+  )
+}

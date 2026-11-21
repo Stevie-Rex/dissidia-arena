@@ -1,0 +1,11 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS
+.DS_Store
+
+# Secrets: copy .env.example to .env
+.env
