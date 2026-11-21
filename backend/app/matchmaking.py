@@ -9,22 +9,29 @@ pairing locks queue rows with SELECT ... FOR UPDATE SKIP LOCKED, so two requests
 grab the same opponent. SQLite (tests) ignores the locking clauses.
 """
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from . import rewards
+from . import admin_log, rewards
 from .extensions import db
-from .models import Match, MatchGame, MatchMessage, QueueEntry, User
+from .models import DisputeStatement, Match, MatchGame, MatchMessage, QueueEntry, User
 
 # Long enough to notice a Discord DM, not so long a no-show stalls the queue.
 ACCEPT_SECONDS = 60
 MAX_MESSAGE_LEN = 500
+# Dispute reasons and players' statements.
+MAX_STATEMENT_LEN = 2000
 # The community is small, so after this long a player will also take an opponent from
 # another region. Both players must have waited this long, so a fresh joiner still gets a
 # window to find someone local first.
 REGION_WIDEN_SECONDS = 60
+# How long the opponent has to confirm or dispute a reported result before it confirms itself,
+# so a no-show can't hold the winner's ranked win (or both players' queue) hostage.
+CONFIRM_HOURS = 2
+CONFIRM_SECONDS = CONFIRM_HOURS * 60 * 60
 
 # What each game can be queued for. Phase 1 is 1v1 only (NT 3v3 needs parties).
 # Ranked is Bo3 for both scenes (NT's in-game "first to 2"), so the queue isn't split by format.
@@ -184,13 +191,34 @@ def state(user: User) -> dict:
         "queue": entry_dict(entry) if entry else None,
         "match": match_dict(match, user) if match else None,
         "searching": searching_counts(user.region),
+        "disputes": disputes(user),
     }
+
+
+def disputes(user: User) -> list[dict]:
+    """The player's Disputed matches, so the site can ask the reporting player for their side."""
+    rows = db.session.scalars(
+        select(Match)
+        .where(Match.status == "disputed", (Match.player_a_id == user.id) | (Match.player_b_id == user.id))
+        .order_by(Match.id)
+    )
+    return [
+        {
+            "id": m.id,
+            "game": m.game,
+            "opponent": (opp := _opponent(m, user)).display_name or opp.username,
+            "youReported": m.reported_by_id == user.id,
+            "statementAdded": any(st.user_id == user.id for st in m.statements),
+        }
+        for m in rows
+    ]
 
 
 def tick() -> dict[str, list[Match]]:
     """
     Advance matchmaking for everyone, not just whoever happens to be polling: expire
-    overdue accept windows (re-queueing accepters), then pair everyone who can be paired.
+    overdue accept windows (re-queueing accepters), confirm reported results whose opponent
+    let the confirm deadline pass, then pair everyone who can be paired.
     Run on a timer by the matchmaker worker so bot-only players get matched too.
     Returns what changed so the caller can notify players.
     """
@@ -206,6 +234,16 @@ def tick() -> dict[str, list[Match]]:
                 expired.append(match)
     db.session.flush()
 
+    auto_confirmed = []
+    due = db.session.scalars(
+        select(Match.id).where(Match.status == "reported", Match.confirm_deadline <= now())
+    ).all()
+    for match_id in due:
+        match = lock_match(match_id)
+        if match and auto_confirm_if_due(match):
+            auto_confirmed.append(match)
+    db.session.flush()
+
     created = []
     for entry_id in db.session.scalars(select(QueueEntry.id).order_by(QueueEntry.joined_at, QueueEntry.id)).all():
         entry = db.session.get(QueueEntry, entry_id)
@@ -213,7 +251,7 @@ def tick() -> dict[str, list[Match]]:
             continue
         if match := try_match(entry):
             created.append(match)
-    return {"created": created, "expired": expired}
+    return {"created": created, "expired": expired, "autoConfirmed": auto_confirmed}
 
 
 def entry_dict(entry: QueueEntry) -> dict:
@@ -292,6 +330,16 @@ def _require_status(match: Match, *statuses: str) -> None:
         raise MatchmakingError("bad_status", f"match is {match.status}")
 
 
+def reporter(match: Match) -> User:
+    """The player whose report ended the series (only set once a match is reported)."""
+    return match.player_a if match.reported_by_id == match.player_a_id else match.player_b
+
+
+def non_reporter(match: Match) -> User:
+    """The player who confirms or disputes the reported result."""
+    return match.player_b if match.reported_by_id == match.player_a_id else match.player_a
+
+
 def _system(match: Match, text: str) -> None:
     match.messages.append(MatchMessage(user_id=None, text=text, created_at=now()))
 
@@ -346,6 +394,7 @@ def report_game(match: Match, user: User, game_no: int, winner_id: int, details:
         match.status = "reported"
         match.winner_id = max(s, key=s.get)
         match.reported_by_id = user.id
+        match.confirm_deadline = now() + timedelta(seconds=CONFIRM_SECONDS)
 
 
 def _clean_details(details: dict | None) -> dict:
@@ -354,27 +403,87 @@ def _clean_details(details: dict | None) -> dict:
     return {k: v[:64] for k, v in details.items() if k in ("character", "helper", "stage") and isinstance(v, str)}
 
 
+def complete(match: Match, winner_id: int, system_message: str) -> list[str]:
+    """Settle a match with its winner: completed, ranked win credited, unlocks granted (tagged
+    with the match). The one way a match gets a winner, shared by confirm, auto-confirm and
+    Rulings. Returns reward keys the winner just unlocked."""
+    match.status = "completed"
+    match.winner_id = winner_id
+    match.finished_at = now()
+    _system(match, system_message)
+    return rewards.record_ranked_win(match)
+
+
 def confirm(match: Match, user: User) -> list[str]:
-    """Completes the match and credits the ranked win. Returns reward keys the winner just unlocked."""
+    """The opponent accepts the reported result. Returns reward keys the winner just unlocked."""
     _side(match, user)
     _require_status(match, "reported")
     if user.id == match.reported_by_id:
         raise MatchmakingError("not_your_turn", "your opponent needs to confirm the result", 403)
-    match.status = "completed"
-    match.finished_at = now()
-    _system(match, "Result confirmed.")
-    return rewards.record_ranked_win(match)
+    return complete(match, match.winner_id, "Result confirmed.")
 
 
-def dispute(match: Match, user: User) -> None:
+def auto_confirm_if_due(match: Match) -> bool:
+    """The opponent neither confirmed nor disputed in time: the reported result stands."""
+    if match.status != "reported" or match.confirm_deadline is None or now() < match.confirm_deadline:
+        return False
+    complete(match, match.winner_id, f"Result confirmed automatically after {CONFIRM_HOURS} hours.")
+    s = score(match)
+    admin_log.record(
+        "auto_confirm",
+        f"The opponent didn't confirm or dispute the reported result within {CONFIRM_HOURS} hours.",
+        match_id=match.id,
+        target_id=non_reporter(match).id,
+        details={
+            "winnerId": match.winner_id,
+            "reportedById": match.reported_by_id,
+            "score": f"{s[match.winner_id]}-{sum(s.values()) - s[match.winner_id]}",
+        },
+    )
+    return True
+
+
+def dispute(match: Match, user: User, games: object = None, reason: object = None) -> None:
+    """The non-reporting player rejects the result: which games they dispute, and why."""
     _side(match, user)
     _require_status(match, "reported")
     if user.id == match.reported_by_id:
         raise MatchmakingError("not_your_turn", "only the other player can dispute", 403)
+    reported = {g.game_no for g in match.games}
+    errors = {}
+    if (
+        not isinstance(games, list)
+        or not games
+        or not all(isinstance(n, int) and not isinstance(n, bool) and n in reported for n in games)
+    ):
+        errors["games"] = f"pick one or more of the reported games {sorted(reported)}"
+    reason = reason.strip() if isinstance(reason, str) else ""
+    if not reason or len(reason) > MAX_STATEMENT_LEN:
+        errors["reason"] = f"must be 1-{MAX_STATEMENT_LEN} characters"
+    if errors:
+        raise MatchmakingError("validation", "say which games you dispute and why", 400, errors)
+    match.dispute_games = sorted(set(games))
+    match.dispute_reason = reason
     match.status = "disputed"
     match.ended_by_id = user.id
     match.finished_at = now()
-    _system(match, "Result disputed. A moderator will review it.")
+    _system(match, "Result disputed. An Admin will review it.")
+
+
+def add_statement(match: Match, user: User, text: object) -> None:
+    """Either player writes (or rewrites) their side of a Disputed match, until there's a Ruling."""
+    _side(match, user)
+    _require_status(match, "disputed")
+    text = text.strip() if isinstance(text, str) else ""
+    if not text or len(text) > MAX_STATEMENT_LEN:
+        raise MatchmakingError("validation", f"statement must be 1-{MAX_STATEMENT_LEN} characters", 400)
+    mine = next((st for st in match.statements if st.user_id == user.id), None)
+    if mine is None:
+        mine = DisputeStatement(user_id=user.id, text=text, updated_at=now())
+        match.statements.append(mine)
+    else:
+        mine.text = text
+        mine.updated_at = now()
 
 
 def leave(match: Match, user: User) -> None:
@@ -415,6 +524,24 @@ def _player_dict(match: Match, player: User, accepted: bool) -> dict:
     }
 
 
+def _dispute_dict(match: Match, rel: Callable[[int | None], str | None]) -> dict | None:
+    """Both players see the whole dispute: the games, the reason and each side's statement.
+
+    Matches disputed before the dispute form have no games or reason (shown as "No details").
+    """
+    if match.status != "disputed" and match.dispute_reason is None:
+        return None
+    statements = {"you": None, "opponent": None}
+    for st in match.statements:
+        statements[rel(st.user_id)] = {"text": st.text, "updatedAt": iso(st.updated_at)}
+    return {
+        "games": match.dispute_games or [],
+        "reason": match.dispute_reason,
+        "by": rel(match.ended_by_id),
+        "statements": statements,
+    }
+
+
 def match_dict(match: Match, viewer: User) -> dict:
     """Seen from one player's side: 'you' and 'opponent', which suits both the site and DMs."""
     side = _side(match, viewer)
@@ -434,6 +561,7 @@ def match_dict(match: Match, viewer: User) -> dict:
         "region": match.region,
         "status": match.status,
         "acceptDeadline": iso(match.accept_deadline),
+        "confirmDeadline": iso(match.confirm_deadline) if match.status == "reported" else None,
         "createdAt": iso(match.created_at),
         "finishedAt": iso(match.finished_at),
         "host": rel(match.player_a_id),
@@ -449,6 +577,7 @@ def match_dict(match: Match, viewer: User) -> dict:
         "reportedBy": rel(match.reported_by_id),
         "endedBy": rel(match.ended_by_id),
         # Rewards this match earned for the viewer (only ever non-empty for the winner of a completed match).
+        "dispute": _dispute_dict(match, rel),
         "rewardsUnlocked": rewards.rewards_from_match(match, me.id) if match.status == "completed" else [],
         "messages": [
             {"id": m.id, "from": "system" if m.user_id is None else rel(m.user_id), "text": m.text, "at": iso(m.created_at)}

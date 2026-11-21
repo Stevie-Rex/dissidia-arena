@@ -9,3 +9,4 @@ __pycache__/
 
 # Secrets: copy .env.example to .env
 .env
+node_modules

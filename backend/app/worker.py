@@ -30,6 +30,8 @@ def run_once() -> dict[str, list]:
         log.info("match %s created: %s vs %s (%s %s)", m.id, m.player_a_id, m.player_b_id, m.game, m.platform)
     for m in result["expired"]:
         log.info("match %s expired: accept window passed", m.id)
+    for m in result["autoConfirmed"]:
+        log.info("match %s auto-confirmed: confirm deadline passed", m.id)
     # Phase 2: hand result to the Discord bot so it can DM / thread the players.
     return result
 

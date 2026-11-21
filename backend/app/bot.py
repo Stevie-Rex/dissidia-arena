@@ -208,6 +208,33 @@ def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.
         )
         return embed, None
 
+    room = f"{frontend_url.rstrip('/')}/match/live?match={m['id']}"
+
+    if status == "reported":
+        winner = "you won" if m["winner"] == "you" else f"{opp_name} won"
+        embed = discord.Embed(
+            title="Confirm the result",
+            description=(
+                f"{title_line}\n\n**{opp_name}** reported {m['score']['you']}–{m['score']['opponent']} ({winner}). "
+                f"You have {mm.CONFIRM_HOURS} hours to confirm or dispute it in the [match room]({room}). "
+                f"If you don't, it confirms itself {_ts(m['confirmDeadline'])}."
+            ),
+            color=discord.Color.gold(),
+        )
+        return embed, None
+
+    if status == "disputed":
+        embed = discord.Embed(
+            title="Result disputed",
+            description=(
+                f"{title_line}\n\nYour result was disputed. Add your side.\n\n"
+                f"**{opp_name}** rejected the result you reported. Write what happened in the "
+                f"[match room]({room}); an Admin will look at both sides."
+            ),
+            color=discord.Color.gold(),
+        )
+        return embed, None
+
     if status == "cancelled":
         if m["endedBy"] == "you":
             text = "Match cancelled. You declined or didn't accept in time, so you're out of the queue."

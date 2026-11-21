@@ -204,8 +204,9 @@ def test_dispute(make_player):
     a, ca, b, cb, mid = started(make_player)
     report(ca, mid, 1, a)
     report(ca, mid, 2, a)
-    assert ca.post(f"/api/matches/{mid}/dispute").status_code == 403
-    assert cb.post(f"/api/matches/{mid}/dispute").get_json()["status"] == "disputed"
+    form = {"games": [2], "reason": "I won game 2"}
+    assert ca.post(f"/api/matches/{mid}/dispute", json=form).status_code == 403
+    assert cb.post(f"/api/matches/{mid}/dispute", json=form).get_json()["status"] == "disputed"
 
 
 def test_leave_active_match(make_player):

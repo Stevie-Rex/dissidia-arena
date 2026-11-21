@@ -211,3 +211,55 @@ def test_button_custom_id_round_trip():
     btn = bot.MatchButton("decline", 42)
     m = bot.MatchButton.__discord_ui_compiled_template__.fullmatch(btn.custom_id)
     assert m["action"] == "decline" and m["id"] == "42"
+
+
+# ---------------------------------------------------------------- results and disputes
+
+
+def _user(p):
+    return db.session.query(User).filter_by(discord_id=p.id).one()
+
+
+def _reported(guilds_, monkeypatch, minutes_later=30):
+    """A starts, then (a realistic while later) A reports a 2-0 win. Returns (a, b, match id)."""
+    a, b = _pair(guilds_)
+    mid = call(svc.collect_notifications)[0]["matchId"]
+    call(svc.match_action, a.id, mid, mm.accept)
+    call(svc.match_action, b.id, mid, mm.accept)
+    call(svc.collect_notifications)
+    # A Bo3 takes longer than NOTIFY_WINDOW, which mustn't stop result DMs.
+    later = mm.now() + timedelta(minutes=minutes_later)
+    monkeypatch.setattr(mm, "now", lambda: later)
+    for n in (1, 2):
+        call(lambda n=n: mm.report_game(mm.lock_match(mid), _user(a), n, _user(a).id))
+    return a, b, mid
+
+
+def test_disputed_result_dms_the_reporter_once(guilds, monkeypatch):
+    a, b, mid = _reported(guilds, monkeypatch)
+    call(svc.collect_notifications)  # whatever reporting sends
+    call(lambda: mm.dispute(mm.lock_match(mid), _user(b), [2], "I won game 2"))
+
+    events = call(svc.collect_notifications)
+    assert [(e["matchId"], e["status"]) for e in events] == [(mid, "disputed")]
+    assert [p["discordId"] for p in events[0]["players"]] == [a.id]
+    assert call(svc.collect_notifications) == []
+
+    embed, view = bot.render_match("disputed", events[0]["players"][0], "http://x")
+    assert view is None
+    assert "Your result was disputed. Add your side." in embed.description
+    assert f"http://x/match/live?match={mid}" in embed.description
+
+
+def test_reported_result_reminds_the_opponent_once(guilds, monkeypatch):
+    a, b, mid = _reported(guilds, monkeypatch)
+    events = call(svc.collect_notifications)
+    assert [(e["matchId"], e["status"]) for e in events] == [(mid, "reported")]
+    assert [p["discordId"] for p in events[0]["players"]] == [b.id]
+    assert call(svc.collect_notifications) == []
+
+    embed, view = bot.render_match("reported", events[0]["players"][0], "http://x")
+    assert view is None
+    assert "2 hours to confirm or dispute" in embed.description
+    assert "<t:" in embed.description  # the deadline, in the reader's timezone
+    assert f"http://x/match/live?match={mid}" in embed.description

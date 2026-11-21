@@ -1,9 +1,12 @@
+from .admin import AdminLogEntry
 from .appearance import UserPreferences, UserUnlock
 from .guild import GuildConfig
-from .match import Match, MatchGame, MatchMessage, QueueEntry
+from .match import DisputeStatement, Match, MatchGame, MatchMessage, QueueEntry
 from .user import User
 
 __all__ = [
+    "AdminLogEntry",
+    "DisputeStatement",
     "GuildConfig",
     "Match",
     "MatchGame",

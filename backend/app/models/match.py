@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
@@ -37,7 +37,8 @@ class Match(db.Model):
     Lifecycle:
       pending   -> both players must accept before accept_deadline
       active    -> games are being played and reported
-      reported  -> one side reached the winning score; the other player must confirm
+      reported  -> one side reached the winning score; the other player confirms or disputes
+                   before confirm_deadline, or it confirms itself
       completed | disputed | cancelled (accept failed) | abandoned (a player left)
     """
 
@@ -65,6 +66,14 @@ class Match(db.Model):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # Reported results confirm themselves at this time unless the opponent acts first.
+    confirm_deadline: Mapped[datetime | None] = mapped_column(DateTime, index=True)
+
+    # The dispute form: which reported games the disputing player rejects, and why. Null on
+    # matches disputed before the form existed.
+    dispute_games: Mapped[list[int] | None] = mapped_column(JSON)
+    dispute_reason: Mapped[str | None] = mapped_column(Text)
+
     # Last status the Discord bot told the players about; differs from status = DM pending.
     notified_status: Mapped[str | None] = mapped_column(String(12))
 
@@ -75,6 +84,9 @@ class Match(db.Model):
     )
     messages: Mapped[list["MatchMessage"]] = relationship(
         back_populates="match", order_by="MatchMessage.id", cascade="all, delete-orphan"
+    )
+    statements: Mapped[list["DisputeStatement"]] = relationship(
+        back_populates="match", order_by="DisputeStatement.id", cascade="all, delete-orphan"
     )
 
 
@@ -107,3 +119,18 @@ class MatchMessage(db.Model):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     match: Mapped[Match] = relationship(back_populates="messages")
+
+
+class DisputeStatement(db.Model):
+    """A player's written side of a Disputed match. One per player, which they can update until a Ruling."""
+
+    __tablename__ = "dispute_statements"
+    __table_args__ = (UniqueConstraint("match_id", "user_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    match: Mapped[Match] = relationship(back_populates="statements")

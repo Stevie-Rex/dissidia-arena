@@ -47,11 +47,35 @@ export interface GameDetails {
   stage?: string
 }
 
+export interface DisputeStatement {
+  text: string
+  updatedAt: string
+}
+
+/** The dispute form and each player's side. games is empty and reason null on disputes filed before the form. */
+export interface Dispute {
+  games: number[]
+  reason: string | null
+  by: Side | null
+  statements: Record<Side, DisputeStatement | null>
+}
+
+/** One of your Disputed matches, for the "add your side" notice. */
+export interface DisputeSummary {
+  id: number
+  game: GameId
+  opponent: string
+  youReported: boolean
+  statementAdded: boolean
+}
+
 export interface Match extends QueueSettings {
   id: number
   region: Region
   status: MatchStatus
   acceptDeadline: string
+  /** While reported: when the result confirms itself unless the opponent confirms or disputes first. */
+  confirmDeadline: string | null
   createdAt: string
   finishedAt: string | null
   host: Side
@@ -63,6 +87,7 @@ export interface Match extends QueueSettings {
   winner: Side | null
   reportedBy: Side | null
   endedBy: Side | null
+  dispute: Dispute | null
   messages: { id: number; from: Side | 'system'; text: string; at: string }[]
   /** Rewards this match earned for you (non-empty only for the winner of a completed match). */
   rewardsUnlocked: Pick<RewardDef, 'key' | 'name' | 'goal'>[]
@@ -74,6 +99,7 @@ export interface QueueState {
   queue: QueueEntry | null
   match: Match | null
   searching: Record<GameId, number>
+  disputes: DisputeSummary[]
 }
 
 export class ApiError extends Error {
@@ -107,10 +133,13 @@ export const api = {
   joinQueue: (settings: QueueSettings) => request<QueueState>('POST', '/queue', settings),
   leaveQueue: () => request<QueueState>('DELETE', '/queue'),
   match: (id: number) => request<Match>('GET', `/matches/${id}`),
-  matchAction: (id: number, action: 'accept' | 'decline' | 'confirm' | 'dispute' | 'leave') =>
+  matchAction: (id: number, action: 'accept' | 'decline' | 'confirm' | 'leave') =>
     request<Match>('POST', `/matches/${id}/${action}`),
   reportGame: (id: number, gameNo: number, winnerId: number, details: GameDetails) =>
     request<Match>('POST', `/matches/${id}/games`, { gameNo, winnerId, details }),
+  dispute: (id: number, games: number[], reason: string) =>
+    request<Match>('POST', `/matches/${id}/dispute`, { games, reason }),
+  saveStatement: (id: number, text: string) => request<Match>('PUT', `/matches/${id}/statement`, { text }),
   sendMessage: (id: number, text: string) => request<Match>('POST', `/matches/${id}/messages`, { text }),
 
   appearance: () => request<Appearance>('GET', '/me/appearance'),

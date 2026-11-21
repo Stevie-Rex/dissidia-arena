@@ -20,10 +20,20 @@ from .routes.me import MAX_GAME_ID_LEN
 
 # Don't ping a server's role more often than this, however many people queue.
 PING_COOLDOWN = timedelta(minutes=10)
-# Matches older than this are never DM'd about, e.g. the backlog when the bot first starts.
+# Status changes older than this are never DM'd about, e.g. the backlog when the bot first starts.
 NOTIFY_WINDOW = timedelta(minutes=10)
 # Statuses players get a DM for. Reporting in Discord comes later.
-NOTIFY_STATUSES = ("pending", "active", "cancelled")
+NOTIFY_STATUSES = ("pending", "active", "reported", "disputed", "cancelled")
+
+
+def _recipients(match: Match) -> list[User]:
+    """Who hears about this status: a reported result goes to the player who must answer it, a
+    dispute to the player whose result was rejected."""
+    if match.status == "reported":
+        return [mm.non_reporter(match)]
+    if match.status == "disputed":
+        return [mm.reporter(match)]
+    return [match.player_a, match.player_b]
 
 
 @dataclass(frozen=True)
@@ -167,7 +177,13 @@ def collect_notifications() -> list[dict]:
         select(Match)
         .where(
             or_(Match.notified_status.is_(None), Match.notified_status != Match.status),
-            Match.created_at >= t - NOTIFY_WINDOW,
+            # When the status last changed: creation (pending, active), the report (the confirm
+            # deadline is a fixed time after it), or the end of the match.
+            or_(
+                Match.created_at >= t - NOTIFY_WINDOW,
+                Match.confirm_deadline >= t - NOTIFY_WINDOW + timedelta(seconds=mm.CONFIRM_SECONDS),
+                Match.finished_at >= t - NOTIFY_WINDOW,
+            ),
         )
         .order_by(Match.id)
     ).all()
@@ -190,7 +206,7 @@ def collect_notifications() -> list[dict]:
                         "match": mm.match_dict(match, p),
                         "requeued": mm.queue_entry(p) is not None,
                     }
-                    for p in (match.player_a, match.player_b)
+                    for p in _recipients(match)
                 ],
             }
         )

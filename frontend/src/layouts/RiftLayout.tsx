@@ -2,7 +2,7 @@ import { Fragment } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import InterfaceSwitcher from '../components/appearance/InterfaceSwitcher'
 import LockPanel from '../components/appearance/LockPanel'
-import { AuthErrorBanner, FriendsSidebar, GameSwitcher, MobileTabs, Overlays } from '../components/Layout'
+import { AuthErrorBanner, DisputeNotice, FriendsSidebar, GameSwitcher, MobileTabs, Overlays } from '../components/Layout'
 import { Avatar, Btn, Logo, Pill } from '../components/ui'
 import { OPEN_STATUSES } from '../lib/api'
 import { cx } from '../lib/format'
@@ -107,6 +107,7 @@ export default function RiftLayout() {
       <RiftHeader />
       <LockPanel />
       <AuthErrorBanner />
+      <DisputeNotice />
       {fullBleed ? (
         <main>
           <Outlet />
