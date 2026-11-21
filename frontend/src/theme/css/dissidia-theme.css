@@ -1,0 +1,472 @@
+/* Dissidia Arena theme v1.0.0. Generated from tokens.json: change values there, not here. */
+/* Needs css/fonts.css. Set data-interface, data-world, data-window, data-menu-font and data-cursor on <html>. */
+
+/* ---------- Rift worlds ---------- */
+:root, [data-world="dissidia"] {
+  --rift-page-bg: #F7F3EA;
+  --rift-card-bg: #FFFDF8;
+  --rift-ink: #16130E;
+  --rift-muted: #5E574B;
+  --rift-line: #DCD2BE;
+  --rift-gold: #9A7A2E;
+  --rift-gold-text: #765A1C;
+  --rift-cosmos-bg: #F3EEDF;
+  --rift-cosmos-ink: #1B2340;
+  --rift-cosmos-muted: #4A5270;
+  --rift-cosmos-accent: #1B2340;
+  --rift-cosmos-btn-ink: #F3EEDF;
+  --rift-cosmos-line: #B8964A;
+  --rift-chaos-bg: #0D0A0C;
+  --rift-chaos-ink: #F3E9E9;
+  --rift-chaos-muted: #BBAAAD;
+  --rift-chaos-accent: #E5404F;
+  --rift-chaos-btn-ink: #0D0A0C;
+  --rift-chaos-line: #E5404F;
+  --rift-meter-cosmos: #C9A957;
+  --rift-meter-chaos: #8E1A28;
+}
+[data-world="crystal"] {
+  --rift-page-bg: #F5F8FC;
+  --rift-card-bg: #FFFFFF;
+  --rift-ink: #0F1826;
+  --rift-muted: #4C5A6C;
+  --rift-line: #D2DCE8;
+  --rift-gold: #5E8FB8;
+  --rift-gold-text: #2F5F8A;
+  --rift-cosmos-bg: #E6F0F9;
+  --rift-cosmos-ink: #0F2233;
+  --rift-cosmos-muted: #3E5568;
+  --rift-cosmos-accent: #0F2233;
+  --rift-cosmos-btn-ink: #E6F0F9;
+  --rift-cosmos-line: #7FB4DD;
+  --rift-chaos-bg: #120E22;
+  --rift-chaos-ink: #EDE8FF;
+  --rift-chaos-muted: #B2A8D6;
+  --rift-chaos-accent: #A98BFF;
+  --rift-chaos-btn-ink: #120E22;
+  --rift-chaos-line: #A98BFF;
+  --rift-meter-cosmos: #8FC4EA;
+  --rift-meter-chaos: #4B2FA8;
+}
+[data-world="magitek"] {
+  --rift-page-bg: #F8F2E6;
+  --rift-card-bg: #FFFCF5;
+  --rift-ink: #1E1813;
+  --rift-muted: #64584A;
+  --rift-line: #DFD2BB;
+  --rift-gold: #9C7A3A;
+  --rift-gold-text: #73561F;
+  --rift-cosmos-bg: #EFE4CF;
+  --rift-cosmos-ink: #2A1F14;
+  --rift-cosmos-muted: #5E4E3C;
+  --rift-cosmos-accent: #2A1F14;
+  --rift-cosmos-btn-ink: #EFE4CF;
+  --rift-cosmos-line: #B08B47;
+  --rift-chaos-bg: #17110C;
+  --rift-chaos-ink: #F2E6D4;
+  --rift-chaos-muted: #BFAE96;
+  --rift-chaos-accent: #D9A24A;
+  --rift-chaos-btn-ink: #17110C;
+  --rift-chaos-line: #D9A24A;
+  --rift-meter-cosmos: #D8BC7E;
+  --rift-meter-chaos: #6B3A1E;
+}
+[data-world="mako"] {
+  --rift-page-bg: #F3F7F5;
+  --rift-card-bg: #FFFFFF;
+  --rift-ink: #101713;
+  --rift-muted: #4F5E57;
+  --rift-line: #CFDCD5;
+  --rift-gold: #3F9A72;
+  --rift-gold-text: #1E6B4A;
+  --rift-cosmos-bg: #E3F0E9;
+  --rift-cosmos-ink: #0E2A1F;
+  --rift-cosmos-muted: #3F5A4E;
+  --rift-cosmos-accent: #0E2A1F;
+  --rift-cosmos-btn-ink: #E3F0E9;
+  --rift-cosmos-line: #5DBF92;
+  --rift-chaos-bg: #0A0E0C;
+  --rift-chaos-ink: #E6F2EC;
+  --rift-chaos-muted: #A5B8AE;
+  --rift-chaos-accent: #4BE39C;
+  --rift-chaos-btn-ink: #0A0E0C;
+  --rift-chaos-line: #4BE39C;
+  --rift-meter-cosmos: #9FE3C0;
+  --rift-meter-chaos: #14523A;
+}
+[data-world="gaia"] {
+  --rift-page-bg: #F2F2F0;
+  --rift-card-bg: #FFFFFF;
+  --rift-ink: #1A1B1E;
+  --rift-muted: #55585F;
+  --rift-line: #D5D6D9;
+  --rift-gold: #8A8F99;
+  --rift-gold-text: #4E525A;
+  --rift-cosmos-bg: #E9EAEC;
+  --rift-cosmos-ink: #22252B;
+  --rift-cosmos-muted: #50545C;
+  --rift-cosmos-accent: #43474F;
+  --rift-cosmos-btn-ink: #FFFFFF;
+  --rift-cosmos-line: #9AA0AA;
+  --rift-chaos-bg: #1D1F24;
+  --rift-chaos-ink: #EEF0F3;
+  --rift-chaos-muted: #B3B7BF;
+  --rift-chaos-accent: #D9C27A;
+  --rift-chaos-btn-ink: #1D1F24;
+  --rift-chaos-line: #D9C27A;
+  --rift-meter-cosmos: #B7BCC5;
+  --rift-meter-chaos: #43474F;
+}
+[data-world="ivalice"] {
+  --rift-page-bg: #FAF6EE;
+  --rift-card-bg: #FFFFFF;
+  --rift-ink: #221C15;
+  --rift-muted: #62584B;
+  --rift-line: #DDD2C0;
+  --rift-gold: #A8823C;
+  --rift-gold-text: #7A5A1E;
+  --rift-cosmos-bg: #E8EEF4;
+  --rift-cosmos-ink: #1A2F47;
+  --rift-cosmos-muted: #455A70;
+  --rift-cosmos-accent: #2E5E8C;
+  --rift-cosmos-btn-ink: #FFFFFF;
+  --rift-cosmos-line: #7FA3C8;
+  --rift-chaos-bg: #1A1512;
+  --rift-chaos-ink: #F0E6D8;
+  --rift-chaos-muted: #B8AC9A;
+  --rift-chaos-accent: #D7684C;
+  --rift-chaos-btn-ink: #1A1512;
+  --rift-chaos-line: #D7684C;
+  --rift-meter-cosmos: #A9C3DD;
+  --rift-meter-chaos: #7A2616;
+}
+
+:root {
+  --rift-font-brand: 'Cinzel Decorative', serif;
+  --rift-font-heading: 'Cinzel', serif;
+  --rift-font-lore: 'Cormorant Garamond', serif;
+  --rift-font-body: 'Inter', system-ui, sans-serif;
+}
+
+/* ---------- Classic window themes ---------- */
+:root, [data-window="classic"] {
+  --win-page-bg: #05070F;
+  --win-angle: 180deg;
+  --win-top: #2B3F9E;
+  --win-bot: #0E1B5C;
+  --win-border: #E3E7F5;
+  --win-bw: 2px;
+  --win-radius: 8px;
+  --win-bevel: #7F8CC8;
+  --win-ink: #FFFFFF;
+  --win-muted: #C3CBEB;
+  --win-cursor: #FFE08A;
+  --win-cosmos: #FFE08A;
+  --win-chaos: #FFA3A3;
+  --win-track: #081040;
+  --win-hp: #8FE3B0;
+  --win-sel: rgba(255,255,255,0.14);
+  --win-inner: #5566B8;
+  --win-shadow: 1px 1px 0 #0A0F33;
+  /* default menu font for this window: bit16 */
+  --menu-family: 'DotGothic16', sans-serif;
+  --menu-scale: 1;
+  --menu-weight: 400;
+  --menu-lh: 1.45;
+}
+[data-window="crystal"] {
+  --win-page-bg: #07050F;
+  --win-angle: 180deg;
+  --win-top: #3A2B78;
+  --win-bot: #1B1240;
+  --win-border: #E8E1FF;
+  --win-bw: 2px;
+  --win-radius: 8px;
+  --win-bevel: #8D7FD0;
+  --win-ink: #FFFFFF;
+  --win-muted: #D5CCF7;
+  --win-cursor: #9EE6FF;
+  --win-cosmos: #9EE6FF;
+  --win-chaos: #FFB0D2;
+  --win-track: #120A30;
+  --win-hp: #9EE6FF;
+  --win-sel: rgba(255,255,255,0.14);
+  --win-inner: #6A5AB0;
+  --win-shadow: 1px 1px 0 #0D0826;
+  /* default menu font for this window: bit16 */
+  --menu-family: 'DotGothic16', sans-serif;
+  --menu-scale: 1;
+  --menu-weight: 400;
+  --menu-lh: 1.45;
+}
+[data-window="magitek"] {
+  --win-page-bg: #0C0805;
+  --win-angle: 180deg;
+  --win-top: #4A3624;
+  --win-bot: #241810;
+  --win-border: #EADBBE;
+  --win-bw: 2px;
+  --win-radius: 8px;
+  --win-bevel: #9C8462;
+  --win-ink: #FFF8EC;
+  --win-muted: #DCCAA8;
+  --win-cursor: #FFD58A;
+  --win-cosmos: #FFD58A;
+  --win-chaos: #FFA595;
+  --win-track: #1A110A;
+  --win-hp: #C9E39A;
+  --win-sel: rgba(255,255,255,0.14);
+  --win-inner: #7E6545;
+  --win-shadow: 1px 1px 0 #140D07;
+  /* default menu font for this window: bit16 */
+  --menu-family: 'DotGothic16', sans-serif;
+  --menu-scale: 1;
+  --menu-weight: 400;
+  --menu-lh: 1.45;
+}
+[data-window="midgar"] {
+  --win-page-bg: #03050C;
+  --win-angle: 135deg;
+  --win-top: #3A55B8;
+  --win-bot: #0A1450;
+  --win-border: #DADFEE;
+  --win-bw: 2px;
+  --win-radius: 4px;
+  --win-bevel: #8090D0;
+  --win-ink: #FFFFFF;
+  --win-muted: #D6DCF3;
+  --win-cursor: #FFE08A;
+  --win-cosmos: #FFE08A;
+  --win-chaos: #FFD0D2;
+  --win-track: #070E38;
+  --win-hp: #8FE3B0;
+  --win-sel: rgba(255,255,255,0.14);
+  --win-inner: #5A70C8;
+  --win-shadow: 1px 1px 0 #050A2A;
+  /* default menu font for this window: modern */
+  --menu-family: 'Rajdhani', sans-serif;
+  --menu-scale: 1.08;
+  --menu-weight: 700;
+  --menu-lh: 1.35;
+}
+[data-window="garden"] {
+  --win-page-bg: #06080B;
+  --win-angle: 180deg;
+  --win-top: #454C59;
+  --win-bot: #20242C;
+  --win-border: #B7BEC9;
+  --win-bw: 1px;
+  --win-radius: 2px;
+  --win-bevel: #6A7280;
+  --win-ink: #FFFFFF;
+  --win-muted: #CDD3DC;
+  --win-cursor: #FFFFFF;
+  --win-cosmos: #F2D98C;
+  --win-chaos: #FFB3A8;
+  --win-track: #15181E;
+  --win-hp: #9FD8F0;
+  --win-sel: rgba(255,255,255,0.14);
+  --win-inner: #6C7482;
+  --win-shadow: 1px 1px 0 #101216;
+  /* default menu font for this window: modern */
+  --menu-family: 'Rajdhani', sans-serif;
+  --menu-scale: 1.08;
+  --menu-weight: 700;
+  --menu-lh: 1.35;
+}
+[data-window="gaia"] {
+  --win-page-bg: #1C1E22;
+  --win-angle: 180deg;
+  --win-top: #646973;
+  --win-bot: #43474F;
+  --win-border: #F4F5F8;
+  --win-bw: 3px;
+  --win-radius: 14px;
+  --win-bevel: #9A9FA8;
+  --win-ink: #FFFFFF;
+  --win-muted: #EEF0F3;
+  --win-cursor: #FFFFFF;
+  --win-cosmos: #FFEBB0;
+  --win-chaos: #FFE8E8;
+  --win-track: #2E3036;
+  --win-hp: #B8F0A8;
+  --win-sel: rgba(0,0,0,0.22);
+  --win-inner: #9298A2;
+  --win-shadow: 2px 2px 0 #1A1B1F;
+  /* default menu font for this window: story */
+  --menu-family: 'Marcellus SC', serif;
+  --menu-scale: 0.95;
+  --menu-weight: 400;
+  --menu-lh: 1.45;
+}
+[data-window="spira"] {
+  --win-page-bg: #04101F;
+  --win-angle: 180deg;
+  --win-top: #2A5596;
+  --win-bot: #0E2550;
+  --win-border: #A9CDF5;
+  --win-bw: 1px;
+  --win-radius: 12px;
+  --win-bevel: #5F8BC8;
+  --win-ink: #FFFFFF;
+  --win-muted: #C9DDF5;
+  --win-cursor: #FFE08A;
+  --win-cosmos: #FFE08A;
+  --win-chaos: #FFC2CE;
+  --win-track: #08193A;
+  --win-hp: #9EF0C8;
+  --win-sel: rgba(255,255,255,0.14);
+  --win-inner: #4E78B8;
+  --win-shadow: 0 1px 2px #061430;
+  /* default menu font for this window: modern */
+  --menu-family: 'Rajdhani', sans-serif;
+  --menu-scale: 1.08;
+  --menu-weight: 700;
+  --menu-lh: 1.35;
+}
+[data-window="ivalice"] {
+  --win-page-bg: #BDAE92;
+  --win-angle: 180deg;
+  --win-top: #F6EFDF;
+  --win-bot: #E6DAC2;
+  --win-border: #5A4630;
+  --win-bw: 2px;
+  --win-radius: 6px;
+  --win-bevel: #C9B999;
+  --win-ink: #2A2016;
+  --win-muted: #5A4C3C;
+  --win-cursor: #9A2E1A;
+  --win-cosmos: #1F5A94;
+  --win-chaos: #A3301C;
+  --win-track: #D6C8AC;
+  --win-hp: #3E7A3A;
+  --win-sel: rgba(90,70,48,0.14);
+  --win-inner: #B9A57F;
+  --win-shadow: none;
+  /* default menu font for this window: story */
+  --menu-family: 'Marcellus SC', serif;
+  --menu-scale: 0.95;
+  --menu-weight: 400;
+  --menu-lh: 1.45;
+}
+[data-window="custom"] {
+  --win-page-bg: #05070F;
+  --win-angle: 180deg;
+  --win-top: #5A5A5A;
+  --win-bot: #222222;
+  --win-border: #E3E7F5;
+  --win-bw: 2px;
+  --win-radius: 8px;
+  --win-bevel: rgba(255,255,255,0.35);
+  --win-ink: #FFFFFF;
+  --win-muted: #F2F4F8;
+  --win-cursor: #FFE08A;
+  --win-cosmos: #FFE08A;
+  --win-chaos: #FFB3B3;
+  --win-track: #161616;
+  --win-hp: #8FE3B0;
+  --win-sel: rgba(255,255,255,0.14);
+  --win-inner: rgba(255,255,255,0.3);
+  --win-shadow: 1px 1px 0 rgba(0,0,0,0.65);
+  /* default menu font for this window: bit16 */
+  --menu-family: 'DotGothic16', sans-serif;
+  --menu-scale: 1;
+  --menu-weight: 400;
+  --menu-lh: 1.45;
+}
+
+/* ---------- Menu font override (beats the window's default) ---------- */
+[data-menu-font="bit16"] [data-window], [data-menu-font="bit16"][data-window] {
+  --menu-family: 'DotGothic16', sans-serif;
+  --menu-scale: 1;
+  --menu-weight: 400;
+  --menu-lh: 1.45;
+}
+[data-menu-font="bit8"] [data-window], [data-menu-font="bit8"][data-window] {
+  --menu-family: 'Press Start 2P', monospace;
+  --menu-scale: 0.6;
+  --menu-weight: 400;
+  --menu-lh: 1.9;
+}
+[data-menu-font="story"] [data-window], [data-menu-font="story"][data-window] {
+  --menu-family: 'Marcellus SC', serif;
+  --menu-scale: 0.95;
+  --menu-weight: 400;
+  --menu-lh: 1.45;
+}
+[data-menu-font="modern"] [data-window], [data-menu-font="modern"][data-window] {
+  --menu-family: 'Rajdhani', sans-serif;
+  --menu-scale: 1.08;
+  --menu-weight: 700;
+  --menu-lh: 1.35;
+}
+
+/* ---------- Shared derived tokens ---------- */
+:root {
+  --win-bg: linear-gradient(var(--win-angle), var(--win-top), var(--win-bot));
+  --win-frame: 0 0 0 1px rgba(0,0,0,.55), inset 0 0 0 1px var(--win-bevel);
+  --menu-title: max(12px, calc(26px * var(--menu-scale)));
+  --menu-command: max(13px, calc(22px * var(--menu-scale)));
+  --menu-big: max(15px, calc(28px * var(--menu-scale)));
+  --menu-label: max(12px, calc(17px * var(--menu-scale)));
+  --menu-body: max(12px, calc(16px * var(--menu-scale)));
+  --menu-small: max(12px, calc(14px * var(--menu-scale)));
+}
+/* custom properties that reference others must be re-declared where the inputs change */
+[data-window] { --win-bg: linear-gradient(var(--win-angle), var(--win-top), var(--win-bot)); --win-frame: 0 0 0 1px rgba(0,0,0,.55), inset 0 0 0 1px var(--win-bevel); --menu-title: max(12px, calc(26px * var(--menu-scale))); --menu-command: max(13px, calc(22px * var(--menu-scale))); --menu-big: max(15px, calc(28px * var(--menu-scale))); --menu-label: max(12px, calc(17px * var(--menu-scale))); --menu-body: max(12px, calc(16px * var(--menu-scale))); --menu-small: max(12px, calc(14px * var(--menu-scale))); }
+
+/* ---------- Page backgrounds per interface ---------- */
+[data-interface="rift"] body { background: var(--rift-page-bg); color: var(--rift-ink); font-family: var(--rift-font-body); }
+[data-interface="classic"] body { background: var(--win-page-bg); color: var(--win-ink); font-family: var(--menu-family); line-height: var(--menu-lh); }
+
+/* ---------- Classic window component ---------- */
+.da-window {
+  background: var(--win-bg);
+  border: var(--win-bw) solid var(--win-border);
+  border-radius: var(--win-radius);
+  box-shadow: var(--win-frame);
+  color: var(--win-ink);
+  text-shadow: var(--win-shadow);
+  font-family: var(--menu-family);
+  line-height: var(--menu-lh);
+}
+.da-window__title { margin: 0 0 12px; font-size: var(--menu-label); font-weight: var(--menu-weight); letter-spacing: .12em; color: var(--win-muted); }
+.da-command { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 8px 10px; border: 0; border-radius: 4px; background: transparent; color: inherit; text-shadow: inherit; font: inherit; font-size: var(--menu-command); font-weight: var(--menu-weight); text-align: left; cursor: pointer; }
+.da-command[aria-current="page"], .da-command[aria-pressed="true"] { background: var(--win-sel); }
+.da-command__cursor { width: 28px; flex: none; display: flex; align-items: center; visibility: hidden; }
+.da-command[aria-current="page"] .da-command__cursor, .da-command[aria-pressed="true"] .da-command__cursor { visibility: visible; }
+.da-cursor-glove { width: 26px; height: 18px; background: url("../assets/glove.svg") no-repeat center / contain; }
+.da-cursor-arrow { color: var(--win-cursor); }
+.da-cursor-arrow::before { content: "\25B6"; }
+[data-cursor="arrow"] .da-cursor-glove { display: none; }
+[data-cursor="glove"] .da-cursor-arrow, :root:not([data-cursor]) .da-cursor-arrow { display: none; }
+
+/* ---------- Rift fracture hero ---------- */
+.da-rift-chaos { clip-path: polygon(55% 0,100% 0,100% 100%,45% 100%,48% 84%,44% 74%,50% 60%,46% 47%,53% 34%,50% 22%,56% 11%); }
+.da-rift-halves { display: flex; }
+.da-rift-half { width: 50%; box-sizing: border-box; }
+@media (max-width: 760px) {
+  .da-rift-chaos { clip-path: polygon(0 51%,14% 47%,27% 53%,42% 46%,58% 52%,73% 45%,88% 51%,100% 47%,100% 100%,0 100%); }
+  .da-rift-halves { flex-direction: column; }
+  .da-rift-half { width: 100%; }
+}
+
+/* ---------- Segmented gauge (Cycle of War, reward progress) ---------- */
+.da-gauge { position: relative; display: flex; height: 22px; padding: 3px; border: 1px solid var(--rift-ink); background: var(--rift-card-bg); }
+.da-gauge__cosmos { background: var(--rift-meter-cosmos); }
+.da-gauge__chaos { background: var(--rift-meter-chaos); }
+.da-gauge::after { content: ""; position: absolute; inset: 3px; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(5% - 3px), var(--rift-card-bg) calc(5% - 3px), var(--rift-card-bg) 5%); pointer-events: none; }
+
+/* ---------- Sides ---------- */
+.da-glyph { width: 1em; height: 1em; display: inline-block; vertical-align: -0.15em; background: currentColor; }
+.da-glyph--cosmos { -webkit-mask: url("../assets/cosmos.svg") center / contain no-repeat; mask: url("../assets/cosmos.svg") center / contain no-repeat; }
+.da-glyph--chaos { -webkit-mask: url("../assets/chaos.svg") center / contain no-repeat; mask: url("../assets/chaos.svg") center / contain no-repeat; }
+[data-interface="rift"] [data-side="cosmos"] { --side: var(--rift-cosmos-accent); }
+[data-interface="rift"] [data-side="chaos"] { --side: var(--rift-chaos-accent); }
+[data-interface="classic"] [data-side="cosmos"] { --side: var(--win-cosmos); }
+[data-interface="classic"] [data-side="chaos"] { --side: var(--win-chaos); }
+
+/* ---------- Locked controls ---------- */
+.da-locked, button:disabled.da-command { opacity: .55; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
