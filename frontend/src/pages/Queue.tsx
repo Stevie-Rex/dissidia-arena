@@ -82,7 +82,7 @@ export default function Queue() {
         onClick={searching ? cancelQueue : startQueue}
         className={cx(
           'my-4 flex h-44 w-44 flex-col items-center justify-center gap-1 rounded-full border-2 border-gold outline-1 outline-offset-[6px] outline-dashed outline-crystal transition-shadow',
-          'shadow-[0_0_28px_rgba(220,182,94,.28)] hover:shadow-[0_0_40px_rgba(220,182,94,.45)]',
+          'shadow-[0_0_28px_color-mix(in_srgb,var(--ui-gold)_28%,transparent)] hover:shadow-[0_0_40px_color-mix(in_srgb,var(--ui-gold)_45%,transparent)]',
         )}
       >
         {searching ? (

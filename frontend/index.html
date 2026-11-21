@@ -1,10 +1,50 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-interface="rift" data-world="dissidia" data-window="classic" data-cursor="glove">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DISSIDIA//COMP</title>
+    <title>Dissidia Arena</title>
+    <script>
+      /* Apply the last saved appearance before first paint, so there is no flash of the default theme.
+         The app writes localStorage['da-appearance'] from GET /api/me/appearance; the server still enforces locks. */
+      (function () {
+        try {
+          var root = document.documentElement;
+          var ok = function (v) { return typeof v === 'string' && /^[a-z0-9]{1,16}$/.test(v); };
+          var saved = JSON.parse(localStorage.getItem('da-appearance') || 'null') || {};
+          var p = saved.preferences || {};
+          var unlocks = Array.isArray(saved.unlocks) ? saved.unlocks : [];
+          if (ok(p.interface)) root.setAttribute('data-interface', p.interface);
+          if (ok(p.world)) root.setAttribute('data-world', p.world);
+          if (ok(p.window_theme)) root.setAttribute('data-window', p.window_theme);
+          if (ok(p.cursor)) root.setAttribute('data-cursor', p.cursor);
+          if (ok(p.menu_font) && p.menu_font !== 'auto') root.setAttribute('data-menu-font', p.menu_font);
+          if (p.window_theme === 'custom' && Array.isArray(p.window_rgb) && p.window_rgb.length === 3) {
+            /* customWindow(): each 0-31 channel x3, then top x1.2, bot x0.45, track x0.25 */
+            var base = p.window_rgb.map(function (n) {
+              n = Math.round(Number(n));
+              return Math.max(0, Math.min(31, isNaN(n) ? 0 : n)) * 3;
+            });
+            var mix = function (f) {
+              return '#' + base.map(function (c) {
+                var s = Math.max(0, Math.min(255, Math.round(c * f))).toString(16);
+                return s.length < 2 ? '0' + s : s;
+              }).join('');
+            };
+            root.style.setProperty('--win-top', mix(1.2));
+            root.style.setProperty('--win-bot', mix(0.45));
+            root.style.setProperty('--win-track', mix(0.25));
+          }
+          if (sessionStorage.getItem('da-preview') === 'classic' && unlocks.indexOf('classic_interface') === -1) {
+            root.setAttribute('data-interface', 'classic');
+            root.setAttribute('data-preview', 'classic');
+          }
+        } catch (e) {
+          /* storage blocked or bad JSON: keep the defaults on <html> */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

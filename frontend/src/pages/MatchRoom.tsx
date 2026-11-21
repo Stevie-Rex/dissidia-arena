@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { CHARACTERS, GAMES, HELPERS, STAGES, type GameId } from '../data/mock'
 import { useApp } from '../state/AppState'
 import type { GameDetails, Match, Side } from '../lib/api'
-import { Avatar, Btn, Card, Gem, Pill, Select, Sub } from '../components/ui'
+import { Avatar, Btn, Card, Pill, Select, SideGlyph, Sub } from '../components/ui'
+import VictoryReward from '../components/appearance/VictoryReward'
 import { cx } from '../lib/format'
 
 /** 1p — match room: connect info + report on the left, opponent-only chat on the right. */
@@ -43,142 +44,175 @@ export default function MatchRoom() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-[260px_1fr]">
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <Avatar name={live.you.displayName} src={live.you.avatarUrl} ring="crystal" />
-          <Gem />
-          <Avatar name={opp.displayName} src={opp.avatarUrl} ring="chaos" />
-          <b>
-            vs <span className="text-chaos-soft">{opp.displayName}</span>
-          </b>
-        </div>
-        <Sub>
-          {info.short} {live.mode} · Bo{live.bestOf} · {live.platform}
-          {live.status === 'active' && ` · game ${live.games.length + 1}`} ·{' '}
-          <span className="text-fg">{scoreLine}</span>
-        </Sub>
+    <div className="flex flex-col gap-4">
+      <VictoryReward match={live} />
+      <ScoreBar match={live} />
+      <div className="grid gap-4 md:grid-cols-[260px_1fr]">
+        <div className="flex flex-col gap-3">
+          <Card>
+            <Sub>host</Sub>
+            <b>{live.host === 'you' ? 'You' : host.displayName}</b>
+            <Sub>
+              {info.idLabel}: {hostId}
+            </Sub>
+            {host.gameId && (
+              <Pill
+                className="self-start"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(host.gameId!)
+                  setCopied(true)
+                }}
+              >
+                {copied ? 'Copied ✓' : 'Copy'}
+              </Pill>
+            )}
+          </Card>
 
-        <Card>
-          <Sub>host</Sub>
-          <b>{live.host === 'you' ? 'You' : host.displayName}</b>
-          <Sub>
-            {info.idLabel}: {hostId}
-          </Sub>
-          {host.gameId && (
-            <Pill
-              className="self-start"
+          {matchError && <span className="text-xs text-chaos-soft">{matchError}</span>}
+
+          {live.status === 'active' && (
+            <ReportGame key={live.games.length} gameNo={live.games.length + 1} game={live.game} onReport={reportGame} />
+          )}
+
+          {live.status === 'reported' && live.reportedBy === 'you' && (
+            <Card tone="gold">
+              <Sub>waiting for confirmation</Sub>
+              <b>
+                You reported {scoreLine} · {live.winner === 'you' ? 'you win' : `${opp.displayName} wins`}
+              </b>
+              <Sub>{opp.displayName} needs to confirm or dispute.</Sub>
+            </Card>
+          )}
+
+          {live.status === 'reported' && live.reportedBy === 'opponent' && (
+            <Card tone="gold">
+              <Sub>confirm result</Sub>
+              <b>
+                {opp.displayName} says: {scoreLine} · {live.winner === 'you' ? 'you win' : 'they win'}
+              </b>
+              <div className="flex gap-2">
+                <Btn onClick={confirmResult}>Confirm</Btn>
+                <Pill onClick={disputeResult}>Dispute</Pill>
+              </div>
+            </Card>
+          )}
+
+          {!canChat && <Finished match={live} onDone={() => done(`/${live.game}`)} onAgain={() => done('/queue', true)} />}
+
+          {live.games.length > 0 && <GameList match={live} />}
+
+          {live.status === 'active' && (
+            <button
+              type="button"
+              className="self-start text-xs text-muted hover:text-chaos-soft"
               onClick={() => {
-                void navigator.clipboard?.writeText(host.gameId!)
-                setCopied(true)
+                if (window.confirm('Leave this match? It will count as abandoned.')) abandonMatch()
               }}
             >
-              {copied ? 'Copied ✓' : 'Copy'}
-            </Pill>
+              Leave match
+            </button>
+          )}
+        </div>
+
+        <Card className="min-h-[420px]">
+          <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
+            {live.messages.map((m) =>
+              m.from === 'system' ? (
+                <div key={m.id} className="text-center text-xs text-muted">
+                  — {m.text} —
+                </div>
+              ) : (
+                <div key={m.id} className={cx('flex items-start gap-2', m.from === 'you' && 'flex-row-reverse')}>
+                  <Avatar
+                    name={live[m.from].displayName}
+                    src={live[m.from].avatarUrl}
+                    ring={m.from === 'you' ? 'crystal' : 'chaos'}
+                  />
+                  <div
+                    className={cx(
+                      'max-w-[70%] rounded-lg border-[1.5px] px-2.5 py-1.5 text-sm',
+                      m.from === 'you' ? 'border-crystal-line bg-crystal-bg' : 'border-chaos-line bg-chaos-bg',
+                    )}
+                  >
+                    {m.text}
+                  </div>
+                </div>
+              ),
+            )}
+            <div ref={chatEnd} />
+          </div>
+          {canChat && (
+            <>
+              <div className="flex flex-wrap gap-1.5">
+                {['gg', 'rematch?', 'lag', 'ready'].map((q) => (
+                  <Pill key={q} onClick={() => sendChat(q)}>
+                    {q}
+                  </Pill>
+                ))}
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  sendChat(text)
+                  setText('')
+                }}
+              >
+                <input
+                  value={text}
+                  maxLength={500}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder={`message ${opp.displayName}…`}
+                  className="w-full rounded-md border-[1.5px] border-line-strong bg-panel px-3 py-2 text-sm placeholder:text-muted focus:border-crystal focus:outline-none"
+                />
+              </form>
+            </>
           )}
         </Card>
-
-        {matchError && <span className="text-xs text-chaos-soft">{matchError}</span>}
-
-        {live.status === 'active' && (
-          <ReportGame key={live.games.length} gameNo={live.games.length + 1} game={live.game} onReport={reportGame} />
-        )}
-
-        {live.status === 'reported' && live.reportedBy === 'you' && (
-          <Card tone="gold">
-            <Sub>waiting for confirmation</Sub>
-            <b>
-              You reported {scoreLine} · {live.winner === 'you' ? 'you win' : `${opp.displayName} wins`}
-            </b>
-            <Sub>{opp.displayName} needs to confirm or dispute.</Sub>
-          </Card>
-        )}
-
-        {live.status === 'reported' && live.reportedBy === 'opponent' && (
-          <Card tone="gold">
-            <Sub>confirm result</Sub>
-            <b>
-              {opp.displayName} says: {scoreLine} · {live.winner === 'you' ? 'you win' : 'they win'}
-            </b>
-            <div className="flex gap-2">
-              <Btn onClick={confirmResult}>Confirm</Btn>
-              <Pill onClick={disputeResult}>Dispute</Pill>
-            </div>
-          </Card>
-        )}
-
-        {!canChat && <Finished match={live} onDone={() => done(`/${live.game}`)} onAgain={() => done('/queue', true)} />}
-
-        {live.games.length > 0 && <GameList match={live} />}
-
-        {live.status === 'active' && (
-          <button
-            type="button"
-            className="self-start text-xs text-muted hover:text-chaos-soft"
-            onClick={() => {
-              if (window.confirm('Leave this match? It will count as abandoned.')) abandonMatch()
-            }}
-          >
-            Leave match
-          </button>
-        )}
       </div>
-
-      <Card className="min-h-[420px]">
-        <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
-          {live.messages.map((m) =>
-            m.from === 'system' ? (
-              <div key={m.id} className="text-center text-xs text-muted">
-                — {m.text} —
-              </div>
-            ) : (
-              <div key={m.id} className={cx('flex items-start gap-2', m.from === 'you' && 'flex-row-reverse')}>
-                <Avatar
-                  name={live[m.from].displayName}
-                  src={live[m.from].avatarUrl}
-                  ring={m.from === 'you' ? 'crystal' : 'chaos'}
-                />
-                <div
-                  className={cx(
-                    'max-w-[70%] rounded-lg border-[1.5px] px-2.5 py-1.5 text-sm',
-                    m.from === 'you' ? 'border-crystal-line bg-crystal-bg' : 'border-chaos-line bg-chaos-bg',
-                  )}
-                >
-                  {m.text}
-                </div>
-              </div>
-            ),
-          )}
-          <div ref={chatEnd} />
-        </div>
-        {canChat && (
-          <>
-            <div className="flex flex-wrap gap-1.5">
-              {['gg', 'rematch?', 'lag', 'ready'].map((q) => (
-                <Pill key={q} onClick={() => sendChat(q)}>
-                  {q}
-                </Pill>
-              ))}
-            </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                sendChat(text)
-                setText('')
-              }}
-            >
-              <input
-                value={text}
-                maxLength={500}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={`message ${opp.displayName}…`}
-                className="w-full rounded-md border-[1.5px] border-line-strong bg-panel px-3 py-2 text-sm placeholder:text-muted focus:border-crystal focus:outline-none"
-              />
-            </form>
-          </>
-        )}
-      </Card>
     </div>
+  )
+}
+
+/** Both sides with a glyph and name (you are Cosmos, your opponent Chaos), score as filled pips toward the win. */
+function ScoreBar({ match }: { match: Match }) {
+  const info = GAMES[match.game]
+  const side = (who: Side) => {
+    const p = match[who]
+    const cosmos = who === 'you'
+    const won = match.score[who]
+    return (
+      <div data-side={cosmos ? 'cosmos' : 'chaos'} className={cx('flex min-w-0 flex-1 items-center gap-3', !cosmos && 'flex-row-reverse text-right')}>
+        <Avatar name={p.displayName} src={p.avatarUrl} size={40} ring={cosmos ? 'crystal' : 'chaos'} />
+        <div className={cx('flex min-w-0 flex-col gap-1', !cosmos && 'items-end')}>
+          <span className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.14em] text-[var(--side)]">
+            {cosmos && <SideGlyph side="cosmos" />}
+            {cosmos ? 'COSMOS' : 'CHAOS'}
+            {!cosmos && <SideGlyph side="chaos" />}
+          </span>
+          <span className="truncate font-semibold">{cosmos ? `${p.displayName} (you)` : p.displayName}</span>
+          <span role="img" aria-label={`${won} of ${match.winsNeeded} games won`} className="flex gap-1">
+            {Array.from({ length: match.winsNeeded }, (_, i) => (
+              <span key={i} className={cx('h-2 w-6 rounded-sm border border-[var(--side)]', i < won && 'bg-[var(--side)]')} />
+            ))}
+          </span>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <Card className="flex-row flex-wrap items-center gap-4 px-5 py-4">
+      {side('you')}
+      <div className="flex flex-col items-center px-2">
+        <span className="font-brand text-3xl font-bold tabular-nums">
+          {match.score.you}–{match.score.opponent}
+        </span>
+        <Sub>
+          {info.short} {match.mode} · Bo{match.bestOf} · {match.platform}
+          {match.status === 'active' && ` · game ${match.games.length + 1}`}
+        </Sub>
+      </div>
+      {side('opponent')}
+    </Card>
   )
 }
 

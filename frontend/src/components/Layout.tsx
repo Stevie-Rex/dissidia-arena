@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { DISCORD_SUGGESTIONS, FRIENDS, GAMES, playerById, type FriendStatus, type GameId } from '../data/mock'
 import { useApp } from '../state/AppState'
-import { Avatar, Btn, Card, DiscordButton, Gem, Logo, Modal, Pill, Sub } from './ui'
+import { Avatar, Btn, Card, DiscordButton, Gem, Modal, Pill, Sub } from './ui'
 import { cx, fmtTime } from '../lib/format'
 
 export function GameSwitcher({ className }: { className?: string }) {
@@ -23,55 +23,6 @@ export function GameSwitcher({ className }: { className?: string }) {
         </Pill>
       ))}
     </div>
-  )
-}
-
-function TopNav() {
-  const { game, signedIn, startQueue, phase, live, requireSignIn, user } = useApp()
-  const navigate = useNavigate()
-  const link = ({ isActive }: { isActive: boolean }) =>
-    cx('text-sm transition-colors', isActive ? 'text-crystal-soft' : 'text-soft hover:text-fg')
-  return (
-    <header className="sticky top-0 z-30 border-b-[1.5px] border-line bg-ink/90 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5">
-        <Logo />
-        <GameSwitcher className="ml-2" />
-        <nav className="ml-4 hidden items-center gap-4 md:flex">
-          <NavLink to={`/${game}`} end className={link}>
-            Hub
-          </NavLink>
-          <NavLink to={`/${game}/ladder`} className={link}>
-            Ladder
-          </NavLink>
-          <NavLink to="/tournaments" className={link}>
-            Tournaments
-          </NavLink>
-          <NavLink to={`/${game}/meta`} className={link}>
-            Meta
-          </NavLink>
-        </nav>
-        <span className="flex-1" />
-        {live && (
-          <Link to="/match/live">
-            <Pill active className="hidden sm:inline-block">
-              ● In match vs {live.opponent.displayName}
-            </Pill>
-          </Link>
-        )}
-        {!live && phase === 'idle' && (
-          <Btn className="hidden sm:inline-block" onClick={() => (signedIn ? navigate('/queue') : startQueue())}>
-            Queue
-          </Btn>
-        )}
-        {signedIn ? (
-          <Link to="/players/me" aria-label="Your profile">
-            <Avatar name={user?.displayName ?? 'You'} src={user?.avatarUrl} ring="you" size={28} />
-          </Link>
-        ) : (
-          <Btn onClick={() => requireSignIn('Sign in')}>Sign in</Btn>
-        )}
-      </div>
-    </header>
   )
 }
 
@@ -142,7 +93,7 @@ export function FriendsList({ compact }: { compact?: boolean }) {
   )
 }
 
-function FriendsSidebar() {
+export function FriendsSidebar() {
   return (
     <aside className="sticky top-16 hidden h-[calc(100vh-5rem)] w-56 flex-none overflow-y-auto border-l-[1.5px] border-line pl-4 xl:block">
       <FriendsList />
@@ -151,13 +102,13 @@ function FriendsSidebar() {
 }
 
 /** 1l — persistent queue bar while searching, on any page. */
-function QueueBar() {
+export function QueueBar() {
   const { phase, elapsed, queue, cancelQueue, region, searching } = useApp()
   if (phase !== 'searching') return null
   const info = GAMES[queue.game]
   return (
     <div className="fixed inset-x-0 bottom-14 z-40 px-3 md:bottom-4">
-      <Card tone="gold" className="mx-auto max-w-md shadow-[0_16px_40px_rgba(0,0,0,.65)]">
+      <Card tone="gold" className="mx-auto max-w-md shadow-2xl">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 animate-pulse rounded-full bg-gold" />
           <b className="text-sm">
@@ -179,7 +130,7 @@ function QueueBar() {
 }
 
 /** Match-found takeover with accept countdown. */
-function MatchFound() {
+export function MatchFound() {
   const { pending, acceptLeft, acceptMatch, declineMatch } = useApp()
   if (!pending) return null
   const waiting = pending.you.accepted
@@ -219,7 +170,7 @@ function MatchFound() {
 }
 
 /** 1a — sign-in gate. Browsing is open; actions prompt Discord sign-in. */
-function SignInModal() {
+export function SignInModal() {
   const { signInPrompt, closeSignIn, signIn } = useApp()
   if (!signInPrompt) return null
   return (
@@ -235,13 +186,13 @@ function SignInModal() {
 }
 
 /** 2i — party invite toast. */
-function InviteToast() {
+export function InviteToast() {
   const { invite, dismissInvite, acceptInvite } = useApp()
   if (!invite) return null
   const from = playerById(invite.fromId)!
   return (
     <div className="fixed right-4 top-16 z-40 w-72">
-      <Card tone="gold" className="shadow-[0_16px_40px_rgba(0,0,0,.65)]">
+      <Card tone="gold" className="shadow-2xl">
         <div className="flex items-center gap-2">
           <Avatar name={from.name} />
           <b className="text-sm">{from.name} invited you</b>
@@ -259,7 +210,7 @@ function InviteToast() {
 }
 
 /** 1q — chat dock while in a match but browsing elsewhere. */
-function ChatDock() {
+export function ChatDock() {
   const { live, sendChat } = useApp()
   const { pathname } = useLocation()
   const [open, setOpen] = useState(true)
@@ -278,7 +229,7 @@ function ChatDock() {
     )
   const last = live.messages.slice(-3)
   return (
-    <Card className="fixed bottom-16 right-4 z-40 w-64 border-muted shadow-[0_16px_40px_rgba(0,0,0,.65)] md:bottom-4">
+    <Card className="fixed bottom-16 right-4 z-40 w-64 border-muted shadow-2xl md:bottom-4">
       <div className="flex items-center gap-2">
         <Link to="/match/live" className="font-semibold hover:text-crystal-soft">
           {opp}
@@ -321,7 +272,7 @@ function ChatDock() {
 }
 
 /** Shown when Discord sign-in bounced back with ?auth_error=… */
-function AuthErrorBanner() {
+export function AuthErrorBanner() {
   const [params, setParams] = useSearchParams()
   const err = params.get('auth_error')
   if (!err) return null
@@ -343,7 +294,7 @@ function AuthErrorBanner() {
 }
 
 /** 1f — mobile tab bar. */
-function MobileTabs() {
+export function MobileTabs() {
   const { game } = useApp()
   const tab = ({ isActive }: { isActive: boolean }) =>
     cx('flex-1 py-3 text-center text-xs', isActive ? 'text-crystal-soft' : 'text-muted')
@@ -368,38 +319,15 @@ function MobileTabs() {
   )
 }
 
-export default function Layout() {
-  const { signedIn } = useApp()
+/** Floating pieces both layouts render: queue bar, chat dock, match-found and sign-in modals, invites. */
+export function Overlays() {
   return (
-    <div className="min-h-screen pb-20 md:pb-8">
-      <TopNav />
-      <AuthErrorBanner />
-      <div className="mx-auto flex max-w-7xl gap-6 px-4 pt-6">
-        <main className="min-w-0 flex-1">
-          <Outlet />
-        </main>
-        {signedIn && <FriendsSidebar />}
-      </div>
-      <footer className="mx-auto mt-10 flex max-w-7xl flex-wrap gap-4 border-t border-line px-4 py-4 text-xs text-muted">
-        <Link to="/discord" className="hover:text-crystal-soft">
-          Discord bot
-        </Link>
-        <Link to="/party" className="hover:text-crystal-soft">
-          Party
-        </Link>
-        <Link to="/friends" className="hover:text-crystal-soft xl:hidden">
-          Friends
-        </Link>
-        <Link to="/tournaments" className="hover:text-crystal-soft">
-          Tournaments
-        </Link>
-      </footer>
+    <>
       <QueueBar />
       <ChatDock />
-      <MobileTabs />
       <MatchFound />
       <SignInModal />
       <InviteToast />
-    </div>
+    </>
   )
 }

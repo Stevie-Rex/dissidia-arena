@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import Layout, { FriendsList } from './components/Layout'
+import { FriendsList } from './components/Layout'
+import Shell from './layouts/Shell'
 import { AppStateProvider } from './state/AppState'
+import { AppearanceProvider } from './state/Appearance'
 import Home from './pages/Home'
 import Welcome from './pages/Welcome'
 import Hub from './pages/Hub'
@@ -14,12 +16,15 @@ import { Bracket, Tournaments } from './pages/Tournaments'
 import Party from './pages/Party'
 import { Character, Meta } from './pages/Meta'
 import Discord from './pages/Discord'
+import Rewards from './pages/Rewards'
+import Config from './pages/Config'
 
 export default function App() {
   return (
     <AppStateProvider>
+      <AppearanceProvider>
       <Routes>
-        <Route element={<Layout />}>
+        <Route element={<Shell />}>
           <Route index element={<Home />} />
           <Route path="welcome" element={<Welcome />} />
           <Route path=":game" element={<Hub />} />
@@ -36,9 +41,12 @@ export default function App() {
           <Route path="party" element={<Party />} />
           <Route path="friends" element={<FriendsList />} />
           <Route path="discord" element={<Discord />} />
+          <Route path="rewards" element={<Rewards />} />
+          <Route path="config" element={<Config />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      </AppearanceProvider>
     </AppStateProvider>
   )
 }

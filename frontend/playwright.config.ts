@@ -1,0 +1,19 @@
+import { defineConfig, devices } from '@playwright/test'
+
+// Browser checks for the Rift / Classic interfaces. Every /api call is mocked in the tests,
+// so this needs only the Vite dev server, not Flask or MariaDB.
+export default defineConfig({
+  testDir: './e2e',
+  fullyParallel: true,
+  reporter: [['list']],
+  use: {
+    baseURL: 'http://localhost:5174',
+    ...devices['Desktop Chrome'],
+  },
+  webServer: {
+    command: 'npm run dev -- --port 5174 --strictPort',
+    url: 'http://localhost:5174',
+    reuseExistingServer: true,
+    timeout: 60_000,
+  },
+})

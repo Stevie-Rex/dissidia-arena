@@ -5,16 +5,9 @@ import { cx } from '../lib/format'
 
 type Tone = 'default' | 'cosmos' | 'chaos' | 'gold' | 'dashed'
 
-const toneClass: Record<Tone, string> = {
-  default: 'border-line-strong bg-card',
-  cosmos: 'border-crystal bg-crystal-deep',
-  chaos: 'border-chaos bg-chaos-bg',
-  gold: 'border-gold bg-card',
-  dashed: 'border-dashed border-line-strong bg-card/60',
-}
-
+/** A panel: a bordered card in Rift, a menu window in Classic (styles in index.css). */
 export function Card({ tone = 'default', className, ...rest }: HTMLAttributes<HTMLDivElement> & { tone?: Tone }) {
-  return <div className={cx('flex flex-col gap-2 rounded-lg border-[1.5px] p-3', toneClass[tone], className)} {...rest} />
+  return <div className={cx('da-card', tone !== 'default' && `da-card--${tone}`, className)} {...rest} />
 }
 
 export function Pill({
@@ -25,26 +18,26 @@ export function Pill({
   return (
     <button
       type="button"
-      className={cx(
-        'whitespace-nowrap rounded-full border-[1.5px] px-3 py-0.5 text-xs transition-colors',
-        active
-          ? 'border-crystal bg-crystal-bg text-crystal-soft'
-          : 'border-line-strong text-fg-dim hover:border-crystal/60 hover:text-crystal-soft',
-        rest.disabled && 'cursor-not-allowed opacity-50',
-        className,
-      )}
+      aria-pressed={active === undefined ? undefined : active}
+      className={cx('da-pill rounded-full transition-colors', className)}
       {...rest}
     />
   )
 }
 
-export function Btn({ className, size = 'md', ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { size?: 'md' | 'lg' }) {
+export function Btn({
+  className,
+  size = 'md',
+  variant = 'primary',
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement> & { size?: 'md' | 'lg'; variant?: 'primary' | 'chaos' | 'ghost' }) {
   return (
     <button
       type="button"
       className={cx(
-        'whitespace-nowrap rounded-lg border-[1.5px] border-gold text-center font-medium text-gold-soft transition-colors hover:bg-gold/15 disabled:cursor-not-allowed disabled:opacity-50',
-        size === 'lg' ? 'px-5 py-2.5 text-base' : 'px-3 py-1 text-sm',
+        'da-btn transition-colors',
+        variant !== 'primary' && `da-btn--${variant}`,
+        size === 'lg' ? 'min-h-11 px-6 py-3 text-sm' : 'px-3 py-1 text-xs',
         className,
       )}
       {...rest}
@@ -76,13 +69,24 @@ export function Gem({ size = 9, gold, className }: { size?: number; gold?: boole
     <span
       aria-hidden
       className={cx('inline-block flex-none rotate-45 border-[1.5px]', gold ? 'border-gold bg-gold/15' : 'border-crystal bg-crystal-bg', className)}
-      style={{
-        width: size,
-        height: size,
-        boxShadow: `0 0 ${size}px ${gold ? 'rgba(220,182,94,.5)' : 'rgba(124,200,230,.5)'}`,
-      }}
+      style={{ width: size, height: size }}
     />
   )
+}
+
+/** The Rift crystal mark (gold outline hexagon). */
+export function CrystalMark({ className }: { className?: string }) {
+  return (
+    <svg width="18" height="32" viewBox="0 0 18 32" fill="none" strokeWidth="1.3" aria-hidden className={className}>
+      <path d="M9 1 L17 7 L17 25 L9 31 L1 25 L1 7 Z" style={{ stroke: 'var(--ui-gold)' }} />
+      <path d="M9 1 L9 31 M1 7 L9 12 L17 7" style={{ stroke: 'var(--ui-gold)' }} />
+    </svg>
+  )
+}
+
+/** Side glyph (sun for Cosmos, cracked diamond for Chaos), drawn in the current colour. */
+export function SideGlyph({ side, className }: { side: 'cosmos' | 'chaos'; className?: string }) {
+  return <span aria-hidden className={cx('da-glyph', `da-glyph--${side}`, className)} />
 }
 
 const ringClass = {
@@ -185,7 +189,7 @@ export function Sub({ children, className }: { children: ReactNode; className?: 
 export function PageTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <h1 className="text-xl font-semibold">{children}</h1>
+      <h1 className="text-2xl font-semibold">{children}</h1>
       <span className="flex-1" />
       {right}
     </div>
@@ -229,9 +233,9 @@ export function TextLink({ to, children, className }: { to: string; children: Re
 
 export function Logo() {
   return (
-    <Link to="/" className="flex items-center gap-1.5 font-semibold tracking-wide">
-      <Gem />
-      DISSIDIA//COMP
+    <Link to="/" className="flex min-h-11 items-center gap-3">
+      <CrystalMark />
+      <span className="font-brand text-xl font-bold">Dissidia Arena</span>
     </Link>
   )
 }
@@ -242,7 +246,7 @@ export function Modal({ children, onClose, className }: { children: ReactNode; o
       <div
         role="dialog"
         aria-modal
-        className={cx('w-full max-w-sm rounded-xl border-[1.5px] border-muted bg-card p-5 shadow-[0_16px_40px_rgba(0,0,0,.65)]', className)}
+        className={cx('da-card w-full max-w-sm p-5 shadow-2xl', className)}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

@@ -1,4 +1,5 @@
 import type { GameId, Region } from '../data/mock'
+import type { Appearance, Preferences, RewardDef } from '../theme/appearance'
 
 export interface Me {
   id: number
@@ -10,6 +11,7 @@ export interface Me {
   region: Region
   games: GameId[]
   gameIds: Partial<Record<GameId, string>>
+  rankedWins: number
 }
 
 export interface QueueSettings {
@@ -62,6 +64,10 @@ export interface Match extends QueueSettings {
   reportedBy: Side | null
   endedBy: Side | null
   messages: { id: number; from: Side | 'system'; text: string; at: string }[]
+  /** Rewards this match earned for you (non-empty only for the winner of a completed match). */
+  rewardsUnlocked: Pick<RewardDef, 'key' | 'name' | 'goal'>[]
+  /** Only on the confirm response: reward keys you unlocked just now. */
+  newlyUnlocked?: string[]
 }
 
 export interface QueueState {
@@ -106,6 +112,10 @@ export const api = {
   reportGame: (id: number, gameNo: number, winnerId: number, details: GameDetails) =>
     request<Match>('POST', `/matches/${id}/games`, { gameNo, winnerId, details }),
   sendMessage: (id: number, text: string) => request<Match>('POST', `/matches/${id}/messages`, { text }),
+
+  appearance: () => request<Appearance>('GET', '/me/appearance'),
+  saveAppearance: (changes: Partial<Preferences>) => request<Appearance>('PATCH', '/me/appearance', changes),
+  rewards: () => request<{ rewards: RewardDef[] }>('GET', '/rewards'),
 
   /** Full-page redirect into Discord's OAuth flow; comes back to `next`. */
   discordLoginUrl: (next: string) => `/api/auth/discord/login?next=${encodeURIComponent(next)}`,
