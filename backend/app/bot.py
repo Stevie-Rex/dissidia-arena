@@ -110,7 +110,10 @@ class ArenaBot(discord.Client):
         except Exception:
             log.exception("matchmaker tick failed")
             return
+        frontend_url = self.flask_app.config["FRONTEND_URL"]
         for event in events:
+            for ping in event["modPings"]:
+                await self.post_mod_ping(ping, mod_ping_text(event, ping, frontend_url))
             for player in event["players"]:
                 rendered = render_match(event["status"], player, self.flask_app.config["FRONTEND_URL"])
                 if rendered:
@@ -150,6 +153,18 @@ class ArenaBot(discord.Client):
                 continue
         log.warning("couldn't reach discord user %s", discord_id)
 
+    async def post_mod_ping(self, ping: dict, text: str) -> None:
+        channel = self.get_channel(ping["channel_id"])
+        if not isinstance(channel, discord.abc.Messageable):
+            return
+        try:
+            await channel.send(
+                text,
+                allowed_mentions=discord.AllowedMentions(roles=[discord.Object(ping["role_id"])], users=False, everyone=False),
+            )
+        except discord.HTTPException:
+            log.warning("couldn't ping moderators in channel %s", ping["channel_id"])
+
     async def post_pings(self, result: dict) -> None:
         for ping in result["pings"]:
             channel = self.get_channel(ping["channel_id"])
@@ -174,6 +189,12 @@ async def reply(interaction: discord.Interaction, text: str) -> None:
 
 
 # ---------------------------------------------------------------- rendering
+
+
+def mod_ping_text(event: dict, ping: dict, frontend_url: str) -> str:
+    """The moderator-role ping in one server for a new Disputed match, with a link to the case."""
+    case = f"{frontend_url.rstrip('/')}/admin/cases/{event['matchId']}"
+    return f"<@&{ping['role_id']}> A result needs an Admin: {GAME_NAMES[event['game']]} match #{event['matchId']} was disputed. {case}"
 
 
 def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.Embed, discord.ui.View | None] | None:
@@ -232,6 +253,22 @@ def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.
                 f"[match room]({room}); an Admin will look at both sides."
             ),
             color=discord.Color.gold(),
+        )
+        return embed, None
+
+    if status in ("completed", "voided") and m["ruling"]:
+        r = m["ruling"]
+        if r["outcome"] == "void":
+            outcome = "The match is **void**: it counts for no one."
+        else:
+            outcome = "The reported result **stands**: " + ("you win." if m["winner"] == "you" else f"**{opp_name}** wins.")
+        embed = discord.Embed(
+            title="Ruling",
+            description=(
+                f"{title_line}\n\nAn Admin ruled on your disputed match against **{opp_name}**. {outcome}\n\n"
+                f"Reason: {discord.utils.escape_markdown(r['reason'])}\n\nSee the [match room]({room})."
+            ),
+            color=discord.Color.blurple(),
         )
         return embed, None
 
@@ -373,7 +410,7 @@ arena_group = app_commands.Group(
     game="Which game this server is for",
     queue_channel="Where 'someone is searching' pings go (also the fallback for closed DMs)",
     ping_role="Opt-in role to ping when someone starts searching (leave empty for no pings)",
-    mod_role="Moderators who will review disputed results",
+    mod_role="Role pinged when a result needs an Admin (it grants no powers on the site)",
 )
 @app_commands.choices(game=[app_commands.Choice(name=n, value=g) for g, n in GAME_NAMES.items()])
 @app_commands.checks.has_permissions(manage_guild=True)
@@ -398,6 +435,11 @@ async def setup_cmd(
         lines.append(f"Pinging {ping_role.mention} in {queue_channel.mention} when someone searches (at most every 10 min).")
         if not ping_role.mentionable:
             lines.append("Note: that role isn't mentionable, so give the bot *Mention All Roles* or the ping won't notify anyone.")
+    if mod_role:
+        lines.append(
+            f"Pinging {mod_role.mention} in {queue_channel.mention} when a result needs an Admin. "
+            "The role grants no powers on the site: only the Master appoints Admins."
+        )
     await reply(interaction, "\n".join(lines))
 
 

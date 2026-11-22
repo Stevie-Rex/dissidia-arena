@@ -2,7 +2,7 @@
 
 from flask import Blueprint, jsonify, request
 
-from .. import admin, admin_log
+from .. import admin, admin_log, cases
 from .. import matchmaking as mm
 from ..auth import admin_required, current_user, master_required
 from ..extensions import db
@@ -62,3 +62,54 @@ def step_down():
 @admin_required
 def read_log():
     return jsonify(admin_log.page(max(1, request.args.get("page", 1, type=int))))
+
+
+# ---------------------------------------------------------------- cases
+
+
+@bp.get("/admin/cases")
+@admin_required
+def list_cases():
+    user = current_user()
+    claimed = {"yes": True, "no": False}.get(request.args.get("claimed", ""))
+    return jsonify({"cases": [cases.summary_dict(m, user) for m in cases.open_disputes(claimed)]})
+
+
+@bp.get("/admin/disputes/<int:match_id>")
+@admin_required
+def get_case(match_id: int):
+    return jsonify(cases.case_dict(cases.get(db.session.get(mm.Match, match_id)), current_user()))
+
+
+def _case_action(match_id: int, action):
+    """Run a case action on the locked match, commit, and return the case page."""
+    match = cases.get(mm.lock_match(match_id))
+    user = current_user()
+    action(match, user)
+    db.session.commit()
+    return jsonify(cases.case_dict(match, user))
+
+
+@bp.post("/admin/disputes/<int:match_id>/claim")
+@admin_required
+def claim(match_id: int):
+    return _case_action(match_id, cases.claim)
+
+
+@bp.post("/admin/disputes/<int:match_id>/release")
+@admin_required
+def release(match_id: int):
+    return _case_action(match_id, cases.release)
+
+
+@bp.post("/admin/disputes/<int:match_id>/takeover")
+@master_required
+def take_over(match_id: int):
+    return _case_action(match_id, cases.take_over)
+
+
+@bp.post("/admin/disputes/<int:match_id>/ruling")
+@admin_required
+def rule(match_id: int):
+    data = json_body()
+    return _case_action(match_id, lambda m, u: cases.rule(m, u, data.get("outcome"), data.get("reason")))

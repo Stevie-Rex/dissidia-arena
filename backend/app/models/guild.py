@@ -20,6 +20,6 @@ class GuildConfig(db.Model):
     queue_channel_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     # Opt-in role to ping when someone starts searching. None = no pings.
     ping_role_id: Mapped[int | None] = mapped_column(BigInteger)
-    # Moderators for this server's game (dispute review comes later).
+    # Pinged when one of this game's results needs an Admin. Grants no powers on the site.
     mod_role_id: Mapped[int | None] = mapped_column(BigInteger)
     last_ping_at: Mapped[datetime | None] = mapped_column(DateTime)
