@@ -13,7 +13,7 @@ from sqlalchemy import func, or_, select
 from . import admin_log
 from .extensions import db
 from .matchmaking import MatchmakingError, iso, now
-from .models import Match, User
+from .models import User
 
 MAX_REASON_LEN = 2000
 SEARCH_LIMIT = 20
@@ -80,16 +80,12 @@ def admins() -> list[User]:
 
 
 def _release_claims(user: User, actor: User, why: str) -> None:
-    """An Admin leaving the role lets go of every open Claim, so their cases don't get stuck."""
-    held = db.session.scalars(
-        select(Match).where(Match.claimed_by_id == user.id, Match.status == "disputed").with_for_update()
-    )
-    for match in held:
-        match.claimed_by_id = None
-        match.claimed_at = None
-        admin_log.record(
-            "release_claim", why, actor=actor, match_id=match.id, target_id=user.id, details={"automatic": True}
-        )
+    from . import cases  # cases imports this module for the roles
+
+    # Write the role change first: that locks the user row before their Claimed matches, the same
+    # order cases.act takes, so a Claim made at the same moment can't outlive the role.
+    db.session.flush()
+    cases.release_all(user, actor, why)
 
 
 def appoint(master: User, user_id: object, reason: object) -> User:

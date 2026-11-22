@@ -78,14 +78,13 @@ def list_cases():
 @bp.get("/admin/disputes/<int:match_id>")
 @admin_required
 def get_case(match_id: int):
-    return jsonify(cases.case_dict(cases.get(db.session.get(mm.Match, match_id)), current_user()))
+    return jsonify(cases.case_dict(cases.find_case(match_id), current_user()))
 
 
 def _case_action(match_id: int, action):
-    """Run a case action on the locked match, commit, and return the case page."""
-    match = cases.get(mm.lock_match(match_id))
+    """Run a case action (see cases.act for the locking), commit, and return the case page."""
     user = current_user()
-    action(match, user)
+    match = cases.act(match_id, user, action)
     db.session.commit()
     return jsonify(cases.case_dict(match, user))
 

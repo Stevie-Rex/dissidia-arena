@@ -1,5 +1,8 @@
 """Admins working through Disputed matches: the case list and page, Claims, and Uphold and Void Rulings."""
 
+from datetime import timedelta
+
+from app import matchmaking as mm
 from app.extensions import db
 from app.models import Match, User
 from app.matchmaking import now
@@ -366,3 +369,26 @@ def test_the_masters_claims_are_not_touched_when_an_admin_leaves(make_player, ma
     claim(mc, mid)
     mc.post(f"/api/admin/admins/{kefka.id}/remove", json={"reason": "Inactive"})
     assert case(mc, mid).get_json()["claim"]["by"]["id"] == m.id
+
+
+def test_dispute_records_show_when_each_dispute_was_filed_not_when_it_was_ruled(make_player, make_admin, monkeypatch):
+    a, ca, b, cb, mid = disputed(make_player)
+    _, c = make_admin()
+    filed = case(c, mid).get_json()["records"][str(b.id)]["disputes"][0]["at"]
+    later = now() + timedelta(days=1)
+    monkeypatch.setattr(mm, "now", lambda: later)
+    claim(c, mid)
+    rule(c, mid, "void")
+    page = case(c, mid).get_json()
+    assert page["records"][str(b.id)]["disputes"][0]["at"] == filed
+    assert page["disputedAt"] == filed
+
+
+def test_the_master_ruling_on_an_admins_claim_is_logged_with_whose_claim_it_was(make_player, make_admin, master):
+    *_, mid = disputed(make_player)
+    kefka, c = make_admin()
+    _, mc = master
+    claim(c, mid)
+    rule(mc, mid, "uphold")
+    (entry,) = [e for e in mc.get("/api/admin/log").get_json()["entries"] if e["action"] == "ruling"]
+    assert entry["details"]["claimedById"] == kefka.id

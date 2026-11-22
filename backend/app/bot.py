@@ -115,7 +115,7 @@ class ArenaBot(discord.Client):
             for ping in event["modPings"]:
                 await self.post_mod_ping(ping, mod_ping_text(event, ping, frontend_url))
             for player in event["players"]:
-                rendered = render_match(event["status"], player, self.flask_app.config["FRONTEND_URL"])
+                rendered = render_match(event["status"], player, frontend_url)
                 if rendered:
                     await self.send_to(player["discordId"], *rendered, event["fallbackChannels"])
 

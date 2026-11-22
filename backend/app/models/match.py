@@ -74,6 +74,8 @@ class Match(db.Model):
     # matches disputed before the form existed.
     dispute_games: Mapped[list[int] | None] = mapped_column(JSON)
     dispute_reason: Mapped[str | None] = mapped_column(Text)
+    # When the result was disputed. finished_at moves on when a Ruling settles the match.
+    disputed_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # The Claim on a Disputed match: the Admin (or the Master) in sole charge of it, and since when.
     claimed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))

@@ -3,19 +3,21 @@ Cases for the Admins (see GLOSSARY.md: Disputed match, Claim, Ruling, Void): the
 case page, Claims, and Rulings.
 
 Follows matchmaking.py's conventions: functions work on the current db.session and leave
-committing to the caller, they take a match already locked (matchmaking.lock_match), and they
+committing to the caller, they take a match already locked (act() does this for routes), and they
 raise MatchmakingError. Every Claim, release, takeover and Ruling writes an Admin log entry in the
 same transaction.
 """
 
 from collections import Counter
+from collections.abc import Callable
 
 from sqlalchemy import or_, select
 
 from . import admin_log
+from . import admin
 from .admin import is_master, require_reason
-from .extensions import db
 from . import matchmaking as mm
+from .extensions import db
 from .matchmaking import MatchmakingError, iso, now, score
 from .models import Match, User
 
@@ -30,7 +32,7 @@ def _ref(user: User | None) -> dict | None:
 
 def open_disputes(claimed: bool | None = None) -> list[Match]:
     """Disputed matches still waiting for a Ruling, oldest dispute first. claimed filters by Claim."""
-    q = select(Match).where(Match.status == "disputed").order_by(Match.finished_at, Match.id)
+    q = select(Match).where(Match.status == "disputed").order_by(Match.disputed_at, Match.id)
     if claimed is not None:
         q = q.where(Match.claimed_by_id.is_not(None) if claimed else Match.claimed_by_id.is_(None))
     return list(db.session.scalars(q))
@@ -94,6 +96,19 @@ def release(match: Match, user: User) -> None:
     admin_log.record("release_claim", "Released the Claim.", actor=user, match_id=match.id, target_id=holder)
 
 
+def release_all(user: User, actor: User, why: str) -> None:
+    """An Admin leaving the role lets go of every open Claim, so their cases don't get stuck.
+    Called by app.admin when an Admin is removed or steps down."""
+    held = db.session.scalars(
+        select(Match).where(Match.claimed_by_id == user.id, Match.status == "disputed").with_for_update()
+    )
+    for match in held:
+        _set_claim(match, None)
+        admin_log.record(
+            "release_claim", why, actor=actor, match_id=match.id, target_id=user.id, details={"automatic": True}
+        )
+
+
 def take_over(match: Match, master: User) -> None:
     """The Master takes over a case, whoever holds it, so nothing waits on an absent Admin."""
     _require_open(match)
@@ -130,9 +145,14 @@ def rule(match: Match, user: User, outcome: object, reason: object) -> None:
     match.ruling_reason = reason
     match.ruled_by_id = user.id
     match.ruled_at = now()
+    claimed_by = match.claimed_by_id  # not the ruler when the Master rules on an Admin's Claim
     _set_claim(match, None)
     admin_log.record(
-        "ruling", reason, actor=user, match_id=match.id, details={"outcome": outcome, "winnerId": match.winner_id}
+        "ruling",
+        reason,
+        actor=user,
+        match_id=match.id,
+        details={"outcome": outcome, "winnerId": match.winner_id, "claimedById": claimed_by},
     )
 
 
@@ -144,7 +164,7 @@ def summary_dict(match: Match, viewer: User) -> dict:
         "game": match.game,
         "platform": match.platform,
         "players": [_name(match.player_a), _name(match.player_b)],
-        "disputedAt": iso(match.finished_at),
+        "disputedAt": iso(match.disputed_at),
         "claim": None
         if match.claimed_by_id is None
         else {
@@ -171,7 +191,7 @@ def dispute_record(user: User) -> dict:
     return {
         "filed": len(rows),
         "outcomes": dict(outcomes),
-        "disputes": [{"matchId": m.id, "game": m.game, "at": iso(m.finished_at), "outcome": m.ruling} for m in rows],
+        "disputes": [{"matchId": m.id, "game": m.game, "at": iso(m.disputed_at), "outcome": m.ruling} for m in rows],
     }
 
 
@@ -220,8 +240,28 @@ def case_dict(match: Match, viewer: User) -> dict:
     }
 
 
-def get(match: Match | None) -> Match:
-    """The case for a match that was disputed (open or already ruled)."""
-    if match is None or (match.status != "disputed" and match.dispute_reason is None and match.ruling is None):
+def act(match_id: int, user: User, action: Callable[[Match, User], None]) -> Match:
+    """Run a case action (claim, release, take_over, a Ruling) for an Admin or the Master.
+
+    Locks the acting user's row, checks their role again, then locks the match. Removing an Admin
+    takes the same locks in the same order (their user row, then their Claimed matches), so an
+    action at the same moment as a removal either finishes first (and its Claim is released) or
+    sees the role gone. Neither can deadlock the other."""
+    db.session.get(User, user.id, with_for_update=True, populate_existing=True)
+    if admin.role(user) == "player":
+        raise MatchmakingError("forbidden", "you don't have access to this", 403)
+    match = find_case(match_id, lock=True)
+    action(match, user)
+    return match
+
+
+def find_case(match_id: int, lock: bool = False) -> Match:
+    """The case for a match that was ever disputed (open or already ruled). lock=True locks the
+    match row, as every action that changes a case needs (see matchmaking.lock_match)."""
+    q = select(Match).where(Match.id == match_id, _was_disputed())
+    if lock:
+        q = q.with_for_update().execution_options(populate_existing=True)
+    match = db.session.scalar(q)
+    if match is None:
         raise MatchmakingError("not_found", "case not found", 404)
     return match

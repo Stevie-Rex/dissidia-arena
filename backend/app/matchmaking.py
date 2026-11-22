@@ -474,7 +474,7 @@ def dispute(match: Match, user: User, games: object = None, reason: object = Non
     match.dispute_reason = reason
     match.status = "disputed"
     match.ended_by_id = user.id
-    match.finished_at = now()
+    match.finished_at = match.disputed_at = now()
     _system(match, "Result disputed. An Admin will review it.")
 
 
