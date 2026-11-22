@@ -414,6 +414,14 @@ def complete(match: Match, winner_id: int, system_message: str) -> list[str]:
     return rewards.record_ranked_win(match)
 
 
+def void(match: Match, system_message: str) -> None:
+    """Close a match so it counts for no one: no winner, no ranked win, nothing against anyone."""
+    match.status = "voided"
+    match.winner_id = None
+    match.finished_at = now()
+    _system(match, system_message)
+
+
 def confirm(match: Match, user: User) -> list[str]:
     """The opponent accepts the reported result. Returns reward keys the winner just unlocked."""
     _side(match, user)
@@ -466,7 +474,7 @@ def dispute(match: Match, user: User, games: object = None, reason: object = Non
     match.dispute_reason = reason
     match.status = "disputed"
     match.ended_by_id = user.id
-    match.finished_at = now()
+    match.finished_at = match.disputed_at = now()
     _system(match, "Result disputed. An Admin will review it.")
 
 
@@ -542,6 +550,13 @@ def _dispute_dict(match: Match, rel: Callable[[int | None], str | None]) -> dict
     }
 
 
+def ruling_dict(match: Match) -> dict | None:
+    """The Ruling as players see it: the outcome and reason, never which Admin gave it."""
+    if match.ruling is None:
+        return None
+    return {"outcome": match.ruling, "reason": match.ruling_reason, "at": iso(match.ruled_at)}
+
+
 def match_dict(match: Match, viewer: User) -> dict:
     """Seen from one player's side: 'you' and 'opponent', which suits both the site and DMs."""
     side = _side(match, viewer)
@@ -579,6 +594,7 @@ def match_dict(match: Match, viewer: User) -> dict:
         # Rewards this match earned for the viewer (only ever non-empty for the winner of a completed match).
         "dispute": _dispute_dict(match, rel),
         "rewardsUnlocked": rewards.rewards_from_match(match, me.id) if match.status == "completed" else [],
+        "ruling": ruling_dict(match),
         "messages": [
             {"id": m.id, "from": "system" if m.user_id is None else rel(m.user_id), "text": m.text, "at": iso(m.created_at)}
             for m in match.messages

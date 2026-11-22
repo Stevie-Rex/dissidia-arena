@@ -24,6 +24,27 @@ PING_COOLDOWN = timedelta(minutes=10)
 NOTIFY_WINDOW = timedelta(minutes=10)
 # Statuses players get a DM for. Reporting in Discord comes later.
 NOTIFY_STATUSES = ("pending", "active", "reported", "disputed", "cancelled")
+# Ends that only get a DM when they came from a Ruling (a normal confirm sends none).
+RULING_STATUSES = ("completed", "voided")
+
+
+def _notifies(match: Match) -> bool:
+    return match.status in NOTIFY_STATUSES or (match.status in RULING_STATUSES and match.ruling is not None)
+
+
+def _mod_pings(match: Match) -> list[dict]:
+    """A new Disputed match pings the moderator role (from /arena setup) in each of that game's
+    servers, unless an Admin has already Claimed it. The role grants no powers on the site."""
+    if match.status != "disputed" or match.claimed_by_id is not None:
+        return []
+    return [
+        {"channel_id": c.queue_channel_id, "role_id": c.mod_role_id}
+        for c in db.session.scalars(
+            select(GuildConfig)
+            .where(GuildConfig.game == match.game, GuildConfig.mod_role_id.is_not(None))
+            .order_by(GuildConfig.guild_id)
+        )
+    ]
 
 
 def _recipients(match: Match) -> list[User]:
@@ -191,12 +212,14 @@ def collect_notifications() -> list[dict]:
     events = []
     for match in rows:
         match.notified_status = match.status
-        if match.status not in NOTIFY_STATUSES:
+        if not _notifies(match):
             continue
         events.append(
             {
                 "matchId": match.id,
+                "game": match.game,
                 "status": match.status,
+                "modPings": _mod_pings(match),
                 "fallbackChannels": [
                     c.queue_channel_id for c in db.session.scalars(select(GuildConfig).where(GuildConfig.game == match.game))
                 ],

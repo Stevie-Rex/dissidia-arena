@@ -263,3 +263,76 @@ def test_reported_result_reminds_the_opponent_once(guilds, monkeypatch):
     assert "2 hours to confirm or dispute" in embed.description
     assert "<t:" in embed.description  # the deadline, in the reader's timezone
     assert f"http://x/match/live?match={mid}" in embed.description
+
+
+# ---------------------------------------------------------------- Admin alerts and Rulings
+
+
+def _disputed(guilds_, monkeypatch):
+    a, b, mid = _reported(guilds_, monkeypatch)
+    call(svc.collect_notifications)
+    call(lambda: mm.dispute(mm.lock_match(mid), _user(b), [2], "I won game 2"))
+    return a, b, mid
+
+
+def _with_mod_roles():
+    call(svc.setup_guild, NT_GUILD, "nt", 1, 10, 77)
+    call(svc.setup_guild, G012_GUILD, "012", 2, None, 88)
+
+
+def test_a_new_dispute_pings_the_games_moderator_role_with_a_link_to_the_case(guilds, monkeypatch):
+    _with_mod_roles()
+    a, b, mid = _disputed(guilds, monkeypatch)
+    (ev,) = call(svc.collect_notifications)
+    assert ev["modPings"] == [{"channel_id": 1, "role_id": 77}]  # the NT server only
+    assert bot.mod_ping_text(ev, ev["modPings"][0], "http://x/") == (
+        f"<@&77> A result needs an Admin: Dissidia NT match #{mid} was disputed. http://x/admin/cases/{mid}"
+    )
+    assert call(svc.collect_notifications) == []  # no re-ping
+
+
+def test_no_ping_once_the_case_is_claimed(guilds, monkeypatch, app):
+    from app import cases
+
+    _with_mod_roles()
+    a, b, mid = _disputed(guilds, monkeypatch)
+    admin = User(discord_id=5555, username="kefka", admin_since=mm.now())
+    db.session.add(admin)
+    call(lambda: cases.claim(mm.lock_match(mid), admin))
+    (ev,) = call(svc.collect_notifications)
+    assert ev["status"] == "disputed" and ev["modPings"] == []
+
+
+def test_servers_without_a_moderator_role_get_no_ping(guilds, monkeypatch):
+    a, b, mid = _disputed(guilds, monkeypatch)
+    (ev,) = call(svc.collect_notifications)
+    assert ev["modPings"] == []
+
+
+@pytest.mark.parametrize("outcome, status", [("uphold", "completed"), ("void", "voided")])
+def test_a_ruling_dms_both_players_without_the_admins_name(guilds, monkeypatch, outcome, status):
+    from app import cases
+
+    a, b, mid = _disputed(guilds, monkeypatch)
+    call(svc.collect_notifications)
+    admin = User(discord_id=5555, username="kefka", admin_since=mm.now())
+    db.session.add(admin)
+    call(lambda: cases.claim(mm.lock_match(mid), admin))
+    call(lambda: cases.rule(mm.lock_match(mid), admin, outcome, "Clip shows the result."))
+
+    (ev,) = call(svc.collect_notifications)
+    assert ev["status"] == status and ev["modPings"] == []
+    assert sorted(p["discordId"] for p in ev["players"]) == sorted([a.id, b.id])
+    for p in ev["players"]:
+        embed, view = bot.render_match(status, p, "http://x")
+        assert view is None and embed.title == "Ruling"
+        assert "Clip shows the result." in embed.description and "kefka" not in embed.description
+        assert f"http://x/match/live?match={mid}" in embed.description
+    assert call(svc.collect_notifications) == []
+
+
+def test_a_normal_confirm_sends_no_dm(guilds, monkeypatch):
+    a, b, mid = _reported(guilds, monkeypatch)
+    call(svc.collect_notifications)
+    call(lambda: mm.confirm(mm.lock_match(mid), _user(b)))
+    assert call(svc.collect_notifications) == []

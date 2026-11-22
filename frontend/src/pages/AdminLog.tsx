@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import AdminTabs from '../components/AdminTabs'
 import RoleGate from '../components/RoleGate'
 import { Btn, Card, PageTitle, Sub } from '../components/ui'
 import { MAX_REASON, api, errorMessage, type AdminLogEntry, type AdminLogPage } from '../lib/api'
@@ -11,9 +12,13 @@ const ACTIONS: Record<string, string> = {
   remove_admin: 'removed an Admin',
   step_down: 'stepped down as an Admin',
   auto_confirm: 'confirmed a result automatically',
+  claim: 'claimed a case',
+  release_claim: 'released a Claim',
+  take_over_claim: 'took over a case',
+  ruling: 'gave a Ruling',
 }
 
-/** The Admin area: for now, the Admin log (cases come with the Rulings). */
+/** The Admin log, in the Admin area. */
 export default function AdminLog() {
   return (
     <RoleGate allow={['admin', 'master']} who="Admins">
@@ -27,6 +32,7 @@ function AdminArea() {
   return (
     <div className="flex flex-col gap-6">
       <PageTitle>Admin log</PageTitle>
+      <AdminTabs />
       <p className="m-0 max-w-2xl text-sm text-muted">
         Every Admin, Master and system action, with the reason given. Nobody can edit or delete an entry.
       </p>

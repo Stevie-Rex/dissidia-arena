@@ -251,7 +251,8 @@ body,
   [data-interface='rift'] .da-pill:hover:not(:disabled) {
     border-color: var(--rift-ink);
   }
-  [data-interface='rift'] .da-pill[aria-pressed='true'] {
+  [data-interface='rift'] .da-pill[aria-pressed='true'],
+  [data-interface='rift'] .da-pill[aria-current='page'] {
     background: var(--rift-ink);
     border-color: var(--rift-ink);
     color: var(--rift-page-bg);
@@ -264,7 +265,8 @@ body,
     font-family: var(--menu-family);
   }
   [data-interface='classic'] .da-pill:hover:not(:disabled),
-  [data-interface='classic'] .da-pill[aria-pressed='true'] {
+  [data-interface='classic'] .da-pill[aria-pressed='true'],
+  [data-interface='classic'] .da-pill[aria-current='page'] {
     background: var(--win-sel);
     border-color: var(--win-border);
   }

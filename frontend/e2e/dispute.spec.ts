@@ -146,3 +146,17 @@ test('a Disputed match stays open while you are in a new match, and picks up the
   disputed = { ...disputed, dispute: { ...(disputed.dispute as object), statements: { you: null, opponent: { text: 'Lag spike.', updatedAt: 'b' } } } }
   await expect(panel).toContainText('Lag spike.', { timeout: 10_000 })
 })
+
+test('after a Ruling, players see the outcome and the reason in the match room', async ({ page }) => {
+  await inRoom(page, reportedMatch({
+    status: 'voided', winner: null, endedBy: 'you', confirmDeadline: null,
+    dispute: { games: [3], reason: 'Game 3 was mine.', by: 'you', statements: { you: null, opponent: null } },
+    ruling: { outcome: 'void', reason: 'Neither clip shows game 3.', at: '2026-11-21T13:00:00Z' },
+  }))
+  await page.goto('/match/live?match=42')
+  const ruling = page.getByRole('region', { name: 'Ruling' })
+  await expect(page.getByText('Match void')).toBeVisible()
+  await expect(ruling).toContainText('An Admin voided the match.')
+  await expect(ruling).toContainText('Neither clip shows game 3.')
+  expect((await new AxeBuilder({ page }).include('[aria-label="Ruling"]').analyze()).violations).toEqual([])
+})

@@ -1,6 +1,6 @@
 """
 Admin rules (see GLOSSARY.md: Master, Admin, Admin log): roles, appointing and removing Admins,
-and stepping down.
+and stepping down. Cases, Claims and Rulings live in app.cases.
 
 Follows matchmaking.py's conventions: functions work on the current db.session and leave
 committing to the caller, and they raise MatchmakingError (code, message, HTTP status).
@@ -31,7 +31,7 @@ def role(user: User) -> str:
     return "admin" if user.admin_since is not None else "player"
 
 
-def _reason(reason: object) -> str:
+def require_reason(reason: object) -> str:
     """Every Admin and Master action needs a reason, for the Admin log."""
     reason = reason.strip() if isinstance(reason, str) else ""
     if not reason:
@@ -79,8 +79,17 @@ def admins() -> list[User]:
     return [u for u in rows if not is_master(u)]
 
 
+def _release_claims(user: User, actor: User, why: str) -> None:
+    from . import cases  # cases imports this module for the roles
+
+    # Write the role change first: that locks the user row before their Claimed matches, the same
+    # order cases.act takes, so a Claim made at the same moment can't outlive the role.
+    db.session.flush()
+    cases.release_all(user, actor, why)
+
+
 def appoint(master: User, user_id: object, reason: object) -> User:
-    reason = _reason(reason)
+    reason = require_reason(reason)
     user = _existing_user(user_id)
     _forbid_master(user, "the Master already has every Admin power")
     if user.admin_since is not None:
@@ -92,21 +101,23 @@ def appoint(master: User, user_id: object, reason: object) -> User:
 
 def remove(master: User, user_id: int, reason: object) -> None:
     """The Master removes an Admin. Their past Rulings stand; access ends on their next request."""
-    reason = _reason(reason)
+    reason = require_reason(reason)
     user = _existing_user(user_id)
     _forbid_master(user, "the Master can't be removed")
     if user.admin_since is None:
         raise MatchmakingError("not_admin", "that player isn't an Admin")
     user.admin_since = None
     admin_log.record("remove_admin", reason, actor=master, target_id=user.id)
+    _release_claims(user, master, "Released automatically: the Admin was removed.")
 
 
 def step_down(user: User, reason: object) -> None:
     """An Admin gives up the role themselves."""
-    reason = _reason(reason)
+    reason = require_reason(reason)
     _forbid_master(user, "the Master can't step down")
     user.admin_since = None
     admin_log.record("step_down", reason, actor=user, target_id=user.id)
+    _release_claims(user, user, "Released automatically: the Admin stepped down.")
 
 
 def player_dict(user: User) -> dict:

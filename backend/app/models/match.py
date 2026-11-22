@@ -39,7 +39,8 @@ class Match(db.Model):
       active    -> games are being played and reported
       reported  -> one side reached the winning score; the other player confirms or disputes
                    before confirm_deadline, or it confirms itself
-      completed | disputed | cancelled (accept failed) | abandoned (a player left)
+      disputed  -> the opponent rejected the result; an Admin Claims it and gives a Ruling
+      completed | voided (no winner, counts for no one) | cancelled (accept failed) | abandoned (a player left)
     """
 
     __tablename__ = "matches"
@@ -73,6 +74,19 @@ class Match(db.Model):
     # matches disputed before the form existed.
     dispute_games: Mapped[list[int] | None] = mapped_column(JSON)
     dispute_reason: Mapped[str | None] = mapped_column(Text)
+    # When the result was disputed. finished_at moves on when a Ruling settles the match.
+    disputed_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    # The Claim on a Disputed match: the Admin (or the Master) in sole charge of it, and since when.
+    claimed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    # The current Ruling: outcome (uphold | void), the reason players see, who gave it and when.
+    # Players are never shown ruled_by_id. Earlier Rulings live in the Admin log.
+    ruling: Mapped[str | None] = mapped_column(String(12))
+    ruling_reason: Mapped[str | None] = mapped_column(Text)
+    ruled_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    ruled_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # Last status the Discord bot told the players about; differs from status = DM pending.
     notified_status: Mapped[str | None] = mapped_column(String(12))

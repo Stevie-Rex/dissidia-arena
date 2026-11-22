@@ -75,7 +75,7 @@ test('the Classic command menu lists Admin and Master panel for the right roles 
 
 test('Admins read the Admin log, page by page', async ({ page }) => {
   await signedInAs(page, 'admin')
-  await page.goto('/admin')
+  await page.goto('/admin/log')
   const entries = page.getByRole('region', { name: 'Admin log entries' })
   await expect(entries.getByRole('listitem')).toHaveCount(2)
   await expect(entries.getByRole('listitem').first()).toContainText('Tester appointed an Admin: Kefka')
@@ -89,7 +89,7 @@ test('Admins read the Admin log, page by page', async ({ page }) => {
 
 test('an Admin steps down with a reason and loses the Admin link', async ({ page }) => {
   const sent = await signedInAs(page, 'admin')
-  await page.goto('/admin')
+  await page.goto('/admin/log')
   const stepDown = page.getByRole('region', { name: 'Step down' })
   await stepDown.getByRole('button', { name: 'Step down' }).click()
   await expect(stepDown.getByRole('alert')).toHaveText('Say why you are stepping down.')
@@ -104,7 +104,7 @@ test('an Admin steps down with a reason and loses the Admin link', async ({ page
 
 test('the Master does not see a step-down form', async ({ page }) => {
   await signedInAs(page, 'master')
-  await page.goto('/admin')
+  await page.goto('/admin/log')
   await expect(page.getByRole('region', { name: 'Admin log entries' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Step down' })).toHaveCount(0)
 })

@@ -10,7 +10,7 @@ export const isAdmin = (role: Role | undefined) => role === 'admin' || role === 
 /** Nav links by role: the Admin area for Admins and the Master, the Master panel for the Master only. */
 export function roleLinks(role: Role | undefined) {
   return [
-    ...(isAdmin(role) ? [{ to: '/admin', label: 'Admin', help: 'The Admin log: every Admin, Master and system action.' }] : []),
+    ...(isAdmin(role) ? [{ to: '/admin', label: 'Admin', help: 'Disputed matches to rule on, and the Admin log.' }] : []),
     ...(role === 'master' ? [{ to: '/master', label: 'Master panel', help: 'Appoint and remove Admins.' }] : []),
   ]
 }
@@ -69,6 +69,58 @@ export interface AdminLogPage {
   hasMore: boolean
 }
 
+export interface CaseClaim {
+  by: PlayerRef
+  at: string
+  byYou: boolean
+}
+
+/** A row of the Admin case list. players are [player A, player B]. */
+export interface CaseSummary {
+  kind: 'dispute'
+  matchId: number
+  game: GameId
+  platform: string
+  players: [string, string]
+  disputedAt: string | null
+  claim: CaseClaim | null
+}
+
+export interface CasePlayer {
+  id: number
+  displayName: string
+  avatarUrl: string
+  region: Region
+  gameId: string | null
+}
+
+/** Disputes a player filed and how each was ruled (outcome null while waiting for a Ruling). */
+export interface DisputeRecord {
+  filed: number
+  outcomes: Partial<Record<RulingOutcome | 'pending', number>>
+  disputes: { matchId: number; game: GameId; at: string | null; outcome: RulingOutcome | null }[]
+}
+
+/** The case page. Players are referred to by user ID, unlike the players' own view. */
+export interface Case extends Omit<CaseSummary, 'players'> {
+  status: MatchStatus
+  players: [CasePlayer, CasePlayer]
+  score: [number, number]
+  winsNeeded: number
+  reportedBy: number | null
+  winner: number | null
+  games: { n: number; winner: number; reportedBy: number; details: GameDetails }[]
+  /** reason is null on disputes filed before the dispute form. statements are keyed by user ID. */
+  dispute: { games: number[]; reason: string | null; by: number | null; statements: Record<string, DisputeStatement> }
+  messages: { id: number; from: number | null; text: string; at: string }[]
+  records: Record<string, DisputeRecord>
+  ruling: (Ruling & { by: PlayerRef | null }) | null
+  /** You played in this match (an Admin can't act on it; the Master can). */
+  playedIn: boolean
+  /** You can give a Ruling now: you hold the Claim, or you're the Master. */
+  canAct: boolean
+}
+
 export interface QueueSettings {
   game: GameId
   mode: '1v1' | '3v3'
@@ -93,7 +145,7 @@ export interface MatchPlayer {
   accepted: boolean
 }
 
-export type MatchStatus = 'pending' | 'active' | 'reported' | 'completed' | 'disputed' | 'cancelled' | 'abandoned'
+export type MatchStatus = 'pending' | 'active' | 'reported' | 'completed' | 'disputed' | 'voided' | 'cancelled' | 'abandoned'
 export const OPEN_STATUSES: MatchStatus[] = ['pending', 'active', 'reported']
 
 export interface GameDetails {
@@ -124,6 +176,15 @@ export interface DisputeSummary {
   statementAdded: boolean
 }
 
+export type RulingOutcome = 'uphold' | 'void'
+
+/** An Admin's Ruling on a Disputed match. Players never see which Admin gave it. */
+export interface Ruling {
+  outcome: RulingOutcome
+  reason: string
+  at: string
+}
+
 export interface Match extends QueueSettings {
   id: number
   region: Region
@@ -143,6 +204,7 @@ export interface Match extends QueueSettings {
   reportedBy: Side | null
   endedBy: Side | null
   dispute: Dispute | null
+  ruling: Ruling | null
   messages: { id: number; from: Side | 'system'; text: string; at: string }[]
   /** Rewards this match earned for you (non-empty only for the winner of a completed match). */
   rewardsUnlocked: Pick<RewardDef, 'key' | 'name' | 'goal'>[]
@@ -201,6 +263,11 @@ export const api = {
   saveAppearance: (changes: Partial<Preferences>) => request<Appearance>('PATCH', '/me/appearance', changes),
   rewards: () => request<{ rewards: RewardDef[] }>('GET', '/rewards'),
 
+  cases: () => request<{ cases: CaseSummary[] }>('GET', '/admin/cases'),
+  case: (id: number) => request<Case>('GET', `/admin/disputes/${id}`),
+  caseAction: (id: number, action: 'claim' | 'release' | 'takeover') => request<Case>('POST', `/admin/disputes/${id}/${action}`),
+  rule: (id: number, outcome: RulingOutcome, reason: string) =>
+    request<Case>('POST', `/admin/disputes/${id}/ruling`, { outcome, reason }),
   adminLog: (page: number) => request<AdminLogPage>('GET', `/admin/log?page=${page}`),
   stepDown: (reason: string) => request<Me>('POST', '/admin/step-down', { reason }),
   searchPlayers: (q: string) => request<{ players: PlayerResult[] }>('GET', `/admin/players?q=${encodeURIComponent(q)}`),

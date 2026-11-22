@@ -250,14 +250,26 @@ function Finished({ match, onDone, onAgain }: { match: Match; onDone: () => void
         : (['chaos', `You lost ${match.score.you}–${match.score.opponent}`, 'Result confirmed. Ratings are coming soon.'] as const)
       : match.status === 'disputed'
         ? (['gold', 'Result disputed', 'An Admin will review this match.'] as const)
+        : match.status === 'voided'
+          ? (['gold', 'Match void', 'It counts for no one.'] as const)
         : match.status === 'abandoned'
           ? (['chaos', match.endedBy === 'you' ? 'You left the match' : `${opp} left the match`, 'The match was abandoned.'] as const)
           : (['gold', 'Match cancelled', 'Not everyone accepted in time.'] as const)
+  const ruling = match.ruling
   return (
     <Card tone={tone}>
       <Sub>{match.status}</Sub>
       <b className={tone === 'cosmos' ? 'text-crystal-soft' : tone === 'chaos' ? 'text-chaos-soft' : undefined}>{title}</b>
-      <Sub>{note}</Sub>
+      {ruling ? (
+        <div role="region" aria-label="Ruling" className="flex flex-col gap-1">
+          <Sub>{ruling.outcome === 'void' ? 'An Admin voided the match.' : 'An Admin upheld the reported result.'}</Sub>
+          <span className="whitespace-pre-wrap text-sm">
+            Reason: <q>{ruling.reason}</q>
+          </span>
+        </div>
+      ) : (
+        <Sub>{note}</Sub>
+      )}
       <div className="flex gap-2">
         <Btn onClick={onAgain}>Queue again</Btn>
         <Pill onClick={onDone}>Done</Pill>

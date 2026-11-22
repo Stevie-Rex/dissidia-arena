@@ -62,8 +62,8 @@ marked **(ask)**.
 4. **There's no `POST /api/matches/<id>/result`.** Results come from `POST /api/matches/<id>/games` (report each game)
    and `POST /api/matches/<id>/confirm`. A match becomes `completed` in `confirm()` in `backend/app/matchmaking.py`,
    and that's where `ranked_wins` should go up and unlocks be granted, with `newly_unlocked` added to that response.
-   A ranked win = a `completed` match where `Match.winner_id` is the player. `disputed`, `cancelled` and `abandoned`
-   don't count. There are no "custom rooms" or "practice" matches, and voiding doesn't exist yet.
+   A ranked win = a `completed` match where `Match.winner_id` is the player. `disputed`, `voided`, `cancelled` and
+   `abandoned` don't count. There are no "custom rooms" or "practice" matches.
 5. **`rewards.py` uses a raw DB cursor and `INSERT IGNORE`.** The backend uses SQLAlchemy, and the tests run on
    SQLite, which doesn't understand `INSERT IGNORE`. Rewrite `grant_unlocks` with SQLAlchemy (for example, insert
    in a savepoint and catch `IntegrityError`, or pick the "ignore" prefix by dialect). The catalogue, `required_reward`,
@@ -132,8 +132,10 @@ owner's test server.
 - Profile and onboarding (region, games, in-game IDs): `app/routes/me.py`
 - **Matchmaking core: `app/matchmaking.py`.** All queue and match rules, shared by the web API and the bot.
   1v1 only; prefers same region, widens to any region after 60s; accept window 60s; lifecycle
-  `pending` → `active` → `reported` → `completed` | `disputed`, plus `cancelled` and `abandoned`.
-  Functions never commit; callers do.
+  `pending` → `active` → `reported` → `completed` | `disputed`, plus `cancelled` and `abandoned`. A Disputed
+  match ends `completed` (Uphold) or `voided` (Void) by an Admin's Ruling. Functions never commit; callers do.
+- **Cases: `app/cases.py`.** The Admin case list and page, Claims (claim, release, Master takeover), the
+  own-match rule, Uphold and Void Rulings, and each player's dispute record. Roles are in `app/admin.py`.
 - REST API: `app/routes/queue.py`. `flask matchmaker` (`app/worker.py`) runs `tick()` every 2s when the bot isn't running.
 - **Rewards and appearance: `app/rewards.py`** (the ladder lives in `REWARDS`; mirror goal changes in
   `frontend/src/theme/tokens.json`). `confirm()` credits the winner's `ranked_wins` and grants unlocks, each tagged
@@ -179,10 +181,10 @@ SQLite ignores row-locking clauses, so concurrent pairing is only truly exercise
 1. **No ratings or seasons.** Completed matches only count toward `ranked_wins` (and so rewards).
    Planned: a `Season` table per game, Glicko-2 ratings per player/game/season, soft reset each season, players hidden
    from the ladder until about 5 matches. Then move Ladder and Profile off mock data.
-2. **Disputes aren't reviewed yet.** Players file games and a reason and each add their side (#6), but Rulings come
-   with the Admin panel (#3). Reported results confirm themselves after 2 hours (#7). The Master and Admins exist,
-   with the Master panel and the Admin log page (#5), but there are no cases or Rulings yet (#8).
-   `GuildConfig.mod_role_id` is stored but unused.
+2. **Only Uphold and Void Rulings so far.** Admins Claim Disputed matches and rule on them at `/admin` (#8), and
+   the bot pings each game server's moderator role (`GuildConfig.mod_role_id`) for a new unclaimed dispute.
+   Still to come: Overturn (#9), Replay (#10), screenshots (#11), Help requests and Voiding open matches (#12), and
+   the Master reopening settled matches (#13).
 3. **No penalties.** `Match.ended_by_id` records who declined, timed out or abandoned.
 4. **Pings only fire on Discord `/queue`,** not when someone queues on the website.
 5. Polling everywhere (site every few seconds, bot every 2s). Fine at this scale.
