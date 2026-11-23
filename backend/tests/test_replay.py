@@ -244,6 +244,7 @@ def test_a_new_dispute_after_a_replay_starts_afresh_and_only_admins_see_the_old_
         m = client.get(f"/api/matches/{mid}").get_json()
         assert m["dispute"]["reason"] == "Lag again in the replay."
         assert m["dispute"]["statements"] == {"you": None, "opponent": None}
+        assert m["dispute"]["round"] == 1  # a new dispute, so the match room starts its editor afresh
         assert "earlierDisputes" not in m
     assert statement(ca, mid, "The replay was clean too.").status_code == 200
 
@@ -271,3 +272,57 @@ def test_an_unfinished_replay_keeps_its_dispute_and_statements(make_player, make
     d = ca.get(f"/api/matches/{mid}").get_json()["dispute"]
     assert d["reason"] == "Game 3 was mine, they misclicked." and d["statements"]["you"]["text"] == "Game 3 was clean."
     assert case(c, mid).get_json()["earlierDisputes"] == []
+
+
+# ---------------------------------------------------------------- review follow-ups
+
+
+def test_leaving_a_replay_sends_it_back_to_the_admins(make_player, make_admin):
+    a, ca, b, cb, mid, c = replaying(make_player, make_admin)
+    assert ca.post(f"/api/matches/{mid}/leave").status_code == 200
+
+    page = case(c, mid).get_json()
+    assert page["status"] == "disputed" and page["replayNotFinished"] is True
+    m = cb.get(f"/api/matches/{mid}").get_json()
+    assert m["status"] == "disputed" and m["messages"][-1]["text"] == f"{a.username} left the Replay. An Admin will rule again."
+    entry = c.get("/api/admin/log").get_json()["entries"][0]
+    assert entry["action"] == "replay_not_finished" and entry["actor"] is None and entry["target"]["id"] == a.id
+    assert cb.post("/api/queue", json=NT_BO3).status_code == 201
+
+
+def test_a_replay_waits_until_neither_player_is_in_another_match(make_player, make_admin):
+    a, ca, b, cb, mid = disputed_games(make_player, [3])
+    _, c = make_admin()
+    claim(c, mid)
+    _, other = make_player()
+    other.post("/api/queue", json=NT_BO3)
+    new = ca.post("/api/queue", json=NT_BO3).get_json()["match"]["id"]  # A is matched again meanwhile
+
+    res = replay(c, mid)
+    assert res.status_code == 409 and res.get_json()["error"] == "player_busy"
+    assert case(c, mid).get_json()["status"] == "disputed"
+    assert ca.get("/api/queue").get_json()["match"]["id"] == new
+
+
+def test_a_replay_takes_both_players_out_of_the_queue(make_player, make_admin):
+    a, ca, b, cb, mid = disputed_games(make_player, [3])
+    assert cb.post("/api/queue", json=NT_BO3).status_code == 201
+    _, c = make_admin()
+    claim(c, mid)
+    assert replay(c, mid).status_code == 200
+    state = cb.get("/api/queue").get_json()
+    assert state["queue"] is None and state["match"]["id"] == mid
+
+
+def test_dispute_records_keep_disputes_from_before_a_replay(make_player, make_admin):
+    a, ca, b, cb, mid = disputed_games(make_player, [3])  # B disputes A's 2-1
+    _, c = make_admin()
+    claim(c, mid)
+    replay(c, mid)
+    report(cb, mid, 3, b)  # now B reports a 2-1 win, and A disputes it
+    dispute(ca, mid, games=[3], reason="Not again.")
+
+    records = case(c, mid).get_json()["records"]
+    assert records[str(a.id)]["filed"] == 1 and records[str(a.id)]["outcomes"] == {"pending": 1}
+    assert records[str(b.id)]["filed"] == 1 and records[str(b.id)]["outcomes"] == {"replay": 1}
+    assert [(d["matchId"], d["outcome"]) for d in records[str(b.id)]["disputes"]] == [(mid, "replay")]

@@ -177,6 +177,8 @@ export interface DisputeStatement {
 
 /** The dispute form and each player's side. games is empty and reason null on disputes filed before the form. */
 export interface Dispute {
+  /** Goes up when the replayed games are disputed again: a new dispute, with new statements. */
+  round: number
   games: number[]
   reason: string | null
   by: Side | null

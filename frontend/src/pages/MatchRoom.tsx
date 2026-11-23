@@ -131,7 +131,14 @@ export default function MatchRoom() {
             </Card>
           )}
 
-          {live.dispute && <DisputePanel match={live} onSave={(text) => saveStatement(live.id, text)} />}
+          {live.dispute && (
+            // keyed so a new dispute after a Replay starts your side afresh
+            <DisputePanel
+              key={`${live.id}-${live.dispute.round}`}
+              match={live}
+              onSave={(text) => saveStatement(live.id, text)}
+            />
+          )}
 
           {!canChat && <Finished match={live} onDone={() => done(`/${live.game}`)} onAgain={() => done('/queue', true)} />}
 
@@ -142,7 +149,10 @@ export default function MatchRoom() {
               type="button"
               className="self-start text-xs text-muted hover:text-chaos-soft"
               onClick={() => {
-                if (window.confirm('Leave this match? It will count as abandoned.')) abandonMatch()
+                const warning = live.replayDeadline
+                  ? 'Leave this Replay? It goes back to the Admins, who rule on it.'
+                  : 'Leave this match? It will count as abandoned.'
+                if (window.confirm(warning)) abandonMatch()
               }}
             >
               Leave match

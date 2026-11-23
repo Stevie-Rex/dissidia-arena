@@ -267,14 +267,25 @@ def _was_disputed():
 def dispute_record(user: User) -> dict:
     """Disputes this player filed and how each was ruled, newest first, so an Admin can spot
     someone who disputes every loss."""
-    rows = list(
-        db.session.scalars(select(Match).where(Match.ended_by_id == user.id, _was_disputed()).order_by(Match.id.desc()))
+    current = db.session.scalars(select(Match).where(Match.ended_by_id == user.id, _was_disputed()))
+    disputes = [{"matchId": m.id, "game": m.game, "at": clock.iso(m.disputed_at), "outcome": m.ruling} for m in current]
+    # Disputes from before a Replay, whose games were disputed again (maybe by the other player).
+    replayed = db.session.scalars(
+        select(Match).where(
+            Match.earlier_disputes.is_not(None), or_(Match.player_a_id == user.id, Match.player_b_id == user.id)
+        )
     )
-    outcomes = Counter(m.ruling or "pending" for m in rows)
+    disputes += [
+        {"matchId": m.id, "game": m.game, "at": d["at"], "outcome": d["ruling"] and d["ruling"]["outcome"]}
+        for m in replayed
+        for d in m.earlier_disputes
+        if d["by"] == user.id
+    ]
+    disputes.sort(key=lambda d: (d["matchId"], d["at"] or ""), reverse=True)
     return {
-        "filed": len(rows),
-        "outcomes": dict(outcomes),
-        "disputes": [{"matchId": m.id, "game": m.game, "at": clock.iso(m.disputed_at), "outcome": m.ruling} for m in rows],
+        "filed": len(disputes),
+        "outcomes": dict(Counter(d["outcome"] or "pending" for d in disputes)),
+        "disputes": disputes,
     }
 
 

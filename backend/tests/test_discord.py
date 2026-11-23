@@ -413,3 +413,12 @@ def test_confirming_a_replayed_match_sends_no_ruling_dm(guilds, monkeypatch):
     call(svc.collect_notifications)  # the reported result
     call(lambda: mm.confirm(mm.lock_match(mid), _user(b)))
     assert call(svc.collect_notifications) == []
+
+
+def test_a_new_dispute_after_a_replay_is_notified_even_if_the_replay_wasnt(guilds, monkeypatch):
+    _with_mod_roles()
+    a, b, mid = _replayed(guilds, monkeypatch)  # the bot never sees the Replay
+    call(lambda: mm.report_game(mm.lock_match(mid), _user(a), 2, _user(a).id))
+    call(lambda: mm.dispute(mm.lock_match(mid), _user(b), [2], "Again?"))
+    (ev,) = call(svc.collect_notifications)
+    assert ev["status"] == "disputed" and ev["modPings"] == [{"channel_id": 1, "role_id": 77}]

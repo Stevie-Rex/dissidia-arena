@@ -194,7 +194,7 @@ async def reply(interaction: discord.Interaction, text: str) -> None:
 def mod_ping_text(event: dict, ping: dict, frontend_url: str) -> str:
     """The moderator-role ping in one server for a new Disputed match, with a link to the case."""
     case = f"{frontend_url.rstrip('/')}/admin/cases/{event['matchId']}"
-    what = "Replay not finished by the deadline" if event.get("replayNotFinished") else "was disputed"
+    what = "Replay not finished" if event["replayNotFinished"] else "was disputed"
     return f"<@&{ping['role_id']}> A result needs an Admin: {GAME_NAMES[event['game']]} match #{event['matchId']} {what}. {case}"
 
 
@@ -264,7 +264,7 @@ def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.
         embed = discord.Embed(
             title="Replay not finished",
             description=(
-                f"{title_line}\n\nYour Replay against **{opp_name}** wasn't finished within {mm.REPLAY_HOURS} hours, "
+                f"{title_line}\n\nYour Replay against **{opp_name}** wasn't finished, "
                 f"so an Admin will rule on it again. You're free to queue in the meantime. See the [match room]({room})."
             ),
             color=discord.Color.gold(),

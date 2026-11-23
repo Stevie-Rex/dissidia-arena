@@ -202,3 +202,21 @@ test('during a Replay the old dispute is read-only', async ({ page }) => {
   await expect(panel.getByRole('textbox')).toHaveCount(0)
   await expect(panel.getByRole('button')).toHaveCount(0)
 })
+
+test('a new dispute after a Replay starts your side afresh', async ({ page }) => {
+  await mockApi(page, { wins: 0 })
+  let shown = reportedMatch({
+    status: 'disputed', endedBy: 'you', confirmDeadline: null,
+    dispute: { round: 0, games: [3], reason: 'Game 3 was mine.', by: 'you',
+      statements: { you: { text: 'My old side.', updatedAt: '2026-11-21T12:00:00Z' }, opponent: null } },
+  })
+  await page.route('**/api/matches/42', (r) => r.fulfill(json(shown)))
+  await page.goto('/match/live?match=42')
+  const panel = page.getByRole('region', { name: 'Dispute' })
+  await expect(panel).toContainText('My old side.')
+
+  // Replayed, and the replayed game 3 disputed again: the server cleared both sides.
+  shown = { ...shown, dispute: { round: 1, games: [3], reason: 'Lag again.', by: 'you', statements: { you: null, opponent: null } } }
+  await expect(panel).toContainText('Lag again.', { timeout: 10_000 })
+  await expect(panel.getByRole('textbox', { name: 'Your side' })).toHaveValue('')
+})
