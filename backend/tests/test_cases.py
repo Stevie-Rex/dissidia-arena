@@ -1,12 +1,14 @@
-"""Admins working through Disputed matches: the case list and page, Claims, and Uphold and Void Rulings."""
+"""Admins working through Disputed matches: the case list and page, Claims, and Uphold, Overturn and Void Rulings."""
 
 from datetime import timedelta
+
+import pytest
 
 from app import clock
 from app.extensions import db
 from app.models import Match, User
 from tests.test_disputes import dispute, reported
-from tests.test_queue import NT_BO3, report
+from tests.test_queue import NT_BO3, report, started
 
 
 def disputed(make_player):
@@ -243,6 +245,95 @@ def test_rulings_are_logged_with_the_admin_and_reason(make_player, make_admin):
     assert entry["matchId"] == mid and entry["reason"] == "Clip shows A won game 3."
     assert entry["details"]["outcome"] == "uphold" and entry["details"]["winnerId"] == a.id
     assert entry["actor"] is not None
+
+
+# ---------------------------------------------------------------- Overturn
+
+
+def overturn(client, mid, games, reason="Clip shows B won game 3."):
+    body = {"outcome": "overturn", "reason": reason, "games": [{"n": n, "winner": w.id} for n, w in games]}
+    return client.post(f"/api/admin/disputes/{mid}/ruling", json=body)
+
+
+def test_overturn_correcting_game_3_flips_the_series_winner(make_player, make_admin):
+    a, ca, b, cb, mid, c = claimed_by_admin(make_player, make_admin)  # A reported 2-1: A, B, A
+    res = overturn(c, mid, [(3, b)])
+    assert res.status_code == 200
+    page = res.get_json()
+    assert page["status"] == "completed" and page["winner"] == b.id
+    assert [g["winner"] for g in page["games"]] == [a.id, b.id, b.id]
+    assert page["ruling"]["outcome"] == "overturn"
+    assert cb.get(f"/api/matches/{mid}").get_json()["winner"] == "you"
+
+
+def test_overturn_that_leaves_nobody_on_the_winning_score_is_refused(make_player, make_admin):
+    a, ca, b, cb, mid = started(make_player)
+    report(ca, mid, 1, a)
+    report(ca, mid, 2, a)
+    dispute(cb, mid, games=[2])
+    _, c = make_admin()
+    claim(c, mid)
+
+    res = overturn(c, mid, [(2, b)])  # 1-1: choose Replay instead
+    assert res.status_code == 409 and res.get_json()["error"] == "no_series_winner"
+    page = case(c, mid).get_json()
+    assert page["status"] == "disputed" and page["ruling"] is None
+    assert [g["winner"] for g in page["games"]] == [a.id, a.id]
+    assert page["claim"]["byYou"] is True
+    assert not [e for e in c.get("/api/admin/log").get_json()["entries"] if e["action"] == "ruling"]
+
+
+@pytest.mark.parametrize(
+    "games",
+    [
+        None,
+        [],
+        "3",
+        [3],
+        [{"n": 4, "winner": "B"}],  # not a reported game
+        [{"n": 3, "winner": "outsider"}],  # not a player in the match
+        [{"n": True, "winner": "B"}],
+        [{"n": 3}],
+        [{"n": 3, "winner": "B"}, {"n": 3, "winner": "A"}],  # the same game twice
+    ],
+)
+def test_overturn_needs_valid_corrected_games(make_player, make_admin, games):
+    a, ca, b, cb, mid, c = claimed_by_admin(make_player, make_admin)
+    outsider, _ = make_player()
+    ids = {"A": a.id, "B": b.id, "outsider": outsider.id}
+    if isinstance(games, list):
+        games = [{**g, "winner": ids[g["winner"]]} if isinstance(g, dict) and "winner" in g else g for g in games]
+    res = c.post(f"/api/admin/disputes/{mid}/ruling", json={"outcome": "overturn", "reason": "r", "games": games})
+    assert res.status_code == 400 and "games" in res.get_json()["fields"]
+    assert case(c, mid).get_json()["status"] == "disputed"
+
+
+def test_overturn_that_leaves_the_reported_winner_is_refused(make_player, make_admin):
+    a, ca, b, cb, mid, c = claimed_by_admin(make_player, make_admin)  # A reported 2-1: A, B, A
+    res = overturn(c, mid, [(2, a)])  # A still wins: that's an Uphold
+    assert res.status_code == 400 and "games" in res.get_json()["fields"]
+    assert case(c, mid).get_json()["status"] == "disputed"
+
+
+def test_overturn_credits_the_new_winner_and_not_the_reporter(make_player, make_admin):
+    a, ca, b, cb, mid, c = claimed_by_admin(make_player, make_admin)
+    b.ranked_wins = 9  # the next win unlocks the Classic interface
+    db.session.commit()
+
+    overturn(c, mid, [(3, b)])
+    assert cb.get("/api/me").get_json()["rankedWins"] == 10
+    assert [r["key"] for r in cb.get(f"/api/matches/{mid}").get_json()["rewardsUnlocked"]] == ["classic_interface"]
+    assert ca.get("/api/me").get_json()["rankedWins"] == 0
+    assert ca.get(f"/api/matches/{mid}").get_json()["rewardsUnlocked"] == []
+
+
+def test_overturn_is_logged_with_the_corrected_games_and_reason(make_player, make_admin):
+    a, ca, b, cb, mid, c = claimed_by_admin(make_player, make_admin)
+    overturn(c, mid, [(2, b), (3, b)], reason="Clip shows B won game 3.")  # game 2 was already B's
+    (entry,) = [e for e in c.get("/api/admin/log").get_json()["entries"] if e["action"] == "ruling"]
+    assert entry["reason"] == "Clip shows B won game 3."
+    assert entry["details"]["outcome"] == "overturn" and entry["details"]["winnerId"] == b.id
+    assert entry["details"]["corrections"] == [{"n": 3, "from": a.id, "to": b.id}]
 
 
 # ---------------------------------------------------------------- what players see

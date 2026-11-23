@@ -81,7 +81,7 @@ class Match(db.Model):
     claimed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime)
 
-    # The current Ruling: outcome (uphold | void), the reason players see, who gave it and when.
+    # The current Ruling: outcome (uphold | overturn | void), the reason players see, who gave it and when.
     # Players are never shown ruled_by_id. Earlier Rulings live in the Admin log.
     ruling: Mapped[str | None] = mapped_column(String(12))
     ruling_reason: Mapped[str | None] = mapped_column(Text)

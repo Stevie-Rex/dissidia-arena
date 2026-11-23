@@ -2,10 +2,16 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { CHARACTERS, GAMES, HELPERS, STAGES, type GameId } from '../data/mock'
 import { useApp } from '../state/AppState'
-import type { GameDetails, Match, Side } from '../lib/api'
+import type { GameDetails, Match, RulingOutcome, Side } from '../lib/api'
 import { Avatar, Btn, Card, Pill, Select, SideGlyph, Sub } from '../components/ui'
 import VictoryReward from '../components/appearance/VictoryReward'
 import { FIELD, cx } from '../lib/format'
+
+const RULING_NOTES: Record<RulingOutcome, string> = {
+  uphold: 'An Admin upheld the reported result.',
+  overturn: 'An Admin overturned the reported result.',
+  void: 'An Admin voided the match.',
+}
 
 /** 1p — match room: connect info + report on the left, opponent-only chat on the right. */
 export default function MatchRoom() {
@@ -262,7 +268,7 @@ function Finished({ match, onDone, onAgain }: { match: Match; onDone: () => void
       <b className={tone === 'cosmos' ? 'text-crystal-soft' : tone === 'chaos' ? 'text-chaos-soft' : undefined}>{title}</b>
       {ruling ? (
         <div role="region" aria-label="Ruling" className="flex flex-col gap-1">
-          <Sub>{ruling.outcome === 'void' ? 'An Admin voided the match.' : 'An Admin upheld the reported result.'}</Sub>
+          <Sub>{RULING_NOTES[ruling.outcome]}</Sub>
           <span className="whitespace-pre-wrap text-sm">
             Reason: <q>{ruling.reason}</q>
           </span>

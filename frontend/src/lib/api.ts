@@ -176,7 +176,13 @@ export interface DisputeSummary {
   statementAdded: boolean
 }
 
-export type RulingOutcome = 'uphold' | 'void'
+export type RulingOutcome = 'uphold' | 'overturn' | 'void'
+
+/** An Overturn's correction: who really won game n. */
+export interface GameCorrection {
+  n: number
+  winner: number
+}
 
 /** An Admin's Ruling on a Disputed match. Players never see which Admin gave it. */
 export interface Ruling {
@@ -266,8 +272,9 @@ export const api = {
   cases: () => request<{ cases: CaseSummary[] }>('GET', '/admin/cases'),
   case: (id: number) => request<Case>('GET', `/admin/disputes/${id}`),
   caseAction: (id: number, action: 'claim' | 'release' | 'takeover') => request<Case>('POST', `/admin/disputes/${id}/${action}`),
-  rule: (id: number, outcome: RulingOutcome, reason: string) =>
-    request<Case>('POST', `/admin/disputes/${id}/ruling`, { outcome, reason }),
+  /** `games` only for an Overturn: the games whose winner the Admin corrected. */
+  rule: (id: number, outcome: RulingOutcome, reason: string, games?: GameCorrection[]) =>
+    request<Case>('POST', `/admin/disputes/${id}/ruling`, { outcome, reason, games }),
   adminLog: (page: number) => request<AdminLogPage>('GET', `/admin/log?page=${page}`),
   stepDown: (reason: string) => request<Me>('POST', '/admin/step-down', { reason }),
   searchPlayers: (q: string) => request<{ players: PlayerResult[] }>('GET', `/admin/players?q=${encodeURIComponent(q)}`),

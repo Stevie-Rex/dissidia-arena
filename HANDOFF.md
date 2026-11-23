@@ -133,9 +133,9 @@ owner's test server.
 - **Matchmaking core: `app/matchmaking.py`.** All queue and match rules, shared by the web API and the bot.
   1v1 only; prefers same region, widens to any region after 60s; accept window 60s; lifecycle
   `pending` → `active` → `reported` → `completed` | `disputed`, plus `cancelled` and `abandoned`. A Disputed
-  match ends `completed` (Uphold) or `voided` (Void) by an Admin's Ruling. Functions never commit; callers do.
+  match ends `completed` (Uphold, or Overturn with corrected games) or `voided` (Void) by an Admin's Ruling. Functions never commit; callers do.
 - **Cases: `app/cases.py`.** The Admin case list and page, Claims (claim, release, Master takeover), the
-  own-match rule, Uphold and Void Rulings, and each player's dispute record. Roles are in `app/admin.py`.
+  own-match rule, Uphold, Overturn and Void Rulings, and each player's dispute record. Roles are in `app/admin.py`.
 - REST API: `app/routes/queue.py`. `flask matchmaker` (`app/worker.py`) runs `tick()` every 2s when the bot isn't running.
 - **Rewards and appearance: `app/rewards.py`** (the ladder lives in `REWARDS`; mirror goal changes in
   `frontend/src/theme/tokens.json`). `confirm()` credits the winner's `ranked_wins` and grants unlocks, each tagged
@@ -181,9 +181,9 @@ SQLite ignores row-locking clauses, so concurrent pairing is only truly exercise
 1. **No ratings or seasons.** Completed matches only count toward `ranked_wins` (and so rewards).
    Planned: a `Season` table per game, Glicko-2 ratings per player/game/season, soft reset each season, players hidden
    from the ladder until about 5 matches. Then move Ladder and Profile off mock data.
-2. **Only Uphold and Void Rulings so far.** Admins Claim Disputed matches and rule on them at `/admin` (#8), and
+2. **Only Uphold, Overturn and Void Rulings so far.** Admins Claim Disputed matches and rule on them at `/admin` (#8), and
    the bot pings each game server's moderator role (`GuildConfig.mod_role_id`) for a new unclaimed dispute.
-   Still to come: Overturn (#9), Replay (#10), screenshots (#11), Help requests and Voiding open matches (#12), and
+   Still to come: Replay (#10), screenshots (#11), Help requests and Voiding open matches (#12), and
    the Master reopening settled matches (#13).
 3. **No penalties.** `Match.ended_by_id` records who declined, timed out or abandoned.
 4. **Pings only fire on Discord `/queue`,** not when someone queues on the website.

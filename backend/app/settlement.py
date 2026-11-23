@@ -10,6 +10,7 @@ Like matchmaking.py, it works on the current db.session and leaves committing to
 takes the match already locked, and it raises MatchmakingError.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from . import clock, rewards
@@ -33,17 +34,20 @@ def wins_needed(match: Match) -> int:
     return match.best_of // 2 + 1
 
 
-def score(match: Match) -> dict[int, int]:
-    """Games won so far, by player id, from the stored games."""
+def score(match: Match, corrections: Mapping[int, int] | None = None) -> dict[int, int]:
+    """Games won so far, by player id, from the stored games. corrections ({game number: winner
+    id}) overrides some of them, to see what a correction would do before saving it."""
+    corrections = corrections or {}
     s = {match.player_a_id: 0, match.player_b_id: 0}
     for g in match.games:
-        s[g.winner_id] += 1
+        s[corrections.get(g.game_no, g.winner_id)] += 1
     return s
 
 
-def series_winner(match: Match) -> User | None:
-    """The player who has reached the winning score for the match's best-of, or None."""
-    s = score(match)
+def series_winner(match: Match, corrections: Mapping[int, int] | None = None) -> User | None:
+    """The player who has reached the winning score for the match's best-of, or None.
+    corrections works as in score()."""
+    s = score(match, corrections)
     needed = wins_needed(match)
     if s[match.player_a_id] >= needed:
         return match.player_a

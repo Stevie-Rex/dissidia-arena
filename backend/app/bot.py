@@ -258,10 +258,13 @@ def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.
 
     if status in ("completed", "voided") and m["ruling"]:
         r = m["ruling"]
+        winner = "you win." if m["winner"] == "you" else f"**{opp_name}** wins."
         if r["outcome"] == "void":
             outcome = "The match is **void**: it counts for no one."
+        elif r["outcome"] == "overturn":
+            outcome = "The reported result is **overturned**: " + winner
         else:
-            outcome = "The reported result **stands**: " + ("you win." if m["winner"] == "you" else f"**{opp_name}** wins.")
+            outcome = "The reported result **stands**: " + winner
         embed = discord.Embed(
             title="Ruling",
             description=(
