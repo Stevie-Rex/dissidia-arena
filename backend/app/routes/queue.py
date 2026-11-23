@@ -90,7 +90,7 @@ def confirm(match_id: int):
     user = current_user()
     if match is None:
         raise mm.MatchmakingError("not_found", "match not found", 404)
-    new = mm.confirm(match, user).unlocked
+    new = list(mm.confirm(match, user).unlocked)
     db.session.commit()
     body = mm.match_dict(match, user)
     # Spec: the result response lists rewards this match unlocked for the viewer.

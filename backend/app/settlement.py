@@ -6,8 +6,8 @@ from the stored games, and applies every effect: the status, the winner, the fin
 match-room system message, the ranked win and the unlocks.
 
 It knows nothing of Rulings, Claims, permissions or the Admin log; those stay with the callers.
-Like matchmaking.py, it works on the current db.session and leaves committing to the caller, and
-it takes the match already locked.
+Like matchmaking.py, it works on the current db.session and leaves committing to the caller, it
+takes the match already locked, and it raises MatchmakingError.
 """
 
 from dataclasses import dataclass
@@ -26,7 +26,7 @@ VOIDABLE = ("pending", "active", "reported", "disputed")
 class Settled:
     """What settling a match with a winner did. Ratings (#14) add their changes here."""
 
-    unlocked: list[str]  # reward keys the winner just unlocked
+    unlocked: tuple[str, ...]  # reward keys the winner just unlocked
 
 
 def wins_needed(match: Match) -> int:
@@ -71,7 +71,7 @@ def complete(match: Match, message: str) -> Settled:
     match.winner_id = winner.id
     match.finished_at = clock.now()
     post_system(match, message)
-    return Settled(unlocked=rewards.record_ranked_win(match))
+    return Settled(unlocked=tuple(rewards.record_ranked_win(match)))
 
 
 def void(match: Match, message: str) -> None:

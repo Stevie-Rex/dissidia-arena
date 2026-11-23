@@ -12,7 +12,7 @@ from sqlalchemy import func, or_, select
 
 from . import admin_log, clock
 from .extensions import db
-from .matchmaking import MatchmakingError
+from .errors import MatchmakingError
 from .models import User
 
 MAX_REASON_LEN = 2000

@@ -54,7 +54,7 @@ def test_complete_credits_one_ranked_win_to_the_series_winner(make_player):
     assert (match.status, match.winner_id) == ("completed", a.id)
     assert match.finished_at is not None
     assert (a.ranked_wins, b.ranked_wins) == (1, 0)
-    assert result.unlocked == []
+    assert result.unlocked == ()
     assert system_messages(match)[-1] == "Result confirmed."
 
 
@@ -72,7 +72,7 @@ def test_complete_grants_unlocks_tagged_with_the_match(make_player):
     db.session.commit()
     result = settlement.complete(match, "Result confirmed.")
     assert a.ranked_wins == 10
-    assert result.unlocked == ["classic_interface"]
+    assert result.unlocked == ("classic_interface",)
     assert [r["key"] for r in rewards.rewards_from_match(match, a.id)] == ["classic_interface"]
 
 
