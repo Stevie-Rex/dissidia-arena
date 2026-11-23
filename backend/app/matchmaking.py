@@ -15,7 +15,9 @@ from datetime import timedelta
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from . import admin_log, clock, rewards
+from . import admin_log, clock, rewards, settlement
+from .errors import MatchmakingError
+from .match_room import post_system
 from .extensions import db
 from .models import DisputeStatement, Match, MatchGame, MatchMessage, QueueEntry, User
 
@@ -42,15 +44,6 @@ GAME_RULES = {
 }
 
 OPEN_STATUSES = ("pending", "active", "reported")
-
-
-class MatchmakingError(Exception):
-    def __init__(self, code: str, message: str, status: int = 409, fields: dict | None = None):
-        super().__init__(message)
-        self.code = code
-        self.message = message
-        self.status = status
-        self.fields = fields
 
 
 # ---------------------------------------------------------------- queue
@@ -331,10 +324,6 @@ def non_reporter(match: Match) -> User:
     return match.player_b if match.reported_by_id == match.player_a_id else match.player_a
 
 
-def _system(match: Match, text: str) -> None:
-    match.messages.append(MatchMessage(user_id=None, text=text, created_at=clock.now()))
-
-
 def accept(match: Match, user: User) -> None:
     side = _side(match, user)
     expire_if_due(match)
@@ -342,7 +331,7 @@ def accept(match: Match, user: User) -> None:
     setattr(match, f"{side}_accepted", True)
     if match.a_accepted and match.b_accepted:
         match.status = "active"
-        _system(match, f"Match started. {match.player_a.display_name or match.player_a.username} hosts.")
+        post_system(match, f"Match started. {match.player_a.display_name or match.player_a.username} hosts.")
 
 
 def decline(match: Match, user: User) -> None:
@@ -351,17 +340,6 @@ def decline(match: Match, user: User) -> None:
     _require_status(match, "pending")
     _cancel(match, ended_by=user)
     _requeue(match, _opponent(match, user))
-
-
-def wins_needed(match: Match) -> int:
-    return match.best_of // 2 + 1
-
-
-def score(match: Match) -> dict[int, int]:
-    s = {match.player_a_id: 0, match.player_b_id: 0}
-    for g in match.games:
-        s[g.winner_id] += 1
-    return s
 
 
 def report_game(match: Match, user: User, game_no: int, winner_id: int, details: dict | None = None) -> None:
@@ -378,12 +356,11 @@ def report_game(match: Match, user: User, game_no: int, winner_id: int, details:
         MatchGame(game_no=game_no, winner_id=winner_id, reported_by_id=user.id, details=_clean_details(details))
     )
     winner = match.player_a if winner_id == match.player_a_id else match.player_b
-    _system(match, f"Game {game_no}: {winner.display_name or winner.username} wins (reported by {user.display_name or user.username}).")
+    post_system(match, f"Game {game_no}: {winner.display_name or winner.username} wins (reported by {user.display_name or user.username}).")
 
-    s = score(match)
-    if max(s.values()) >= wins_needed(match):
+    if (series_winner := settlement.series_winner(match)) is not None:
         match.status = "reported"
-        match.winner_id = max(s, key=s.get)
+        match.winner_id = series_winner.id
         match.reported_by_id = user.id
         match.confirm_deadline = clock.now() + timedelta(seconds=CONFIRM_SECONDS)
 
@@ -394,40 +371,21 @@ def _clean_details(details: dict | None) -> dict:
     return {k: v[:64] for k, v in details.items() if k in ("character", "helper", "stage") and isinstance(v, str)}
 
 
-def complete(match: Match, winner_id: int, system_message: str) -> list[str]:
-    """Settle a match with its winner: completed, ranked win credited, unlocks granted (tagged
-    with the match). The one way a match gets a winner, shared by confirm, auto-confirm and
-    Rulings. Returns reward keys the winner just unlocked."""
-    match.status = "completed"
-    match.winner_id = winner_id
-    match.finished_at = clock.now()
-    _system(match, system_message)
-    return rewards.record_ranked_win(match)
-
-
-def void(match: Match, system_message: str) -> None:
-    """Close a match so it counts for no one: no winner, no ranked win, nothing against anyone."""
-    match.status = "voided"
-    match.winner_id = None
-    match.finished_at = clock.now()
-    _system(match, system_message)
-
-
-def confirm(match: Match, user: User) -> list[str]:
-    """The opponent accepts the reported result. Returns reward keys the winner just unlocked."""
+def confirm(match: Match, user: User) -> settlement.Settled:
+    """The opponent accepts the reported result, which settles the match."""
     _side(match, user)
     _require_status(match, "reported")
     if user.id == match.reported_by_id:
         raise MatchmakingError("not_your_turn", "your opponent needs to confirm the result", 403)
-    return complete(match, match.winner_id, "Result confirmed.")
+    return settlement.complete(match, "Result confirmed.")
 
 
 def auto_confirm_if_due(match: Match) -> bool:
     """The opponent neither confirmed nor disputed in time: the reported result stands."""
     if match.status != "reported" or match.confirm_deadline is None or clock.now() < match.confirm_deadline:
         return False
-    complete(match, match.winner_id, f"Result confirmed automatically after {CONFIRM_HOURS} hours.")
-    s = score(match)
+    settlement.complete(match, f"Result confirmed automatically after {CONFIRM_HOURS} hours.")
+    s = settlement.score(match)
     admin_log.record(
         "auto_confirm",
         f"The opponent didn't confirm or dispute the reported result within {CONFIRM_HOURS} hours.",
@@ -466,7 +424,7 @@ def dispute(match: Match, user: User, games: object = None, reason: object = Non
     match.status = "disputed"
     match.ended_by_id = user.id
     match.finished_at = match.disputed_at = clock.now()
-    _system(match, "Result disputed. An Admin will review it.")
+    post_system(match, "Result disputed. An Admin will review it.")
 
 
 def add_statement(match: Match, user: User, text: object) -> None:
@@ -495,7 +453,7 @@ def leave(match: Match, user: User) -> None:
     match.status = "abandoned"
     match.ended_by_id = user.id
     match.finished_at = clock.now()
-    _system(match, f"{user.display_name or user.username} left the match.")
+    post_system(match, f"{user.display_name or user.username} left the match.")
 
 
 def post_message(match: Match, user: User, text: str) -> MatchMessage:
@@ -557,7 +515,7 @@ def match_dict(match: Match, viewer: User) -> dict:
     def rel(uid: int | None) -> str | None:
         return None if uid is None else "you" if uid == me.id else "opponent"
 
-    s = score(match)
+    s = settlement.score(match)
     return {
         "id": match.id,
         "game": match.game,
@@ -573,7 +531,7 @@ def match_dict(match: Match, viewer: User) -> dict:
         "host": rel(match.player_a_id),
         "you": _player_dict(match, me, my_ok),
         "opponent": _player_dict(match, opp, opp_ok),
-        "winsNeeded": wins_needed(match),
+        "winsNeeded": settlement.wins_needed(match),
         "score": {"you": s[me.id], "opponent": s[opp.id]},
         "games": [
             {"n": g.game_no, "winner": rel(g.winner_id), "reportedBy": rel(g.reported_by_id), "details": g.details}

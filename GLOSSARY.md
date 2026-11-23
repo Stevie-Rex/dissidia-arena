@@ -28,8 +28,12 @@ _Avoid_: Wipe, full reset
 An Admin putting one player's Rating on one Ladder back to the starting Rating, completely unsure, during the live Season. Other players' Ratings are untouched.
 _Avoid_: Rank reset, player wipe
 
+**Settled match**:
+A match whose result is final: completed with a winner, or Voided. Only a Settled match moves ranked wins, Ratings or Placement, and only the Master reopening it unsettles it.
+_Avoid_: Finished, closed, resolved
+
 **Placement**:
-A player's first 5 settled matches on a Ladder in a Season. Until Placement is done, the player has a Rating but isn't shown on that Ladder.
+A player's first 5 Settled matches on a Ladder in a Season. Until Placement is done, the player has a Rating but isn't shown on that Ladder.
 _Avoid_: Provisional, calibration, unranked
 
 **Ladder position**:

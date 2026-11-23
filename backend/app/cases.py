@@ -13,12 +13,12 @@ from collections.abc import Callable
 
 from sqlalchemy import or_, select
 
-from . import admin_log, clock
+from . import admin_log, clock, settlement
 from . import admin
 from .admin import is_master, require_reason
 from . import matchmaking as mm
 from .extensions import db
-from .matchmaking import MatchmakingError, score
+from .errors import MatchmakingError
 from .models import Match, User
 
 
@@ -137,10 +137,10 @@ def rule(match: Match, user: User, outcome: object, reason: object) -> None:
     reason = require_reason(reason)
 
     if outcome == "uphold":
-        # Through the same step as confirm, so the ranked win and unlocks are credited just the same.
-        mm.complete(match, match.winner_id, "Ruling: the reported result stands.")
+        # Settles just as a confirm does, so the ranked win and unlocks are credited the same way.
+        settlement.complete(match, "Ruling: the reported result stands.")
     else:
-        mm.void(match, "Ruling: the match is void. It counts for no one.")
+        settlement.void(match, "Ruling: the match is void. It counts for no one.")
     match.ruling = outcome
     match.ruling_reason = reason
     match.ruled_by_id = user.id
@@ -208,14 +208,14 @@ def _player_dict(match: Match, player: User) -> dict:
 def case_dict(match: Match, viewer: User) -> dict:
     """The case page: everything an Admin needs in one place. Unlike the players' view, it names
     players by ID and shows who gave the Ruling."""
-    s = score(match)
+    s = settlement.score(match)
     players = (match.player_a, match.player_b)
     return {
         **summary_dict(match, viewer),
         "status": match.status,
         "players": [_player_dict(match, p) for p in players],
         "score": [s[match.player_a_id], s[match.player_b_id]],
-        "winsNeeded": mm.wins_needed(match),
+        "winsNeeded": settlement.wins_needed(match),
         "reportedBy": match.reported_by_id,
         "winner": match.winner_id,
         "games": [
