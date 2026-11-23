@@ -125,6 +125,25 @@ test('an Admin Overturns the case by correcting the disputed game', async ({ pag
   ])
 })
 
+test('following a dispute record to another case starts a fresh Ruling form', async ({ page }) => {
+  const mine = { claim: { by: ref(1, 'Tester'), at: '2026-11-21T12:10:00Z', byYou: true }, canAct: true }
+  await onCase(page, 'admin', theCase(mine))
+  const other = theCase({ ...mine, matchId: 30, players: [player(5, 'Zidane'), player(2, 'Rival')], winner: 5, reportedBy: 5,
+    games: [{ n: 1, winner: 5, reportedBy: 5, details: {} }, { n: 2, winner: 5, reportedBy: 5, details: {} }],
+    dispute: { games: [2], reason: 'Lag.', by: 2, statements: {} }, records: { 5: noRecord, 2: noRecord } })
+  await page.route('**/api/admin/disputes/30', (r) => r.fulfill(json(other)))
+
+  await page.getByRole('radio', { name: /Overturn/ }).check()
+  await page.getByLabel(/^Reason/).fill('Meant for match 42.')
+  await page.getByRole('region', { name: 'Dispute records' }).getByRole('link', { name: 'Match #30' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Case: Match #30' })).toBeVisible()
+  await expect(page.getByRole('radio', { name: /Overturn/ })).not.toBeChecked()
+  await expect(page.getByLabel(/^Reason/)).toHaveValue('')
+  await page.getByRole('radio', { name: /Overturn/ }).check()
+  await expect(page.getByRole('group', { name: 'Corrected games' }).getByLabel('Game 2 winner (disputed)')).toHaveValue('2')
+})
+
 test('the case list shows which cases are claimed', async ({ page }) => {
   await onCase(page, 'admin', theCase({ claim: { by: ref(8, 'Kefka'), at: '2026-11-21T12:10:00Z', byYou: false } }))
   await page.goto('/admin')

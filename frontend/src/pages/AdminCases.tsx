@@ -138,7 +138,8 @@ function CaseLoader() {
       <AdminTabs />
       {error && !data && <Alert>{error}</Alert>}
       {!data && !error && <Sub>Loading…</Sub>}
-      {data && <CaseView data={data} onChange={setData} />}
+      {/* keyed so following a dispute record to another case starts its Ruling form afresh */}
+      {data && <CaseView key={data.matchId} data={data} onChange={setData} />}
     </div>
   )
 }
