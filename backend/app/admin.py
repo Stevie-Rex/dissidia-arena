@@ -10,9 +10,9 @@ Every change of role writes an Admin log entry in the same transaction.
 from flask import current_app
 from sqlalchemy import func, or_, select
 
-from . import admin_log
+from . import admin_log, clock
 from .extensions import db
-from .matchmaking import MatchmakingError, iso, now
+from .errors import MatchmakingError
 from .models import User
 
 MAX_REASON_LEN = 2000
@@ -94,7 +94,7 @@ def appoint(master: User, user_id: object, reason: object) -> User:
     _forbid_master(user, "the Master already has every Admin power")
     if user.admin_since is not None:
         raise MatchmakingError("already_admin", "that player is already an Admin")
-    user.admin_since = now()
+    user.admin_since = clock.now()
     admin_log.record("appoint_admin", reason, actor=master, target_id=user.id)
     return user
 
@@ -133,4 +133,4 @@ def player_dict(user: User) -> dict:
 
 
 def admin_dict(user: User) -> dict:
-    return {**player_dict(user), "since": iso(user.admin_since)}
+    return {**player_dict(user), "since": clock.iso(user.admin_since)}

@@ -2,10 +2,9 @@
 
 from datetime import timedelta
 
-from app import matchmaking as mm
+from app import clock
 from app.extensions import db
 from app.models import Match, User
-from app.matchmaking import now
 from tests.test_disputes import dispute, reported
 from tests.test_queue import NT_BO3, report
 
@@ -127,7 +126,7 @@ def test_claims_releases_and_takeovers_are_logged(make_player, make_admin, maste
 def test_an_admin_who_played_in_the_match_cant_claim_it(make_player):
     a, ca, b, cb, mid = disputed(make_player)
 
-    a.admin_since = now()
+    a.admin_since = clock.now()
     db.session.commit()
 
     page = case(ca, mid).get_json()
@@ -221,7 +220,7 @@ def test_only_the_claiming_admin_or_the_master_can_rule(make_player, make_admin,
 
 def test_an_admin_cant_rule_on_their_own_match_but_the_master_can(make_player, master):
     a, ca, b, cb, mid = disputed(make_player)
-    a.admin_since = now()
+    a.admin_since = clock.now()
     db.session.commit()
     assert rule(ca, mid, "uphold").get_json()["error"] == "own_match"
 
@@ -375,8 +374,8 @@ def test_dispute_records_show_when_each_dispute_was_filed_not_when_it_was_ruled(
     a, ca, b, cb, mid = disputed(make_player)
     _, c = make_admin()
     filed = case(c, mid).get_json()["records"][str(b.id)]["disputes"][0]["at"]
-    later = now() + timedelta(days=1)
-    monkeypatch.setattr(mm, "now", lambda: later)
+    later = clock.now() + timedelta(days=1)
+    monkeypatch.setattr(clock, "now", lambda: later)
     claim(c, mid)
     rule(c, mid, "void")
     page = case(c, mid).get_json()
@@ -392,3 +391,14 @@ def test_the_master_ruling_on_an_admins_claim_is_logged_with_whose_claim_it_was(
     rule(mc, mid, "uphold")
     (entry,) = [e for e in mc.get("/api/admin/log").get_json()["entries"] if e["action"] == "ruling"]
     assert entry["details"]["claimedById"] == kefka.id
+
+
+def test_claims_and_rulings_record_the_time_on_the_clock(make_player, make_admin, monkeypatch):
+    *_, mid = disputed(make_player)
+    _, c = make_admin()
+    later = clock.now() + timedelta(days=3)
+    monkeypatch.setattr(clock, "now", lambda: later)
+    claim(c, mid)
+    assert case(c, mid).get_json()["claim"]["at"] == clock.iso(later)
+    rule(c, mid, "void")
+    assert case(c, mid).get_json()["ruling"]["at"] == clock.iso(later)

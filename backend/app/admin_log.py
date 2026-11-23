@@ -9,6 +9,7 @@ so an entry lands in the same transaction as the action it records.
 
 from sqlalchemy import select
 
+from . import clock
 from .extensions import db
 from .models import AdminLogEntry, User
 
@@ -25,8 +26,6 @@ def record(
     details: dict | None = None,
 ) -> None:
     """Append an entry. actor=None is a system action."""
-    from .matchmaking import now  # one clock, so tests can move it
-
     db.session.add(
         AdminLogEntry(
             actor_id=actor.id if actor else None,
@@ -35,7 +34,7 @@ def record(
             target_id=target_id,
             reason=reason,
             details=details or {},
-            created_at=now(),
+            created_at=clock.now(),
         )
     )
 
@@ -58,8 +57,6 @@ def page(n: int) -> dict:
 
 
 def _entry_dict(e: AdminLogEntry, names: dict[int, str]) -> dict:
-    from .matchmaking import iso
-
     def ref(uid: int | None) -> dict | None:
         return None if uid is None else {"id": uid, "displayName": names.get(uid, "Unknown player")}
 
@@ -71,5 +68,5 @@ def _entry_dict(e: AdminLogEntry, names: dict[int, str]) -> dict:
         "target": ref(e.target_id),
         "reason": e.reason,
         "details": e.details,
-        "at": iso(e.created_at),
+        "at": clock.iso(e.created_at),
     }

@@ -8,12 +8,12 @@ Flow:
 """
 
 import secrets
-from datetime import datetime, timezone
 from urllib.parse import urlencode
 
 import requests
 from flask import Blueprint, abort, current_app, jsonify, redirect, request, session
 
+from .. import clock
 from ..extensions import db
 from ..models import User
 
@@ -130,6 +130,6 @@ def _upsert_user(profile: dict) -> User:
     user.username = profile["username"]
     user.display_name = profile.get("global_name")
     user.avatar_hash = profile.get("avatar")
-    user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    user.last_login_at = clock.now()
     db.session.commit()
     return user

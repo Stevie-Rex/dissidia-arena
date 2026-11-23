@@ -12,6 +12,7 @@ from datetime import timedelta
 
 from sqlalchemy import or_, select
 
+from . import clock
 from . import matchmaking as mm
 from .extensions import db
 from .models import GuildConfig, Match, User
@@ -156,7 +157,7 @@ def join(p: DiscordProfile, guild_id: int | None, platform: str | None) -> dict:
 
 def _claim_pings(game: str) -> list[dict]:
     """Servers for this game whose ping cooldown has passed; marks them as pinged."""
-    t = mm.now()
+    t = clock.now()
     out = []
     for cfg in db.session.scalars(
         select(GuildConfig).where(GuildConfig.game == game, GuildConfig.ping_role_id.is_not(None))
@@ -193,7 +194,7 @@ def collect_notifications() -> list[dict]:
     """
     mm.tick()
     db.session.flush()
-    t = mm.now()
+    t = clock.now()
     rows = db.session.scalars(
         select(Match)
         .where(

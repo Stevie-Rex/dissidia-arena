@@ -10,12 +10,14 @@ grab the same opponent. SQLite (tests) ignores the locking clauses.
 """
 
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from . import admin_log, rewards
+from . import admin_log, clock, rewards, settlement
+from .errors import MatchmakingError
+from .match_room import post_system
 from .extensions import db
 from .models import DisputeStatement, Match, MatchGame, MatchMessage, QueueEntry, User
 
@@ -42,24 +44,6 @@ GAME_RULES = {
 }
 
 OPEN_STATUSES = ("pending", "active", "reported")
-
-
-class MatchmakingError(Exception):
-    def __init__(self, code: str, message: str, status: int = 409, fields: dict | None = None):
-        super().__init__(message)
-        self.code = code
-        self.message = message
-        self.status = status
-        self.fields = fields
-
-
-def now() -> datetime:
-    """Naive UTC, which is what the DateTime columns store."""
-    return datetime.now(UTC).replace(tzinfo=None)
-
-
-def iso(dt: datetime | None) -> str | None:
-    return dt.isoformat(timespec="seconds") + "Z" if dt else None
 
 
 # ---------------------------------------------------------------- queue
@@ -100,7 +84,7 @@ def join_queue(user: User, data: dict, source: str = "web") -> QueueEntry:
     if queue_entry(user):
         raise MatchmakingError("already_queued", "you're already in the queue")
 
-    entry = QueueEntry(user_id=user.id, region=user.region, source=source, joined_at=now(), **settings)
+    entry = QueueEntry(user_id=user.id, region=user.region, source=source, joined_at=clock.now(), **settings)
     db.session.add(entry)
     try:
         db.session.flush()
@@ -127,7 +111,7 @@ def try_match(entry: QueueEntry) -> Match | None:
     mine = db.session.scalar(select(QueueEntry).where(QueueEntry.id == entry.id).with_for_update())
     if mine is None:  # someone else already matched us
         return None
-    cutoff = now() - timedelta(seconds=REGION_WIDEN_SECONDS)
+    cutoff = clock.now() - timedelta(seconds=REGION_WIDEN_SECONDS)
     region_ok = QueueEntry.region == mine.region
     if mine.joined_at <= cutoff:
         region_ok = or_(region_ok, QueueEntry.joined_at <= cutoff)
@@ -150,7 +134,7 @@ def try_match(entry: QueueEntry) -> Match | None:
 
     # Whoever waited longer is player A (and the default host).
     first, second = sorted([mine, other], key=lambda e: (e.joined_at, e.id))
-    t = now()
+    t = clock.now()
     match = Match(
         game=mine.game,
         mode=mine.mode,
@@ -224,7 +208,7 @@ def tick() -> dict[str, list[Match]]:
     """
     expired = []
     due = db.session.scalars(
-        select(Match.id).where(Match.status == "pending", Match.accept_deadline <= now())
+        select(Match.id).where(Match.status == "pending", Match.accept_deadline <= clock.now())
     ).all()
     for match_id in due:
         match = lock_match(match_id)
@@ -236,7 +220,7 @@ def tick() -> dict[str, list[Match]]:
 
     auto_confirmed = []
     due = db.session.scalars(
-        select(Match.id).where(Match.status == "reported", Match.confirm_deadline <= now())
+        select(Match.id).where(Match.status == "reported", Match.confirm_deadline <= clock.now())
     ).all()
     for match_id in due:
         match = lock_match(match_id)
@@ -255,7 +239,7 @@ def tick() -> dict[str, list[Match]]:
 
 
 def entry_dict(entry: QueueEntry) -> dict:
-    return {**entry.settings(), "region": entry.region, "joinedAt": iso(entry.joined_at), "source": entry.source}
+    return {**entry.settings(), "region": entry.region, "joinedAt": clock.iso(entry.joined_at), "source": entry.source}
 
 
 # ---------------------------------------------------------------- matches
@@ -275,7 +259,7 @@ def current_match(user: User) -> Match | None:
         .order_by(Match.id.desc())
         .limit(1)
     )
-    if match and match.status == "pending" and now() >= match.accept_deadline:
+    if match and match.status == "pending" and clock.now() >= match.accept_deadline:
         match = lock_match(match.id)
         expire_if_due(match)
         return None if match.status not in OPEN_STATUSES else match
@@ -284,7 +268,7 @@ def current_match(user: User) -> Match | None:
 
 def expire_if_due(match: Match) -> None:
     """Accept window over: cancel, and put anyone who did accept back in the queue."""
-    if match.status != "pending" or now() < match.accept_deadline:
+    if match.status != "pending" or clock.now() < match.accept_deadline:
         return
     no_shows = [p for p, ok in ((match.player_a, match.a_accepted), (match.player_b, match.b_accepted)) if not ok]
     _cancel(match, ended_by=no_shows[0] if len(no_shows) == 1 else None)
@@ -296,7 +280,7 @@ def expire_if_due(match: Match) -> None:
 def _cancel(match: Match, ended_by: User | None) -> None:
     match.status = "cancelled"
     match.ended_by_id = ended_by.id if ended_by else None
-    match.finished_at = now()
+    match.finished_at = clock.now()
 
 
 def _requeue(match: Match, player: User) -> None:
@@ -308,7 +292,7 @@ def _requeue(match: Match, player: User) -> None:
             best_of=match.best_of,
             platform=match.platform,
             region=match.region,
-            joined_at=now(),
+            joined_at=clock.now(),
         )
     )
 
@@ -340,10 +324,6 @@ def non_reporter(match: Match) -> User:
     return match.player_b if match.reported_by_id == match.player_a_id else match.player_a
 
 
-def _system(match: Match, text: str) -> None:
-    match.messages.append(MatchMessage(user_id=None, text=text, created_at=now()))
-
-
 def accept(match: Match, user: User) -> None:
     side = _side(match, user)
     expire_if_due(match)
@@ -351,7 +331,7 @@ def accept(match: Match, user: User) -> None:
     setattr(match, f"{side}_accepted", True)
     if match.a_accepted and match.b_accepted:
         match.status = "active"
-        _system(match, f"Match started. {match.player_a.display_name or match.player_a.username} hosts.")
+        post_system(match, f"Match started. {match.player_a.display_name or match.player_a.username} hosts.")
 
 
 def decline(match: Match, user: User) -> None:
@@ -360,17 +340,6 @@ def decline(match: Match, user: User) -> None:
     _require_status(match, "pending")
     _cancel(match, ended_by=user)
     _requeue(match, _opponent(match, user))
-
-
-def wins_needed(match: Match) -> int:
-    return match.best_of // 2 + 1
-
-
-def score(match: Match) -> dict[int, int]:
-    s = {match.player_a_id: 0, match.player_b_id: 0}
-    for g in match.games:
-        s[g.winner_id] += 1
-    return s
 
 
 def report_game(match: Match, user: User, game_no: int, winner_id: int, details: dict | None = None) -> None:
@@ -387,14 +356,13 @@ def report_game(match: Match, user: User, game_no: int, winner_id: int, details:
         MatchGame(game_no=game_no, winner_id=winner_id, reported_by_id=user.id, details=_clean_details(details))
     )
     winner = match.player_a if winner_id == match.player_a_id else match.player_b
-    _system(match, f"Game {game_no}: {winner.display_name or winner.username} wins (reported by {user.display_name or user.username}).")
+    post_system(match, f"Game {game_no}: {winner.display_name or winner.username} wins (reported by {user.display_name or user.username}).")
 
-    s = score(match)
-    if max(s.values()) >= wins_needed(match):
+    if (series_winner := settlement.series_winner(match)) is not None:
         match.status = "reported"
-        match.winner_id = max(s, key=s.get)
+        match.winner_id = series_winner.id
         match.reported_by_id = user.id
-        match.confirm_deadline = now() + timedelta(seconds=CONFIRM_SECONDS)
+        match.confirm_deadline = clock.now() + timedelta(seconds=CONFIRM_SECONDS)
 
 
 def _clean_details(details: dict | None) -> dict:
@@ -403,40 +371,21 @@ def _clean_details(details: dict | None) -> dict:
     return {k: v[:64] for k, v in details.items() if k in ("character", "helper", "stage") and isinstance(v, str)}
 
 
-def complete(match: Match, winner_id: int, system_message: str) -> list[str]:
-    """Settle a match with its winner: completed, ranked win credited, unlocks granted (tagged
-    with the match). The one way a match gets a winner, shared by confirm, auto-confirm and
-    Rulings. Returns reward keys the winner just unlocked."""
-    match.status = "completed"
-    match.winner_id = winner_id
-    match.finished_at = now()
-    _system(match, system_message)
-    return rewards.record_ranked_win(match)
-
-
-def void(match: Match, system_message: str) -> None:
-    """Close a match so it counts for no one: no winner, no ranked win, nothing against anyone."""
-    match.status = "voided"
-    match.winner_id = None
-    match.finished_at = now()
-    _system(match, system_message)
-
-
-def confirm(match: Match, user: User) -> list[str]:
-    """The opponent accepts the reported result. Returns reward keys the winner just unlocked."""
+def confirm(match: Match, user: User) -> settlement.Settled:
+    """The opponent accepts the reported result, which settles the match."""
     _side(match, user)
     _require_status(match, "reported")
     if user.id == match.reported_by_id:
         raise MatchmakingError("not_your_turn", "your opponent needs to confirm the result", 403)
-    return complete(match, match.winner_id, "Result confirmed.")
+    return settlement.complete(match, "Result confirmed.")
 
 
 def auto_confirm_if_due(match: Match) -> bool:
     """The opponent neither confirmed nor disputed in time: the reported result stands."""
-    if match.status != "reported" or match.confirm_deadline is None or now() < match.confirm_deadline:
+    if match.status != "reported" or match.confirm_deadline is None or clock.now() < match.confirm_deadline:
         return False
-    complete(match, match.winner_id, f"Result confirmed automatically after {CONFIRM_HOURS} hours.")
-    s = score(match)
+    settlement.complete(match, f"Result confirmed automatically after {CONFIRM_HOURS} hours.")
+    s = settlement.score(match)
     admin_log.record(
         "auto_confirm",
         f"The opponent didn't confirm or dispute the reported result within {CONFIRM_HOURS} hours.",
@@ -474,8 +423,8 @@ def dispute(match: Match, user: User, games: object = None, reason: object = Non
     match.dispute_reason = reason
     match.status = "disputed"
     match.ended_by_id = user.id
-    match.finished_at = match.disputed_at = now()
-    _system(match, "Result disputed. An Admin will review it.")
+    match.finished_at = match.disputed_at = clock.now()
+    post_system(match, "Result disputed. An Admin will review it.")
 
 
 def add_statement(match: Match, user: User, text: object) -> None:
@@ -487,11 +436,11 @@ def add_statement(match: Match, user: User, text: object) -> None:
         raise MatchmakingError("validation", f"statement must be 1-{MAX_STATEMENT_LEN} characters", 400)
     mine = next((st for st in match.statements if st.user_id == user.id), None)
     if mine is None:
-        mine = DisputeStatement(user_id=user.id, text=text, updated_at=now())
+        mine = DisputeStatement(user_id=user.id, text=text, updated_at=clock.now())
         match.statements.append(mine)
     else:
         mine.text = text
-        mine.updated_at = now()
+        mine.updated_at = clock.now()
 
 
 def leave(match: Match, user: User) -> None:
@@ -503,8 +452,8 @@ def leave(match: Match, user: User) -> None:
     _require_status(match, "active")
     match.status = "abandoned"
     match.ended_by_id = user.id
-    match.finished_at = now()
-    _system(match, f"{user.display_name or user.username} left the match.")
+    match.finished_at = clock.now()
+    post_system(match, f"{user.display_name or user.username} left the match.")
 
 
 def post_message(match: Match, user: User, text: str) -> MatchMessage:
@@ -513,7 +462,7 @@ def post_message(match: Match, user: User, text: str) -> MatchMessage:
     text = (text or "").strip() if isinstance(text, str) else ""
     if not text or len(text) > MAX_MESSAGE_LEN:
         raise MatchmakingError("validation", f"message must be 1-{MAX_MESSAGE_LEN} characters", 400)
-    msg = MatchMessage(user_id=user.id, text=text, created_at=now())
+    msg = MatchMessage(user_id=user.id, text=text, created_at=clock.now())
     match.messages.append(msg)
     return msg
 
@@ -541,7 +490,7 @@ def _dispute_dict(match: Match, rel: Callable[[int | None], str | None]) -> dict
         return None
     statements = {"you": None, "opponent": None}
     for st in match.statements:
-        statements[rel(st.user_id)] = {"text": st.text, "updatedAt": iso(st.updated_at)}
+        statements[rel(st.user_id)] = {"text": st.text, "updatedAt": clock.iso(st.updated_at)}
     return {
         "games": match.dispute_games or [],
         "reason": match.dispute_reason,
@@ -554,7 +503,7 @@ def ruling_dict(match: Match) -> dict | None:
     """The Ruling as players see it: the outcome and reason, never which Admin gave it."""
     if match.ruling is None:
         return None
-    return {"outcome": match.ruling, "reason": match.ruling_reason, "at": iso(match.ruled_at)}
+    return {"outcome": match.ruling, "reason": match.ruling_reason, "at": clock.iso(match.ruled_at)}
 
 
 def match_dict(match: Match, viewer: User) -> dict:
@@ -566,7 +515,7 @@ def match_dict(match: Match, viewer: User) -> dict:
     def rel(uid: int | None) -> str | None:
         return None if uid is None else "you" if uid == me.id else "opponent"
 
-    s = score(match)
+    s = settlement.score(match)
     return {
         "id": match.id,
         "game": match.game,
@@ -575,14 +524,14 @@ def match_dict(match: Match, viewer: User) -> dict:
         "platform": match.platform,
         "region": match.region,
         "status": match.status,
-        "acceptDeadline": iso(match.accept_deadline),
-        "confirmDeadline": iso(match.confirm_deadline) if match.status == "reported" else None,
-        "createdAt": iso(match.created_at),
-        "finishedAt": iso(match.finished_at),
+        "acceptDeadline": clock.iso(match.accept_deadline),
+        "confirmDeadline": clock.iso(match.confirm_deadline) if match.status == "reported" else None,
+        "createdAt": clock.iso(match.created_at),
+        "finishedAt": clock.iso(match.finished_at),
         "host": rel(match.player_a_id),
         "you": _player_dict(match, me, my_ok),
         "opponent": _player_dict(match, opp, opp_ok),
-        "winsNeeded": wins_needed(match),
+        "winsNeeded": settlement.wins_needed(match),
         "score": {"you": s[me.id], "opponent": s[opp.id]},
         "games": [
             {"n": g.game_no, "winner": rel(g.winner_id), "reportedBy": rel(g.reported_by_id), "details": g.details}
@@ -596,7 +545,7 @@ def match_dict(match: Match, viewer: User) -> dict:
         "rewardsUnlocked": rewards.rewards_from_match(match, me.id) if match.status == "completed" else [],
         "ruling": ruling_dict(match),
         "messages": [
-            {"id": m.id, "from": "system" if m.user_id is None else rel(m.user_id), "text": m.text, "at": iso(m.created_at)}
+            {"id": m.id, "from": "system" if m.user_id is None else rel(m.user_id), "text": m.text, "at": clock.iso(m.created_at)}
             for m in match.messages
         ],
     }

@@ -182,6 +182,7 @@ def grant_unlocks(user_id: int, wins: int, match_id: int | None = None) -> list[
 
 def record_ranked_win(match: Match) -> list[str]:
     """A ranked match just completed: credit the winner and grant what they earned.
+    Called only by app.settlement, which owns settling a match.
 
     Every match is ranked for now (the site only has ranked 1v1 Bo3). Only `completed`
     counts; disputed, cancelled and abandoned matches never reach here.
