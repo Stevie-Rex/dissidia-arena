@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import AdminTabs from '../components/AdminTabs'
 import RoleGate from '../components/RoleGate'
-import { Btn, Card, PageTitle, Sub } from '../components/ui'
+import { Btn, Card, PageTitle, Select, Sub } from '../components/ui'
 import { GAMES } from '../data/mock'
 import {
   MAX_REASON,
@@ -12,6 +12,7 @@ import {
   type CasePlayer,
   type CaseSummary,
   type DisputeRecord,
+  type GameCorrection,
   type RulingOutcome,
 } from '../lib/api'
 import { FIELD, cx } from '../lib/format'
@@ -19,9 +20,14 @@ import { useApp } from '../state/AppState'
 
 const OUTCOMES: { value: RulingOutcome; label: string; help: string }[] = [
   { value: 'uphold', label: 'Uphold', help: 'The reported result stands. The winner gets the ranked win and any unlocks.' },
+  {
+    value: 'overturn',
+    label: 'Overturn',
+    help: 'Correct the winner of the games in doubt. Whoever the corrected games make the winner gets the ranked win and any unlocks.',
+  },
   { value: 'void', label: 'Void', help: 'No one wins and nothing counts against anyone.' },
 ]
-const OUTCOME_NAMES: Record<RulingOutcome, string> = { uphold: 'Upheld', void: 'Voided' }
+const OUTCOME_NAMES: Record<RulingOutcome, string> = { uphold: 'Upheld', overturn: 'Overturned', void: 'Voided' }
 
 const since = (iso: string) => {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
@@ -221,7 +227,11 @@ function CaseView({ data, onChange }: { data: Case; onChange: (c: Case) => void 
         </Card>
 
         {open && data.canAct && !data.ruling && (
-          <RulingForm busy={busy} onRule={(outcome, reason) => run(() => api.rule(data.matchId, outcome, reason))} />
+          <RulingForm
+            data={data}
+            busy={busy}
+            onRule={(outcome, reason, games) => run(() => api.rule(data.matchId, outcome, reason, games))}
+          />
         )}
 
         <Card className="flex flex-col gap-2" role="region" aria-label="Reported games">
@@ -324,17 +334,37 @@ function Record({ player, record, current }: { player: CasePlayer; record: Dispu
   )
 }
 
-function RulingForm({ busy, onRule }: { busy: boolean; onRule: (outcome: RulingOutcome, reason: string) => void }) {
+/** Each game's winner, with the disputed games pre-set to the other player: the usual Overturn. */
+const proposedWinners = (data: Case) => {
+  const [a, b] = data.players.map((p) => p.id)
+  return Object.fromEntries(
+    data.games.map((g) => [g.n, data.dispute.games.includes(g.n) ? (g.winner === a ? b : a) : g.winner]),
+  ) as Record<number, number>
+}
+
+function RulingForm({
+  data,
+  busy,
+  onRule,
+}: {
+  data: Case
+  busy: boolean
+  onRule: (outcome: RulingOutcome, reason: string, games?: GameCorrection[]) => void
+}) {
   const [outcome, setOutcome] = useState<RulingOutcome | null>(null)
   const [reason, setReason] = useState('')
+  const [winners, setWinners] = useState(() => proposedWinners(data))
   const [error, setError] = useState<string | null>(null)
   const id = useId()
+
+  const corrections = data.games.filter((g) => winners[g.n] !== g.winner).map((g) => ({ n: g.n, winner: winners[g.n] }))
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
     if (!outcome) return setError('Pick a Ruling.')
+    if (outcome === 'overturn' && corrections.length === 0) return setError('Correct the winner of at least one game.')
     if (!reason.trim()) return setError('Give a reason. Both players will see it.')
-    onRule(outcome, reason.trim())
+    onRule(outcome, reason.trim(), outcome === 'overturn' ? corrections : undefined)
   }
 
   return (
@@ -363,6 +393,16 @@ function RulingForm({ busy, onRule }: { busy: boolean; onRule: (outcome: RulingO
           </label>
         ))}
       </fieldset>
+      {outcome === 'overturn' && (
+        <Corrections
+          data={data}
+          winners={winners}
+          onChange={(n, winner) => {
+            setWinners((w) => ({ ...w, [n]: winner }))
+            setError(null)
+          }}
+        />
+      )}
       <label htmlFor={`${id}-reason`} className="text-sm font-semibold">
         Reason (both players see this, but not your name)
       </label>
@@ -390,5 +430,44 @@ function RulingForm({ busy, onRule }: { busy: boolean; onRule: (outcome: RulingO
         </Btn>
       </div>
     </form>
+  )
+}
+
+/** The Overturn's per-game controls, and the result they add up to. */
+function Corrections({
+  data,
+  winners,
+  onChange,
+}: {
+  data: Case
+  winners: Record<number, number>
+  onChange: (n: number, winner: number) => void
+}) {
+  const options = data.players.map((p) => ({ value: String(p.id), label: p.displayName }))
+  const won = data.players.map((p) => data.games.filter((g) => winners[g.n] === p.id).length)
+  const leader = won[0] >= data.winsNeeded ? 0 : won[1] >= data.winsNeeded ? 1 : null
+  return (
+    <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+      <legend className="mb-1 text-sm font-semibold">Corrected games</legend>
+      {data.games.map((g) => {
+        const doubted = data.dispute.games.includes(g.n)
+        const label = `Game ${g.n} winner${doubted ? ' (disputed)' : ''}`
+        return (
+          <div key={g.n} className={cx('flex items-center gap-2 text-sm', doubted && 'font-semibold text-gold-note')}>
+            <span aria-hidden="true" className="w-36">
+              {label}
+            </span>
+            <Select label={label} value={String(winners[g.n])} options={options} onChange={(v) => onChange(g.n, Number(v))} />
+          </div>
+        )
+      })}
+      <p className="m-0 text-sm" aria-live="polite">
+        {leader === null
+          ? `Nobody wins at ${won[0]}–${won[1]}, so this can't be an Overturn.`
+          : `${data.players[leader].displayName} wins ${won[leader]}–${won[1 - leader]}${
+              data.players[leader].id === data.winner ? ': the reported winner still wins, so this is an Uphold.' : '.'
+            }`}
+      </p>
+    </fieldset>
   )
 }

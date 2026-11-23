@@ -49,7 +49,7 @@ async function onCase(page: Page, role: Role, start: Record<string, unknown>) {
       if (path.endsWith('/claim')) current = { ...current, claim: { by: ref(1, 'Tester'), at: new Date().toISOString(), byYou: true }, canAct: true }
       if (path.endsWith('/ruling'))
         current = { ...current, status: 'completed', canAct: false, claim: null,
-          ruling: { outcome: 'uphold', reason: req.postDataJSON().reason, at: '2026-11-21T13:00:00Z', by: ref(1, 'Tester') } }
+          ruling: { outcome: req.postDataJSON().outcome, reason: req.postDataJSON().reason, at: '2026-11-21T13:00:00Z', by: ref(1, 'Tester') } }
     }
     return r.fulfill(json(current))
   })
@@ -100,6 +100,28 @@ test('an Admin Claims the case and Upholds it with a reason', async ({ page }) =
   expect(sent).toEqual([
     { path: '/api/admin/disputes/42/claim', body: null },
     { path: '/api/admin/disputes/42/ruling', body: { outcome: 'uphold', reason: 'Rival left mid-game; the clip shows it.' } },
+  ])
+})
+
+test('an Admin Overturns the case by correcting the disputed game', async ({ page }) => {
+  const sent = await onCase(page, 'admin', theCase({ claim: { by: ref(1, 'Tester'), at: '2026-11-21T12:10:00Z', byYou: true }, canAct: true }))
+  await page.getByRole('radio', { name: /Overturn/ }).check()
+
+  const corrections = page.getByRole('group', { name: 'Corrected games' })
+  await expect(corrections.getByLabel('Game 1 winner')).toHaveValue('7')
+  await expect(corrections.getByLabel('Game 3 winner (disputed)')).toHaveValue('2') // pre-selected: the other player
+  await expect(corrections).toContainText('Rival wins 2–1')
+  await corrections.getByLabel('Game 1 winner').selectOption({ label: 'Rival' })
+  await expect(corrections).toContainText('Rival wins 3–0')
+  await corrections.getByLabel('Game 1 winner').selectOption({ label: 'Ashe' })
+
+  await page.getByLabel(/^Reason/).fill('The clip shows Rival won game 3.')
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+  await page.getByRole('button', { name: 'Give Ruling' }).click()
+
+  await expect(status(page)).toContainText('Ruling: Overturned')
+  expect(sent).toEqual([
+    { path: '/api/admin/disputes/42/ruling', body: { outcome: 'overturn', reason: 'The clip shows Rival won game 3.', games: [{ n: 3, winner: 2 }] } },
   ])
 })
 

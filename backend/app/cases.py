@@ -121,11 +121,60 @@ def take_over(match: Match, master: User) -> None:
 
 # ---------------------------------------------------------------- Rulings
 
-# Overturn and Replay come in later tickets.
-OUTCOMES = ("uphold", "void")
+# Replay comes in a later ticket.
+OUTCOMES = ("uphold", "overturn", "void")
 
 
-def rule(match: Match, user: User, outcome: object, reason: object) -> None:
+def _is_int(v: object) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+def _corrections(match: Match, games: object) -> dict[int, int]:
+    """The Overturn's corrected games, as {game number: winner id}. Any reported game can be
+    corrected, once, to either player."""
+    reported = {g.game_no for g in match.games}
+    players = (match.player_a_id, match.player_b_id)
+    if (
+        isinstance(games, list)
+        and games
+        and all(
+            isinstance(g, dict) and _is_int(g.get("n")) and g["n"] in reported and _is_int(g.get("winner")) and g["winner"] in players
+            for g in games
+        )
+        and len({g["n"] for g in games}) == len(games)
+    ):
+        return {g["n"]: g["winner"] for g in games}
+    raise MatchmakingError(
+        "validation",
+        "correct the winner of one or more reported games",
+        400,
+        {"games": f"give each corrected game once, from {sorted(reported)}, won by one of the players"},
+    )
+
+
+def _overturn(match: Match, games: object) -> list[dict]:
+    """Save the corrected games and settle the match with the winner they give. Returns the
+    corrections that changed a game, for the Admin log.
+
+    Refuses when the corrections leave the reported winner (that's an Uphold), and when they
+    leave nobody on the winning score (no_series_winner: that's a Replay). The caller rolls back."""
+    corrected = _corrections(match, games)
+    reported_winner = settlement.series_winner(match)
+    changes = []
+    for g in match.games:
+        if g.game_no in corrected and corrected[g.game_no] != g.winner_id:
+            changes.append({"n": g.game_no, "from": g.winner_id, "to": corrected[g.game_no]})
+            g.winner_id = corrected[g.game_no]
+    winner = settlement.series_winner(match)
+    if winner is not None and winner is reported_winner:
+        raise MatchmakingError(
+            "validation", "the reported winner still wins: choose Uphold", 400, {"games": "these corrections don't change the winner"}
+        )
+    settlement.complete(match, "Ruling: the result is overturned.")
+    return changes
+
+
+def rule(match: Match, user: User, outcome: object, reason: object, games: object = None) -> None:
     """Give the Ruling on a Disputed match. The first Ruling saved wins: the match row is locked,
     and once it has a Ruling every later attempt gets already_ruled."""
     _require_open(match)
@@ -136,9 +185,12 @@ def rule(match: Match, user: User, outcome: object, reason: object) -> None:
         raise MatchmakingError("validation", "invalid Ruling", 400, {"outcome": f"must be one of {list(OUTCOMES)}"})
     reason = require_reason(reason)
 
+    details = {}
     if outcome == "uphold":
         # Settles just as a confirm does, so the ranked win and unlocks are credited the same way.
         settlement.complete(match, "Ruling: the reported result stands.")
+    elif outcome == "overturn":
+        details["corrections"] = _overturn(match, games)
     else:
         settlement.void(match, "Ruling: the match is void. It counts for no one.")
     match.ruling = outcome
@@ -152,7 +204,7 @@ def rule(match: Match, user: User, outcome: object, reason: object) -> None:
         reason,
         actor=user,
         match_id=match.id,
-        details={"outcome": outcome, "winnerId": match.winner_id, "claimedById": claimed_by},
+        details={"outcome": outcome, "winnerId": match.winner_id, "claimedById": claimed_by, **details},
     )
 
 

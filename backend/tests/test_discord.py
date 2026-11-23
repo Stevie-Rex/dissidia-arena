@@ -332,6 +332,25 @@ def test_a_ruling_dms_both_players_without_the_admins_name(guilds, monkeypatch, 
     assert call(svc.collect_notifications) == []
 
 
+def test_an_overturn_dm_says_the_result_was_overturned_and_who_wins(guilds, monkeypatch):
+    from app import cases
+
+    a, b, mid = _disputed(guilds, monkeypatch)  # A reported 2-0
+    call(svc.collect_notifications)
+    admin = User(discord_id=5555, username="kefka", admin_since=clock.now())
+    db.session.add(admin)
+    call(lambda: cases.claim(mm.lock_match(mid), admin))
+    bid = _user(b).id
+    games = [{"n": 1, "winner": bid}, {"n": 2, "winner": bid}]
+    call(lambda: cases.rule(mm.lock_match(mid), admin, "overturn", "B won both.", games))
+
+    (ev,) = call(svc.collect_notifications)
+    texts = {p["discordId"]: bot.render_match("completed", p, "http://x")[0].description for p in ev["players"]}
+    assert "overturned" in texts[b.id] and "you win" in texts[b.id]
+    assert "overturned" in texts[a.id] and "you win" not in texts[a.id]
+    assert "stands" not in texts[a.id] + texts[b.id]
+
+
 def test_a_normal_confirm_sends_no_dm(guilds, monkeypatch):
     a, b, mid = _reported(guilds, monkeypatch)
     call(svc.collect_notifications)
