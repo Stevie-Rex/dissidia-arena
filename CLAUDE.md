@@ -3,6 +3,7 @@
 - Every issue gets its own branch. Before any edits, pull `main` and branch off it, named `feat/<short-slug>`, `fix/<short-slug>` or `chore/<short-slug>` (for example `feat/cases-claims-rulings`).
 - Never commit issue work directly to `main`. Push the branch and open a PR into `main` that closes the issue.
 - Follow-up fixes for an open PR go on that PR's branch.
+- In a cloud session, the branch the session is assigned stands in for `feat/<short-slug>`.
 
 ## Checks
 

@@ -50,6 +50,10 @@ _Avoid_: Owner, super admin, root
 A player the Master has appointed to run the site's competitive tools, such as resolving Disputed matches. Admin powers cover both games; there are no per-game Admins.
 _Avoid_: Moderator, mod, staff
 
+**Moderator role**:
+The Discord role a server names in `/arena setup`, which the bot pings when a match needs an Admin. It grants no powers on the site; only Admins act on cases.
+_Avoid_: Admin role, mod (on its own)
+
 **Disputed match**:
 A match whose reported result the other player rejected. It has no winner until an Admin gives a Ruling.
 _Avoid_: Contested match, dispute ticket

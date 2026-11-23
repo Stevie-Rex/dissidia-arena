@@ -33,6 +33,13 @@ jobs:
       # tests/conftest.py supplies a test SECRET_KEY and an in-memory SQLite database,
       # so no secrets, MariaDB or Discord are needed.
       - run: python -m pytest -q
+      # The migrations build the schema the models describe: no missing or stray changes.
+      - name: Migrations match the models
+        env:
+          SECRET_KEY: ci
+          DATABASE_URL: sqlite:///${{ runner.temp }}/migrations.db
+          FLASK_APP: run.py
+        run: flask db upgrade && flask db check
 
   frontend:
     name: Frontend (lint, build, browser tests)
