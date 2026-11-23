@@ -173,3 +173,22 @@ def test_disputing_a_replayed_result_is_a_normal_dispute(make_player, make_admin
     claim(c, mid)
     assert c.post(f"/api/admin/disputes/{mid}/ruling", json={"outcome": "uphold", "reason": "Clip."}).get_json()["status"] == "completed"
     assert ca.get("/api/me").get_json()["rankedWins"] == 1
+
+
+def test_an_unfinished_replay_can_be_replayed_again_from_the_same_game(make_player, make_admin, monkeypatch):
+    a, ca, b, cb, mid, c = replaying(make_player, make_admin)  # game 3 wiped, never replayed
+    after(monkeypatch, mm.REPLAY_SECONDS + 1)
+    tick()
+    claim(c, mid)
+    assert case(c, mid).get_json()["replayFrom"] == {"games": [1, 2, 3], "default": 3}
+
+    assert replay(c, mid).status_code == 200  # by default, game 3 again: games 1-2 still stand
+    m = ca.get(f"/api/matches/{mid}").get_json()
+    assert m["status"] == "active" and [g["n"] for g in m["games"]] == [1, 2]
+    assert m["replayNotFinished"] is False and m["replayDeadline"] is not None
+
+
+def test_a_finished_series_cant_be_replayed_from_after_its_last_game(make_player, make_admin):
+    *_, mid, c = claimed_by_admin(make_player, make_admin)  # reported 2-1 in 3 games
+    assert case(c, mid).get_json()["replayFrom"] == {"games": [1, 2, 3], "default": 3}
+    assert replay(c, mid, from_game=4).status_code == 400

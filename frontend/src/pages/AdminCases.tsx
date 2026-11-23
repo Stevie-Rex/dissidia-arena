@@ -374,8 +374,7 @@ function RulingForm({
   onRule: (outcome: RulingOutcome, reason: string, extra?: RulingExtra) => void
 }) {
   const [outcome, setOutcome] = useState<RulingOutcome | null>(null)
-  // The first disputed game, as the server defaults to (game 1 for disputes filed before the form).
-  const [fromGame, setFromGame] = useState(() => (data.dispute.games.length ? Math.min(...data.dispute.games) : 1))
+  const [fromGame, setFromGame] = useState(data.replayFrom.default)
   const [reason, setReason] = useState('')
   const [winners, setWinners] = useState(() => proposedWinners(data))
   const [error, setError] = useState<string | null>(null)
@@ -427,9 +426,9 @@ function RulingForm({
           <Select
             label="Replay from"
             value={String(fromGame)}
-            options={data.games.map((g) => ({
-              value: String(g.n),
-              label: `Game ${g.n}${data.dispute.games.includes(g.n) ? ' (disputed)' : ''}`,
+            options={data.replayFrom.games.map((n) => ({
+              value: String(n),
+              label: `Game ${n}${data.dispute.games.includes(n) ? ' (disputed)' : ''}`,
             }))}
             onChange={(v) => setFromGame(Number(v))}
           />

@@ -174,14 +174,25 @@ def _overturn(match: Match, games: object) -> list[dict]:
     return changes
 
 
+def replay_choices(match: Match) -> dict:
+    """The games a Replay can start from, and the default: the first disputed game still played.
+
+    Any reported game can be replayed. While nobody has won the series (a Replay that wasn't
+    finished), so can the next unplayed game, which keeps every played game standing."""
+    games = sorted(g.game_no for g in match.games)
+    if settlement.series_winner(match) is None:
+        games.append(len(games) + 1)
+    disputed = [n for n in sorted(match.dispute_games or []) if n in games]
+    return {"games": games, "default": disputed[0] if disputed else games[0]}
+
+
 def _replay_from(match: Match, from_game: object) -> int:
-    """The game a Replay starts from: any reported game, by default the first disputed one."""
-    reported = sorted(g.game_no for g in match.games)
+    choices = replay_choices(match)
     if from_game is None:
-        from_game = min(match.dispute_games or reported[:1])
-    if not _is_int(from_game) or from_game not in reported:
+        return choices["default"]
+    if not _is_int(from_game) or from_game not in choices["games"]:
         raise MatchmakingError(
-            "validation", "pick the game to replay from", 400, {"fromGame": f"must be one of the reported games {reported}"}
+            "validation", "pick the game to replay from", 400, {"fromGame": f"must be one of {choices['games']}"}
         )
     return from_game
 
@@ -236,7 +247,7 @@ def summary_dict(match: Match, viewer: User) -> dict:
         "players": [_name(match.player_a), _name(match.player_b)],
         "disputedAt": clock.iso(match.disputed_at),
         # Back from a Replay whose players didn't settle it by the deadline.
-        "replayNotFinished": match.status == "disputed" and match.replay_unfinished,
+        "replayNotFinished": match.replay_not_finished,
         "claim": None
         if match.claimed_by_id is None
         else {
@@ -307,6 +318,7 @@ def case_dict(match: Match, viewer: User) -> dict:
         "ruling": None
         if match.ruling is None
         else {**mm.ruling_dict(match), "by": _ref(db.session.get(User, match.ruled_by_id))},
+        "replayFrom": replay_choices(match),
         "playedIn": _played_in(match, viewer),
         "canAct": can_act(match, viewer),
     }

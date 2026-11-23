@@ -55,7 +55,7 @@ def _recipients(match: Match) -> list[User]:
     dispute to the player whose result was rejected. An unfinished Replay goes to both."""
     if match.status == "reported":
         return [mm.non_reporter(match)]
-    if match.status == "disputed" and not match.replay_unfinished:
+    if match.status == "disputed" and not match.replay_not_finished:
         return [mm.reporter(match)]
     return [match.player_a, match.player_b]
 
@@ -223,7 +223,7 @@ def collect_notifications() -> list[dict]:
                 "matchId": match.id,
                 "game": match.game,
                 "status": match.status,
-                "replayNotFinished": match.status == "disputed" and match.replay_unfinished,
+                "replayNotFinished": match.replay_not_finished,
                 "modPings": _mod_pings(match),
                 "fallbackChannels": [
                     c.queue_channel_id for c in db.session.scalars(select(GuildConfig).where(GuildConfig.game == match.game))

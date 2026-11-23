@@ -117,6 +117,8 @@ export interface Case extends Omit<CaseSummary, 'players'> {
   messages: { id: number; from: number | null; text: string; at: string }[]
   records: Record<string, DisputeRecord>
   ruling: (Ruling & { by: PlayerRef | null }) | null
+  /** The games a Replay can start from, and the one the form starts on (the first disputed game). */
+  replayFrom: { games: number[]; default: number }
   /** You played in this match (an Admin can't act on it; the Master can). */
   playedIn: boolean
   /** You can give a Ruling now: you hold the Claim, or you're the Master. */

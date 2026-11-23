@@ -389,7 +389,7 @@ def test_a_replay_dms_both_players_the_deadline(guilds, monkeypatch):
     assert call(svc.collect_notifications) == []
 
 
-def test_an_unfinished_replay_pings_the_moderators_again(guilds, monkeypatch):
+def test_an_unfinished_replay_pings_the_moderator_role_again(guilds, monkeypatch):
     _with_mod_roles()
     a, b, mid = _replayed(guilds, monkeypatch)
     call(svc.collect_notifications)

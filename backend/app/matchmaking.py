@@ -582,7 +582,7 @@ def match_dict(match: Match, viewer: User) -> dict:
         "confirmDeadline": clock.iso(match.confirm_deadline) if match.status == "reported" else None,
         # While a Replay is being played: when it goes back to the Admins if it hasn't settled.
         "replayDeadline": clock.iso(match.replay_deadline) if match.status in OPEN_STATUSES else None,
-        "replayNotFinished": match.status == "disputed" and match.replay_unfinished,
+        "replayNotFinished": match.replay_not_finished,
         "createdAt": clock.iso(match.created_at),
         "finishedAt": clock.iso(match.finished_at),
         "host": rel(match.player_a_id),

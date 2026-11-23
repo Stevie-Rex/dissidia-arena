@@ -108,6 +108,11 @@ class Match(db.Model):
         back_populates="match", order_by="DisputeStatement.id", cascade="all, delete-orphan"
     )
 
+    @property
+    def replay_not_finished(self) -> bool:
+        """Disputed because a Replay wasn't settled by its deadline: the "Replay not finished" marker."""
+        return self.status == "disputed" and self.replay_unfinished
+
 
 class MatchGame(db.Model):
     """One game within a series."""

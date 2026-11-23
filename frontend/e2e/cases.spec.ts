@@ -30,7 +30,7 @@ function theCase(overrides: Record<string, unknown> = {}) {
         { matchId: 12, game: '012', at: '2026-11-01T12:00:00Z', outcome: 'uphold' },
       ] },
     },
-    ruling: null, playedIn: false, canAct: false,
+    replayFrom: { games: [1, 2, 3], default: 3 }, ruling: null, playedIn: false, canAct: false,
     ...overrides,
   }
 }
@@ -48,7 +48,7 @@ async function onCase(page: Page, role: Role, start: Record<string, unknown>) {
       sent.push({ path, body: req.postDataJSON() })
       if (path.endsWith('/claim')) current = { ...current, claim: { by: ref(1, 'Tester'), at: new Date().toISOString(), byYou: true }, canAct: true }
       if (path.endsWith('/ruling'))
-        current = { ...current, status: 'completed', canAct: false, claim: null,
+        current = { ...current, status: req.postDataJSON().outcome === 'replay' ? 'active' : 'completed', canAct: false, claim: null,
           ruling: { outcome: req.postDataJSON().outcome, reason: req.postDataJSON().reason, at: '2026-11-21T13:00:00Z', by: ref(1, 'Tester') } }
     }
     return r.fulfill(json(current))
@@ -175,6 +175,8 @@ test('an unfinished Replay is marked in the case list and on the case', async ({
     games: theCase().games.slice(0, 2) }))
   await expect(status(page)).toContainText('Replay not finished')
   await expect(page.getByRole('region', { name: 'Reported games' })).toContainText('1–1 so far: nobody has won yet')
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
   await page.goto('/admin')
   await expect(page.getByRole('region', { name: 'Open cases' }).getByRole('listitem')).toContainText('Replay not finished')
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 })
