@@ -111,4 +111,4 @@ def take_over(match_id: int):
 @admin_required
 def rule(match_id: int):
     data = json_body()
-    return _case_action(match_id, lambda m, u: cases.rule(m, u, data.get("outcome"), data.get("reason"), data.get("games")))
+    return _case_action(match_id, lambda m, u: cases.rule(m, u, data.get("outcome"), data.get("reason"), data.get("games"), data.get("fromGame")))

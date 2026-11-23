@@ -12,11 +12,14 @@ import {
   type CasePlayer,
   type CaseSummary,
   type DisputeRecord,
-  type GameCorrection,
+  type RulingExtra,
   type RulingOutcome,
 } from '../lib/api'
 import { FIELD, cx } from '../lib/format'
 import { useApp } from '../state/AppState'
+
+/** How long a Replay has to settle before it comes back as a case (matchmaking.REPLAY_HOURS). */
+const REPLAY_HOURS = 48
 
 const OUTCOMES: { value: RulingOutcome; label: string; help: string }[] = [
   { value: 'uphold', label: 'Uphold', help: 'The reported result stands. The winner gets the ranked win and any unlocks.' },
@@ -25,9 +28,19 @@ const OUTCOMES: { value: RulingOutcome; label: string; help: string }[] = [
     label: 'Overturn',
     help: 'Correct the winner of any reported game. Whoever the corrected games make the winner gets the ranked win and any unlocks.',
   },
+  {
+    value: 'replay',
+    label: 'Replay',
+    help: `Games before the one you pick stand; that game and the ones after are played again in the same match room. If the match isn't settled within ${REPLAY_HOURS} hours, it comes back here.`,
+  },
   { value: 'void', label: 'Void', help: 'No one wins and nothing counts against anyone.' },
 ]
-const OUTCOME_NAMES: Record<RulingOutcome, string> = { uphold: 'Upheld', overturn: 'Overturned', void: 'Voided' }
+const OUTCOME_NAMES: Record<RulingOutcome, string> = {
+  uphold: 'Upheld',
+  overturn: 'Overturned',
+  replay: 'Replayed',
+  void: 'Voided',
+}
 
 const since = (iso: string) => {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
@@ -94,6 +107,7 @@ function CaseList() {
                   {GAMES[c.game].name} · {c.platform}
                   {c.disputedAt && <> · disputed {since(c.disputedAt)} ago</>}
                 </Sub>
+                {c.replayNotFinished && <span className="text-sm font-semibold text-gold-note">Replay not finished</span>}
               </div>
               <span className={cx('text-sm', c.claim ? 'text-fg-dim' : 'text-gold-note')}>
                 {c.claim ? `Claimed by ${c.claim.byYou ? 'you' : c.claim.by.displayName}` : 'Unclaimed'}
@@ -190,6 +204,11 @@ function CaseView({ data, onChange }: { data: Case; onChange: (c: Case) => void 
             <b>This match is {data.status}.</b>
           ) : (
             <>
+              {data.replayNotFinished && (
+                <p className="m-0 text-sm font-semibold text-gold-note">
+                  Replay not finished: the players didn't settle the Replay within {REPLAY_HOURS} hours. Rule again.
+                </p>
+              )}
               {data.playedIn && (
                 <p className="m-0 text-sm font-semibold text-gold-note">
                   You played in this match.
@@ -231,14 +250,16 @@ function CaseView({ data, onChange }: { data: Case; onChange: (c: Case) => void 
           <RulingForm
             data={data}
             busy={busy}
-            onRule={(outcome, reason, games) => run(() => api.rule(data.matchId, outcome, reason, games))}
+            onRule={(outcome, reason, extra) => run(() => api.rule(data.matchId, outcome, reason, extra))}
           />
         )}
 
         <Card className="flex flex-col gap-2" role="region" aria-label="Reported games">
           <Sub>reported games</Sub>
           <b className="text-sm">
-            {name(data.reportedBy)} reported {data.score[0]}–{data.score[1]} ({name(data.winner)} wins, first to {data.winsNeeded})
+            {data.winner === null
+              ? `${data.score[0]}–${data.score[1]} so far: nobody has won yet (first to ${data.winsNeeded})`
+              : `${name(data.reportedBy)} reported ${data.score[0]}–${data.score[1]} (${name(data.winner)} wins, first to ${data.winsNeeded})`}
           </b>
           <ol className="m-0 flex list-none flex-col gap-1 p-0">
             {data.games.map((g) => {
@@ -350,9 +371,11 @@ function RulingForm({
 }: {
   data: Case
   busy: boolean
-  onRule: (outcome: RulingOutcome, reason: string, games?: GameCorrection[]) => void
+  onRule: (outcome: RulingOutcome, reason: string, extra?: RulingExtra) => void
 }) {
   const [outcome, setOutcome] = useState<RulingOutcome | null>(null)
+  // The first disputed game, as the server defaults to (game 1 for disputes filed before the form).
+  const [fromGame, setFromGame] = useState(() => (data.dispute.games.length ? Math.min(...data.dispute.games) : 1))
   const [reason, setReason] = useState('')
   const [winners, setWinners] = useState(() => proposedWinners(data))
   const [error, setError] = useState<string | null>(null)
@@ -365,7 +388,11 @@ function RulingForm({
     if (!outcome) return setError('Pick a Ruling.')
     if (outcome === 'overturn' && corrections.length === 0) return setError('Correct the winner of at least one game.')
     if (!reason.trim()) return setError('Give a reason. Both players will see it.')
-    onRule(outcome, reason.trim(), outcome === 'overturn' ? corrections : undefined)
+    onRule(
+      outcome,
+      reason.trim(),
+      outcome === 'overturn' ? { games: corrections } : outcome === 'replay' ? { fromGame } : undefined,
+    )
   }
 
   return (
@@ -394,6 +421,20 @@ function RulingForm({
           </label>
         ))}
       </fieldset>
+      {outcome === 'replay' && (
+        <div className="flex items-center gap-2 text-sm">
+          <span aria-hidden="true">Replay from</span>
+          <Select
+            label="Replay from"
+            value={String(fromGame)}
+            options={data.games.map((g) => ({
+              value: String(g.n),
+              label: `Game ${g.n}${data.dispute.games.includes(g.n) ? ' (disputed)' : ''}`,
+            }))}
+            onChange={(v) => setFromGame(Number(v))}
+          />
+        </div>
+      )}
       {outcome === 'overturn' && (
         <Corrections
           data={data}

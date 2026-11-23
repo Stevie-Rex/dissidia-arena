@@ -32,6 +32,8 @@ def run_once() -> dict[str, list]:
         log.info("match %s expired: accept window passed", m.id)
     for m in result["autoConfirmed"]:
         log.info("match %s auto-confirmed: confirm deadline passed", m.id)
+    for m in result["replayExpired"]:
+        log.info("match %s back to the Admins: Replay not finished by the deadline", m.id)
     # Phase 2: hand result to the Discord bot so it can DM / thread the players.
     return result
 

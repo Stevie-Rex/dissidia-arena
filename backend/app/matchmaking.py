@@ -34,6 +34,10 @@ REGION_WIDEN_SECONDS = 60
 # so a no-show can't hold the winner's ranked win (or both players' queue) hostage.
 CONFIRM_HOURS = 2
 CONFIRM_SECONDS = CONFIRM_HOURS * 60 * 60
+# How long players have to finish a match an Admin ruled must be replayed, before it goes back
+# to the Admins as Disputed ("Replay not finished").
+REPLAY_HOURS = 48
+REPLAY_SECONDS = REPLAY_HOURS * 60 * 60
 
 # What each game can be queued for. Phase 1 is 1v1 only (NT 3v3 needs parties).
 # Ranked is Bo3 for both scenes (NT's in-game "first to 2"), so the queue isn't split by format.
@@ -202,7 +206,8 @@ def tick() -> dict[str, list[Match]]:
     """
     Advance matchmaking for everyone, not just whoever happens to be polling: expire
     overdue accept windows (re-queueing accepters), confirm reported results whose opponent
-    let the confirm deadline pass, then pair everyone who can be paired.
+    let the confirm deadline pass, send unfinished Replays back to the Admins, then pair
+    everyone who can be paired.
     Run on a timer by the matchmaker worker so bot-only players get matched too.
     Returns what changed so the caller can notify players.
     """
@@ -228,6 +233,18 @@ def tick() -> dict[str, list[Match]]:
             auto_confirmed.append(match)
     db.session.flush()
 
+    # After auto-confirm, so a result whose confirm deadline has also passed settles rather than
+    # going back to the Admins.
+    replay_expired = []
+    due = db.session.scalars(
+        select(Match.id).where(Match.status.in_(("active", "reported")), Match.replay_deadline <= clock.now())
+    ).all()
+    for match_id in due:
+        match = lock_match(match_id)
+        if match and expire_replay_if_due(match):
+            replay_expired.append(match)
+    db.session.flush()
+
     created = []
     for entry_id in db.session.scalars(select(QueueEntry.id).order_by(QueueEntry.joined_at, QueueEntry.id)).all():
         entry = db.session.get(QueueEntry, entry_id)
@@ -235,7 +252,7 @@ def tick() -> dict[str, list[Match]]:
             continue
         if match := try_match(entry):
             created.append(match)
-    return {"created": created, "expired": expired, "autoConfirmed": auto_confirmed}
+    return {"created": created, "expired": expired, "autoConfirmed": auto_confirmed, "replayExpired": replay_expired}
 
 
 def entry_dict(entry: QueueEntry) -> dict:
@@ -421,10 +438,47 @@ def dispute(match: Match, user: User, games: object = None, reason: object = Non
         raise MatchmakingError("validation", "say which games you dispute and why", 400, errors)
     match.dispute_games = sorted(set(games))
     match.dispute_reason = reason
-    match.status = "disputed"
     match.ended_by_id = user.id
-    match.finished_at = match.disputed_at = clock.now()
+    _back_to_the_admins(match)
     post_system(match, "Result disputed. An Admin will review it.")
+
+
+def _back_to_the_admins(match: Match, replay_unfinished: bool = False) -> None:
+    """The match is Disputed, waiting for a Ruling. A match that was being replayed starts a new
+    case: the Replay Ruling is cleared from the match (it stays in the Admin log)."""
+    match.status = "disputed"
+    match.finished_at = match.disputed_at = clock.now()
+    match.replay_unfinished = replay_unfinished
+    match.ruling = match.ruling_reason = match.ruled_by_id = match.ruled_at = None
+
+
+def expire_replay_if_due(match: Match) -> bool:
+    """The Replay deadline passed before the match settled: back to the Admins as Disputed, marked
+    "Replay not finished", and both players are free to queue."""
+    if match.status not in OPEN_STATUSES or match.replay_deadline is None or clock.now() < match.replay_deadline:
+        return False
+    _back_to_the_admins(match, replay_unfinished=True)
+    post_system(match, f"The Replay wasn't finished within {REPLAY_HOURS} hours. An Admin will rule again.")
+    admin_log.record(
+        "replay_not_finished",
+        f"The match wasn't settled within {REPLAY_HOURS} hours of the Replay Ruling.",
+        match_id=match.id,
+        details={"deadline": clock.iso(match.replay_deadline), "gamesPlayed": len(match.games)},
+    )
+    return True
+
+
+def replay(match: Match, from_game: int) -> None:
+    """A Replay Ruling: games before from_game stand, that game and the ones after are wiped, and
+    the same match goes back to active (same room, chat kept) until the Replay deadline.
+    The caller checks from_game is one of the reported games."""
+    _require_status(match, "disputed")
+    match.games[:] = [g for g in match.games if g.game_no < from_game]
+    match.status = "active"
+    match.winner_id = match.reported_by_id = match.confirm_deadline = match.finished_at = None
+    match.replay_deadline = clock.now() + timedelta(seconds=REPLAY_SECONDS)
+    match.replay_unfinished = False
+    post_system(match, f"Ruling: replay from game {from_game}. Finish the match within {REPLAY_HOURS} hours.")
 
 
 def add_statement(match: Match, user: User, text: object) -> None:
@@ -526,6 +580,9 @@ def match_dict(match: Match, viewer: User) -> dict:
         "status": match.status,
         "acceptDeadline": clock.iso(match.accept_deadline),
         "confirmDeadline": clock.iso(match.confirm_deadline) if match.status == "reported" else None,
+        # While a Replay is being played: when it goes back to the Admins if it hasn't settled.
+        "replayDeadline": clock.iso(match.replay_deadline) if match.status in OPEN_STATUSES else None,
+        "replayNotFinished": match.status == "disputed" and match.replay_unfinished,
         "createdAt": clock.iso(match.created_at),
         "finishedAt": clock.iso(match.finished_at),
         "host": rel(match.player_a_id),

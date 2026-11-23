@@ -121,8 +121,7 @@ def take_over(match: Match, master: User) -> None:
 
 # ---------------------------------------------------------------- Rulings
 
-# Replay comes in a later ticket.
-OUTCOMES = ("uphold", "overturn", "void")
+OUTCOMES = ("uphold", "overturn", "replay", "void")
 
 
 def _is_int(v: object) -> bool:
@@ -175,7 +174,21 @@ def _overturn(match: Match, games: object) -> list[dict]:
     return changes
 
 
-def rule(match: Match, user: User, outcome: object, reason: object, games: object = None) -> None:
+def _replay_from(match: Match, from_game: object) -> int:
+    """The game a Replay starts from: any reported game, by default the first disputed one."""
+    reported = sorted(g.game_no for g in match.games)
+    if from_game is None:
+        from_game = min(match.dispute_games or reported[:1])
+    if not _is_int(from_game) or from_game not in reported:
+        raise MatchmakingError(
+            "validation", "pick the game to replay from", 400, {"fromGame": f"must be one of the reported games {reported}"}
+        )
+    return from_game
+
+
+def rule(
+    match: Match, user: User, outcome: object, reason: object, games: object = None, from_game: object = None
+) -> None:
     """Give the Ruling on a Disputed match. The first Ruling saved wins: the match row is locked,
     and once it has a Ruling every later attempt gets already_ruled."""
     _require_open(match)
@@ -192,6 +205,10 @@ def rule(match: Match, user: User, outcome: object, reason: object, games: objec
         settlement.complete(match, "Ruling: the reported result stands.")
     elif outcome == "overturn":
         details["corrections"] = _overturn(match, games)
+    elif outcome == "replay":
+        details["fromGame"] = _replay_from(match, from_game)
+        mm.replay(match, details["fromGame"])
+        details["deadline"] = clock.iso(match.replay_deadline)
     else:
         settlement.void(match, "Ruling: the match is void. It counts for no one.")
     match.ruling = outcome
@@ -218,6 +235,8 @@ def summary_dict(match: Match, viewer: User) -> dict:
         "platform": match.platform,
         "players": [_name(match.player_a), _name(match.player_b)],
         "disputedAt": clock.iso(match.disputed_at),
+        # Back from a Replay whose players didn't settle it by the deadline.
+        "replayNotFinished": match.status == "disputed" and match.replay_unfinished,
         "claim": None
         if match.claimed_by_id is None
         else {

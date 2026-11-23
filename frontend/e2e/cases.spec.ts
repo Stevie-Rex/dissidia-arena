@@ -153,3 +153,28 @@ test('the case list shows which cases are claimed', async ({ page }) => {
   await expect(page).toHaveURL(/\/admin\/cases\/42$/)
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 })
+
+test('an Admin rules a Replay from a chosen game', async ({ page }) => {
+  const sent = await onCase(page, 'admin', theCase({ claim: { by: ref(1, 'Tester'), at: '2026-11-21T12:10:00Z', byYou: true }, canAct: true }))
+  await page.getByRole('radio', { name: /Replay/ }).check()
+  const from = page.getByLabel('Replay from')
+  await expect(from).toHaveValue('3') // the first disputed game
+  await from.selectOption({ label: 'Game 2' })
+  await page.getByLabel(/^Reason/).fill('Both clips cut out; play games 2 and 3 again.')
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+  await page.getByRole('button', { name: 'Give Ruling' }).click()
+
+  await expect(status(page)).toContainText('Ruling: Replayed')
+  expect(sent).toEqual([
+    { path: '/api/admin/disputes/42/ruling', body: { outcome: 'replay', reason: 'Both clips cut out; play games 2 and 3 again.', fromGame: 2 } },
+  ])
+})
+
+test('an unfinished Replay is marked in the case list and on the case', async ({ page }) => {
+  await onCase(page, 'admin', theCase({ replayNotFinished: true, winner: null, reportedBy: null, score: [1, 1],
+    games: theCase().games.slice(0, 2) }))
+  await expect(status(page)).toContainText('Replay not finished')
+  await expect(page.getByRole('region', { name: 'Reported games' })).toContainText('1–1 so far: nobody has won yet')
+  await page.goto('/admin')
+  await expect(page.getByRole('region', { name: 'Open cases' }).getByRole('listitem')).toContainText('Replay not finished')
+})

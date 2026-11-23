@@ -81,7 +81,12 @@ class Match(db.Model):
     claimed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime)
 
-    # The current Ruling: outcome (uphold | overturn | void), the reason players see, who gave it and when.
+    # A Replay Ruling reopens the match until this time. If it hasn't settled by then, tick() returns it
+    # to Disputed with replay_unfinished set, for an Admin to rule again.
+    replay_deadline: Mapped[datetime | None] = mapped_column(DateTime, index=True)
+    replay_unfinished: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+    # The current Ruling: outcome (uphold | overturn | replay | void), the reason players see, who gave it and when.
     # Players are never shown ruled_by_id. Earlier Rulings live in the Admin log.
     ruling: Mapped[str | None] = mapped_column(String(12))
     ruling_reason: Mapped[str | None] = mapped_column(Text)

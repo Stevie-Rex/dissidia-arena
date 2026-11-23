@@ -356,3 +356,60 @@ def test_a_normal_confirm_sends_no_dm(guilds, monkeypatch):
     call(svc.collect_notifications)
     call(lambda: mm.confirm(mm.lock_match(mid), _user(b)))
     assert call(svc.collect_notifications) == []
+
+
+# ---------------------------------------------------------------- Replay
+
+
+def _replayed(guilds_, monkeypatch):
+    """A's 2-0 is disputed (game 2), and an Admin rules a Replay from game 2."""
+    from app import cases
+
+    a, b, mid = _disputed(guilds_, monkeypatch)
+    call(svc.collect_notifications)
+    admin = User(discord_id=5555, username="kefka", admin_since=clock.now())
+    db.session.add(admin)
+    call(lambda: cases.claim(mm.lock_match(mid), admin))
+    call(lambda: cases.rule(mm.lock_match(mid), admin, "replay", "Game 2 desynced."))
+    return a, b, mid
+
+
+def test_a_replay_dms_both_players_the_deadline(guilds, monkeypatch):
+    a, b, mid = _replayed(guilds, monkeypatch)
+    (ev,) = call(svc.collect_notifications)
+    assert ev["status"] == "active" and ev["modPings"] == []
+    assert sorted(p["discordId"] for p in ev["players"]) == sorted([a.id, b.id])
+    for p in ev["players"]:
+        embed, view = bot.render_match("active", p, "http://x")
+        assert view is None and embed.title == "Replay"
+        assert "from game 2" in embed.description and "Game 2 desynced." in embed.description
+        assert "<t:" in embed.description and "48 hours" in embed.description  # the deadline
+        assert "kefka" not in embed.description
+        assert f"http://x/match/live?match={mid}" in embed.description
+    assert call(svc.collect_notifications) == []
+
+
+def test_an_unfinished_replay_pings_the_moderators_again(guilds, monkeypatch):
+    _with_mod_roles()
+    a, b, mid = _replayed(guilds, monkeypatch)
+    call(svc.collect_notifications)
+    later = clock.now() + timedelta(hours=mm.REPLAY_HOURS, seconds=1)
+    monkeypatch.setattr(clock, "now", lambda: later)
+
+    (ev,) = call(svc.collect_notifications)  # its tick sends the match back to the Admins
+    assert ev["status"] == "disputed" and ev["modPings"] == [{"channel_id": 1, "role_id": 77}]
+    assert "Replay not finished" in bot.mod_ping_text(ev, ev["modPings"][0], "http://x")
+    assert sorted(p["discordId"] for p in ev["players"]) == sorted([a.id, b.id])
+    for p in ev["players"]:
+        embed, _ = bot.render_match("disputed", p, "http://x")
+        assert "wasn't finished" in embed.description and "free to queue" in embed.description
+    assert call(svc.collect_notifications) == []
+
+
+def test_confirming_a_replayed_match_sends_no_ruling_dm(guilds, monkeypatch):
+    a, b, mid = _replayed(guilds, monkeypatch)
+    call(svc.collect_notifications)
+    call(lambda: mm.report_game(mm.lock_match(mid), _user(a), 2, _user(a).id))
+    call(svc.collect_notifications)  # the reported result
+    call(lambda: mm.confirm(mm.lock_match(mid), _user(b)))
+    assert call(svc.collect_notifications) == []
