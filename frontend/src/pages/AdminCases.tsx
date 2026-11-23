@@ -23,7 +23,7 @@ const OUTCOMES: { value: RulingOutcome; label: string; help: string }[] = [
   {
     value: 'overturn',
     label: 'Overturn',
-    help: 'Correct the winner of the games in doubt. Whoever the corrected games make the winner gets the ranked win and any unlocks.',
+    help: 'Correct the winner of any reported game. Whoever the corrected games make the winner gets the ranked win and any unlocks.',
   },
   { value: 'void', label: 'Void', help: 'No one wins and nothing counts against anyone.' },
 ]
@@ -450,10 +450,10 @@ function Corrections({
     <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
       <legend className="mb-1 text-sm font-semibold">Corrected games</legend>
       {data.games.map((g) => {
-        const doubted = data.dispute.games.includes(g.n)
-        const label = `Game ${g.n} winner${doubted ? ' (disputed)' : ''}`
+        const disputed = data.dispute.games.includes(g.n)
+        const label = `Game ${g.n} winner${disputed ? ' (disputed)' : ''}`
         return (
-          <div key={g.n} className={cx('flex items-center gap-2 text-sm', doubted && 'font-semibold text-gold-note')}>
+          <div key={g.n} className={cx('flex items-center gap-2 text-sm', disputed && 'font-semibold text-gold-note')}>
             <span aria-hidden="true" className="w-36">
               {label}
             </span>

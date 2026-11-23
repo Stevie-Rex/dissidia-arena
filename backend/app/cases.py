@@ -156,20 +156,21 @@ def _overturn(match: Match, games: object) -> list[dict]:
     """Save the corrected games and settle the match with the winner they give. Returns the
     corrections that changed a game, for the Admin log.
 
-    Refuses when the corrections leave the reported winner (that's an Uphold), and when they
-    leave nobody on the winning score (no_series_winner: that's a Replay). The caller rolls back."""
+    Refuses, changing nothing, when the corrections leave nobody on the winning score
+    (no_series_winner: that's a Replay) or leave the reported winner (that's an Uphold)."""
     corrected = _corrections(match, games)
-    reported_winner = settlement.series_winner(match)
-    changes = []
-    for g in match.games:
-        if g.game_no in corrected and corrected[g.game_no] != g.winner_id:
-            changes.append({"n": g.game_no, "from": g.winner_id, "to": corrected[g.game_no]})
-            g.winner_id = corrected[g.game_no]
-    winner = settlement.series_winner(match)
-    if winner is not None and winner is reported_winner:
+    winner = settlement.series_winner(match, corrected)
+    if winner is None:
+        raise MatchmakingError("no_series_winner", "nobody wins with these corrections: choose Replay")
+    if winner is settlement.series_winner(match):
         raise MatchmakingError(
             "validation", "the reported winner still wins: choose Uphold", 400, {"games": "these corrections don't change the winner"}
         )
+    changes = []
+    for g in match.games:
+        if corrected.get(g.game_no, g.winner_id) != g.winner_id:
+            changes.append({"n": g.game_no, "from": g.winner_id, "to": corrected[g.game_no]})
+            g.winner_id = corrected[g.game_no]
     settlement.complete(match, "Ruling: the result is overturned.")
     return changes
 
