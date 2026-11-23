@@ -2,6 +2,7 @@ name: Claude
 
 # Comment "@claude ..." on a pull request or issue to run Claude.
 # Example: "@claude review this PR for bugs and security issues"
+# For a deeper Opus review, use "@claude-opus" instead (see claude-opus.yml).
 on:
   issue_comment:
     types: [created]
@@ -10,7 +11,8 @@ on:
 
 jobs:
   claude:
-    if: contains(github.event.comment.body, '@claude')
+    # Skip "@claude-opus" comments; claude-opus.yml handles those.
+    if: contains(github.event.comment.body, '@claude') && !contains(github.event.comment.body, '@claude-opus')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
