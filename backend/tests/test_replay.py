@@ -7,6 +7,7 @@ import pytest
 from app import clock
 from app import matchmaking as mm
 from app.extensions import db
+from app.models import Match
 from tests.test_cases import case, claim, claimed_by_admin
 from tests.test_disputes import dispute, reported, statement
 from tests.test_auto_confirm import after, parse, tick
@@ -326,3 +327,36 @@ def test_dispute_records_keep_disputes_from_before_a_replay(make_player, make_ad
     assert records[str(a.id)]["filed"] == 1 and records[str(a.id)]["outcomes"] == {"pending": 1}
     assert records[str(b.id)]["filed"] == 1 and records[str(b.id)]["outcomes"] == {"replay": 1}
     assert [(d["matchId"], d["outcome"]) for d in records[str(b.id)]["disputes"]] == [(mid, "replay")]
+
+
+
+def test_dispute_records_list_the_newest_dispute_first_across_matches(make_player, make_admin, monkeypatch):
+    a, ca, b, cb, older = disputed_games(make_player, [3])  # B disputes an older match
+    _, c = make_admin()
+    claim(c, older)
+    replay(c, older)
+    report(cb, older, 3, b)  # B now reports the replayed game 3; A will dispute it later
+
+    *_, newer = disputed_games(make_player, [3])  # a newer match, with its own players
+    m = db.session.get(Match, newer)
+    m.ended_by_id = a.id  # treat A as its disputer, filed now
+    db.session.commit()
+
+    after(monkeypatch, 60)
+    dispute(ca, older, games=[3], reason="Later dispute, on the older match.")
+    disputes = case(c, older).get_json()["records"][str(a.id)]["disputes"]
+    assert [d["matchId"] for d in disputes] == [older, newer]
+
+
+def test_a_dispute_filed_before_the_form_stays_visible_during_a_replay(make_player, make_admin):
+    a, ca, b, cb, mid = reported(make_player)
+    m = db.session.get(Match, mid)
+    m.status, m.ended_by_id, m.disputed_at = "disputed", b.id, clock.now()  # the old endpoint left no games or reason
+    db.session.commit()
+    statement(ca, mid, "Game 3 was clean.")
+    _, c = make_admin()
+    claim(c, mid)
+    assert replay(c, mid, from_game=3).status_code == 200
+
+    d = cb.get(f"/api/matches/{mid}").get_json()["dispute"]
+    assert d is not None and d["reason"] is None and d["statements"]["opponent"]["text"] == "Game 3 was clean."

@@ -281,7 +281,9 @@ def dispute_record(user: User) -> dict:
         for d in m.earlier_disputes
         if d["by"] == user.id
     ]
-    disputes.sort(key=lambda d: (d["matchId"], d["at"] or ""), reverse=True)
+    # Newest filing first: a Replay can bring a new dispute on an older match. Disputes filed before
+    # filing times were kept have no time, so they sort last, by match.
+    disputes.sort(key=lambda d: (d["at"] or "", d["matchId"]), reverse=True)
     return {
         "filed": len(disputes),
         "outcomes": dict(Counter(d["outcome"] or "pending" for d in disputes)),

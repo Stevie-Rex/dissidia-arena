@@ -607,7 +607,8 @@ def _dispute_dict(match: Match, rel: Callable[[int | None], str | None]) -> dict
 
     Matches disputed before the dispute form have no games or reason (shown as "No details").
     """
-    if match.status != "disputed" and match.dispute_reason is None:
+    # A Replay keeps showing the dispute it settled, even one filed before the dispute form.
+    if match.status != "disputed" and match.dispute_reason is None and match.ruling != "replay":
         return None
     statements = {"you": None, "opponent": None}
     for st in match.statements:
