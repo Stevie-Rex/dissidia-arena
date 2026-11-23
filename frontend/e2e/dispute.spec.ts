@@ -160,3 +160,63 @@ test('after a Ruling, players see the outcome and the reason in the match room',
   await expect(ruling).toContainText('Neither clip shows game 3.')
   expect((await new AxeBuilder({ page }).include('[aria-label="Ruling"]').analyze()).violations).toEqual([])
 })
+
+test('a Replay shows the Ruling and the countdown to its deadline', async ({ page }) => {
+  await mockApi(page, { wins: 0 })
+  const replaying = reportedMatch({
+    status: 'active', winner: null, reportedBy: null, confirmDeadline: null,
+    replayDeadline: new Date(Date.now() + 48 * 3600_000 - 30_000).toISOString().replace(/\.\d+Z$/, 'Z'),
+    games: reportedMatch().games.slice(0, 2), score: { you: 1, opponent: 1 }, endedBy: 'you',
+    dispute: { games: [3], reason: 'Game 3 was mine.', by: 'you', statements: { you: null, opponent: null } },
+    ruling: { outcome: 'replay', reason: 'The clip cuts out, so play game 3 again.', at: '2026-11-21T12:00:00Z' },
+  })
+  await page.route('**/api/queue', (r) =>
+    r.fulfill(json({ queue: null, match: replaying, searching: { '012': 0, nt: 0 }, disputes: [] })),
+  )
+  await page.route('**/api/matches/42**', (r) => r.fulfill(json(replaying)))
+  await page.goto('/match/live')
+
+  const replay = page.getByRole('region', { name: 'Replay' })
+  await expect(replay).toContainText('An Admin ruled that this match is replayed. Earlier games stand.')
+  await expect(replay).toContainText('The clip cuts out, so play game 3 again.')
+  await expect(replay.getByRole('timer')).toHaveText(/Back to the Admins in 47:59:\d\d unless the match is settled/)
+  await expect(page.getByText('Game 3 winner?')).toBeVisible()
+  expect((await new AxeBuilder({ page }).include('[aria-label="Replay"]').analyze()).violations).toEqual([])
+})
+
+test('during a Replay the old dispute is read-only', async ({ page }) => {
+  await mockApi(page, { wins: 0 })
+  const replaying = reportedMatch({
+    status: 'active', winner: null, reportedBy: null, confirmDeadline: null,
+    replayDeadline: new Date(Date.now() + 48 * 3600_000).toISOString().replace(/\.\d+Z$/, 'Z'),
+    games: reportedMatch().games.slice(0, 2), score: { you: 1, opponent: 1 }, endedBy: 'you',
+    dispute: { games: [3], reason: 'Game 3 was mine.', by: 'you', statements: { you: null, opponent: null } },
+    ruling: { outcome: 'replay', reason: 'Play game 3 again.', at: '2026-11-21T12:00:00Z' },
+  })
+  await page.route('**/api/queue', (r) => r.fulfill(json({ queue: null, match: replaying, searching: { '012': 0, nt: 0 }, disputes: [] })))
+  await page.route('**/api/matches/42**', (r) => r.fulfill(json(replaying)))
+  await page.goto('/match/live')
+
+  const panel = page.getByRole('region', { name: 'Dispute' })
+  await expect(panel).toContainText('Read-only: this dispute led to a Replay.')
+  await expect(panel.getByRole('textbox')).toHaveCount(0)
+  await expect(panel.getByRole('button')).toHaveCount(0)
+})
+
+test('a new dispute after a Replay starts your side afresh', async ({ page }) => {
+  await mockApi(page, { wins: 0 })
+  let shown = reportedMatch({
+    status: 'disputed', endedBy: 'you', confirmDeadline: null,
+    dispute: { round: 0, games: [3], reason: 'Game 3 was mine.', by: 'you',
+      statements: { you: { text: 'My old side.', updatedAt: '2026-11-21T12:00:00Z' }, opponent: null } },
+  })
+  await page.route('**/api/matches/42', (r) => r.fulfill(json(shown)))
+  await page.goto('/match/live?match=42')
+  const panel = page.getByRole('region', { name: 'Dispute' })
+  await expect(panel).toContainText('My old side.')
+
+  // Replayed, and the replayed game 3 disputed again: the server cleared both sides.
+  shown = { ...shown, dispute: { round: 1, games: [3], reason: 'Lag again.', by: 'you', statements: { you: null, opponent: null } } }
+  await expect(panel).toContainText('Lag again.', { timeout: 10_000 })
+  await expect(panel.getByRole('textbox', { name: 'Your side' })).toHaveValue('')
+})

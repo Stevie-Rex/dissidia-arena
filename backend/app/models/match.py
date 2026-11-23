@@ -81,7 +81,15 @@ class Match(db.Model):
     claimed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime)
 
-    # The current Ruling: outcome (uphold | overturn | void), the reason players see, who gave it and when.
+    # A Replay Ruling reopens the match until this time. If it hasn't settled by then, tick() returns it
+    # to Disputed with replay_unfinished set, for an Admin to rule again.
+    replay_deadline: Mapped[datetime | None] = mapped_column(DateTime, index=True)
+    replay_unfinished: Mapped[bool] = mapped_column(default=False, nullable=False)
+    # Disputes from before a Replay, when the replayed games were disputed again: games, reason,
+    # who filed it and when, both statements and the Replay Ruling. Admins see them; players don't.
+    earlier_disputes: Mapped[list[dict] | None] = mapped_column(JSON)
+
+    # The current Ruling: outcome (uphold | overturn | replay | void), the reason players see, who gave it and when.
     # Players are never shown ruled_by_id. Earlier Rulings live in the Admin log.
     ruling: Mapped[str | None] = mapped_column(String(12))
     ruling_reason: Mapped[str | None] = mapped_column(Text)
@@ -102,6 +110,11 @@ class Match(db.Model):
     statements: Mapped[list["DisputeStatement"]] = relationship(
         back_populates="match", order_by="DisputeStatement.id", cascade="all, delete-orphan"
     )
+
+    @property
+    def replay_not_finished(self) -> bool:
+        """Disputed because a Replay wasn't settled by its deadline: the "Replay not finished" marker."""
+        return self.status == "disputed" and self.replay_unfinished
 
 
 class MatchGame(db.Model):

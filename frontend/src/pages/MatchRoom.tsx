@@ -10,6 +10,7 @@ import { FIELD, cx } from '../lib/format'
 const RULING_NOTES: Record<RulingOutcome, string> = {
   uphold: 'An Admin upheld the reported result.',
   overturn: 'An Admin overturned the reported result.',
+  replay: 'An Admin ruled that this match is replayed.',
   void: 'An Admin voided the match.',
 }
 
@@ -89,6 +90,10 @@ export default function MatchRoom() {
 
           {matchError && <span className="text-xs text-chaos-soft">{matchError}</span>}
 
+          {canChat && live.ruling?.outcome === 'replay' && live.replayDeadline && (
+            <ReplayNotice match={live} deadline={live.replayDeadline} />
+          )}
+
           {live.status === 'active' && (
             <ReportGame key={live.games.length} gameNo={live.games.length + 1} game={live.game} onReport={reportGame} />
           )}
@@ -126,7 +131,14 @@ export default function MatchRoom() {
             </Card>
           )}
 
-          {live.dispute && <DisputePanel match={live} onSave={(text) => saveStatement(live.id, text)} />}
+          {live.dispute && (
+            // keyed so a new dispute after a Replay starts your side afresh
+            <DisputePanel
+              key={`${live.id}-${live.dispute.round}`}
+              match={live}
+              onSave={(text) => saveStatement(live.id, text)}
+            />
+          )}
 
           {!canChat && <Finished match={live} onDone={() => done(`/${live.game}`)} onAgain={() => done('/queue', true)} />}
 
@@ -137,7 +149,10 @@ export default function MatchRoom() {
               type="button"
               className="self-start text-xs text-muted hover:text-chaos-soft"
               onClick={() => {
-                if (window.confirm('Leave this match? It will count as abandoned.')) abandonMatch()
+                const warning = live.replayDeadline
+                  ? 'Leave this Replay? It goes back to the Admins, who rule on it.'
+                  : 'Leave this match? It will count as abandoned.'
+                if (window.confirm(warning)) abandonMatch()
               }}
             >
               Leave match
@@ -333,8 +348,33 @@ function ReportGame({
 
 const MAX_STATEMENT = 2000
 
-/** Time left until a reported result confirms itself (H:MM:SS, ticking). */
+/** Time left until a reported result confirms itself. */
 function ConfirmCountdown({ deadline }: { deadline: string | null }) {
+  return (
+    <Countdown deadline={deadline} running={(left) => `Confirms automatically in ${left}`} done="Confirming automatically…" />
+  )
+}
+
+/** A Replay Ruling: the match is being played again from one game, until the Replay deadline. */
+function ReplayNotice({ match, deadline }: { match: Match; deadline: string }) {
+  return (
+    <Card tone="gold" role="region" aria-label="Replay">
+      <Sub>replay</Sub>
+      <b className="text-sm">An Admin ruled that this match is replayed. Earlier games stand.</b>
+      <span className="whitespace-pre-wrap text-sm">
+        Reason: <q>{match.ruling!.reason}</q>
+      </span>
+      <Countdown
+        deadline={deadline}
+        running={(left) => `Back to the Admins in ${left} unless the match is settled`}
+        done="Going back to the Admins…"
+      />
+    </Card>
+  )
+}
+
+/** Time left until a deadline (H:MM:SS, ticking). */
+function Countdown({ deadline, running, done }: { deadline: string | null; running: (left: string) => string; done: string }) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
@@ -347,7 +387,7 @@ function ConfirmCountdown({ deadline }: { deadline: string | null }) {
   const ss = String(left % 60).padStart(2, '0')
   return (
     <span className="text-xs text-muted" role="timer" aria-live="off">
-      {left > 0 ? `Confirms automatically in ${h}:${mm}:${ss}` : 'Confirming automatically…'}
+      {left > 0 ? running(`${h}:${mm}:${ss}`) : done}
     </span>
   )
 }
@@ -427,6 +467,7 @@ function DisputePanel({ match, onSave }: { match: Match; onSave: (text: string) 
   const fieldId = useId()
   const open = match.status === 'disputed'
   const filer = d.by === 'you' ? 'You' : opp
+  const replaying = !open && match.ruling?.outcome === 'replay'
 
   // A newly saved statement came back from the server: show it rather than the editor.
   const [seen, setSeen] = useState(mine?.updatedAt)
@@ -439,6 +480,7 @@ function DisputePanel({ match, onSave }: { match: Match; onSave: (text: string) 
   return (
     <Card tone="gold" role="region" aria-label="Dispute">
       <Sub>dispute</Sub>
+      {replaying && <span className="text-sm text-muted">Read-only: this dispute led to a Replay.</span>}
       {d.reason === null ? (
         <span className="text-sm text-muted">No details (filed before the dispute form)</span>
       ) : (

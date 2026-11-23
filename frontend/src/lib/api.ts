@@ -83,6 +83,8 @@ export interface CaseSummary {
   platform: string
   players: [string, string]
   disputedAt: string | null
+  /** Back from a Replay that wasn't settled by its deadline. */
+  replayNotFinished: boolean
   claim: CaseClaim | null
 }
 
@@ -101,6 +103,16 @@ export interface DisputeRecord {
   disputes: { matchId: number; game: GameId; at: string | null; outcome: RulingOutcome | null }[]
 }
 
+/** A dispute from before a Replay: what was disputed, both sides, and the Replay Ruling. */
+export interface EarlierDispute {
+  games: number[]
+  reason: string | null
+  by: number | null
+  at: string | null
+  statements: Record<string, DisputeStatement>
+  ruling: (Ruling & { by: PlayerRef | null }) | null
+}
+
 /** The case page. Players are referred to by user ID, unlike the players' own view. */
 export interface Case extends Omit<CaseSummary, 'players'> {
   status: MatchStatus
@@ -114,7 +126,11 @@ export interface Case extends Omit<CaseSummary, 'players'> {
   dispute: { games: number[]; reason: string | null; by: number | null; statements: Record<string, DisputeStatement> }
   messages: { id: number; from: number | null; text: string; at: string }[]
   records: Record<string, DisputeRecord>
+  /** Disputes from before a Replay whose games were disputed again, oldest first. Players never see these. */
+  earlierDisputes: EarlierDispute[]
   ruling: (Ruling & { by: PlayerRef | null }) | null
+  /** The games a Replay can start from, and the one the form starts on (the first disputed game). */
+  replayFrom: { games: number[]; default: number }
   /** You played in this match (an Admin can't act on it; the Master can). */
   playedIn: boolean
   /** You can give a Ruling now: you hold the Claim, or you're the Master. */
@@ -161,6 +177,8 @@ export interface DisputeStatement {
 
 /** The dispute form and each player's side. games is empty and reason null on disputes filed before the form. */
 export interface Dispute {
+  /** Goes up when the replayed games are disputed again: a new dispute, with new statements. */
+  round: number
   games: number[]
   reason: string | null
   by: Side | null
@@ -176,12 +194,19 @@ export interface DisputeSummary {
   statementAdded: boolean
 }
 
-export type RulingOutcome = 'uphold' | 'overturn' | 'void'
+export type RulingOutcome = 'uphold' | 'overturn' | 'replay' | 'void'
 
 /** An Overturn's correction: who really won game n. */
 export interface GameCorrection {
   n: number
   winner: number
+}
+
+/** What some Rulings need besides the reason: an Overturn's corrected games, a Replay's first game. */
+export interface RulingExtra {
+  games?: GameCorrection[]
+  /** Defaults to the first disputed game. */
+  fromGame?: number
 }
 
 /** An Admin's Ruling on a Disputed match. Players never see which Admin gave it. */
@@ -198,6 +223,10 @@ export interface Match extends QueueSettings {
   acceptDeadline: string
   /** While reported: when the result confirms itself unless the opponent confirms or disputes first. */
   confirmDeadline: string | null
+  /** While a Replay is being played: when it goes back to the Admins unless the match has settled. */
+  replayDeadline: string | null
+  /** Disputed because a Replay wasn't settled by its deadline. */
+  replayNotFinished: boolean
   createdAt: string
   finishedAt: string | null
   host: Side
@@ -273,8 +302,8 @@ export const api = {
   case: (id: number) => request<Case>('GET', `/admin/disputes/${id}`),
   caseAction: (id: number, action: 'claim' | 'release' | 'takeover') => request<Case>('POST', `/admin/disputes/${id}/${action}`),
   /** `games` only for an Overturn: the games whose winner the Admin corrected. */
-  rule: (id: number, outcome: RulingOutcome, reason: string, games?: GameCorrection[]) =>
-    request<Case>('POST', `/admin/disputes/${id}/ruling`, { outcome, reason, games }),
+  rule: (id: number, outcome: RulingOutcome, reason: string, extra: RulingExtra = {}) =>
+    request<Case>('POST', `/admin/disputes/${id}/ruling`, { outcome, reason, ...extra }),
   adminLog: (page: number) => request<AdminLogPage>('GET', `/admin/log?page=${page}`),
   stepDown: (reason: string) => request<Me>('POST', '/admin/step-down', { reason }),
   searchPlayers: (q: string) => request<{ players: PlayerResult[] }>('GET', `/admin/players?q=${encodeURIComponent(q)}`),

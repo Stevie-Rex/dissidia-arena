@@ -30,7 +30,9 @@ RULING_STATUSES = ("completed", "voided")
 
 
 def _notifies(match: Match) -> bool:
-    return match.status in NOTIFY_STATUSES or (match.status in RULING_STATUSES and match.ruling is not None)
+    # A Replay Ruling isn't what settled a replayed match: its players settled it themselves.
+    settled_by_ruling = match.ruling is not None and match.ruling != "replay"
+    return match.status in NOTIFY_STATUSES or (match.status in RULING_STATUSES and settled_by_ruling)
 
 
 def _mod_pings(match: Match) -> list[dict]:
@@ -50,10 +52,10 @@ def _mod_pings(match: Match) -> list[dict]:
 
 def _recipients(match: Match) -> list[User]:
     """Who hears about this status: a reported result goes to the player who must answer it, a
-    dispute to the player whose result was rejected."""
+    dispute to the player whose result was rejected. An unfinished Replay goes to both."""
     if match.status == "reported":
         return [mm.non_reporter(match)]
-    if match.status == "disputed":
+    if match.status == "disputed" and not match.replay_not_finished:
         return [mm.reporter(match)]
     return [match.player_a, match.player_b]
 
@@ -200,11 +202,12 @@ def collect_notifications() -> list[dict]:
         .where(
             or_(Match.notified_status.is_(None), Match.notified_status != Match.status),
             # When the status last changed: creation (pending, active), the report (the confirm
-            # deadline is a fixed time after it), or the end of the match.
+            # deadline is a fixed time after it), the end of the match, or a Ruling.
             or_(
                 Match.created_at >= t - NOTIFY_WINDOW,
                 Match.confirm_deadline >= t - NOTIFY_WINDOW + timedelta(seconds=mm.CONFIRM_SECONDS),
                 Match.finished_at >= t - NOTIFY_WINDOW,
+                Match.ruled_at >= t - NOTIFY_WINDOW,  # a Replay Ruling reopens the match
             ),
         )
         .order_by(Match.id)
@@ -220,6 +223,7 @@ def collect_notifications() -> list[dict]:
                 "matchId": match.id,
                 "game": match.game,
                 "status": match.status,
+                "replayNotFinished": match.replay_not_finished,
                 "modPings": _mod_pings(match),
                 "fallbackChannels": [
                     c.queue_channel_id for c in db.session.scalars(select(GuildConfig).where(GuildConfig.game == match.game))

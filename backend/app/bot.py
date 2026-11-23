@@ -194,7 +194,8 @@ async def reply(interaction: discord.Interaction, text: str) -> None:
 def mod_ping_text(event: dict, ping: dict, frontend_url: str) -> str:
     """The moderator-role ping in one server for a new Disputed match, with a link to the case."""
     case = f"{frontend_url.rstrip('/')}/admin/cases/{event['matchId']}"
-    return f"<@&{ping['role_id']}> A result needs an Admin: {GAME_NAMES[event['game']]} match #{event['matchId']} was disputed. {case}"
+    what = "Replay not finished" if event["replayNotFinished"] else "was disputed"
+    return f"<@&{ping['role_id']}> A result needs an Admin: {GAME_NAMES[event['game']]} match #{event['matchId']} {what}. {case}"
 
 
 def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.Embed, discord.ui.View | None] | None:
@@ -215,6 +216,23 @@ def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.
         view.add_item(MatchButton("decline", m["id"]))
         return embed, view
 
+    room = f"{frontend_url.rstrip('/')}/match/live?match={m['id']}"
+
+    if status == "active" and m["ruling"] and m["ruling"]["outcome"] == "replay":
+        embed = discord.Embed(
+            title="Replay",
+            description=(
+                f"{title_line}\n\nAn Admin ruled that your disputed match against **{opp_name}** is replayed "
+                f"from game {len(m['games']) + 1}. Earlier games stand.\n\n"
+                f"Reason: {discord.utils.escape_markdown(m['ruling']['reason'])}\n\n"
+                f"You have {mm.REPLAY_HOURS} hours, until {_ts(m['replayDeadline'], 'f')} ({_ts(m['replayDeadline'])}), "
+                f"to play and report the games in the [match room]({room}). If the match isn't settled by then, "
+                "it goes back to the Admins."
+            ),
+            color=discord.Color.blurple(),
+        )
+        return embed, None
+
     if status == "active":
         hint = LOBBY_HINTS[m["game"]]
         if m["host"] == "you":
@@ -229,8 +247,6 @@ def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.
         )
         return embed, None
 
-    room = f"{frontend_url.rstrip('/')}/match/live?match={m['id']}"
-
     if status == "reported":
         winner = "you won" if m["winner"] == "you" else f"{opp_name} won"
         embed = discord.Embed(
@@ -239,6 +255,17 @@ def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.
                 f"{title_line}\n\n**{opp_name}** reported {m['score']['you']}–{m['score']['opponent']} ({winner}). "
                 f"You have {mm.CONFIRM_HOURS} hours to confirm or dispute it in the [match room]({room}). "
                 f"If you don't, it confirms itself {_ts(m['confirmDeadline'])}."
+            ),
+            color=discord.Color.gold(),
+        )
+        return embed, None
+
+    if status == "disputed" and m["replayNotFinished"]:
+        embed = discord.Embed(
+            title="Replay not finished",
+            description=(
+                f"{title_line}\n\nYour Replay against **{opp_name}** wasn't finished, "
+                f"so an Admin will rule on it again. You're free to queue in the meantime. See the [match room]({room})."
             ),
             color=discord.Color.gold(),
         )

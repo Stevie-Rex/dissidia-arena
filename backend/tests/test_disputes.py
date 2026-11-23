@@ -122,6 +122,7 @@ def test_matches_disputed_before_the_form_still_load(make_player):
     res = ca.get(f"/api/matches/{mid}")
     assert res.status_code == 200
     assert res.get_json()["dispute"] == {
+        "round": 0,
         "games": [],
         "reason": None,
         "by": "opponent",

@@ -121,8 +121,7 @@ def take_over(match: Match, master: User) -> None:
 
 # ---------------------------------------------------------------- Rulings
 
-# Replay comes in a later ticket.
-OUTCOMES = ("uphold", "overturn", "void")
+OUTCOMES = ("uphold", "overturn", "replay", "void")
 
 
 def _is_int(v: object) -> bool:
@@ -175,7 +174,32 @@ def _overturn(match: Match, games: object) -> list[dict]:
     return changes
 
 
-def rule(match: Match, user: User, outcome: object, reason: object, games: object = None) -> None:
+def replay_choices(match: Match) -> dict:
+    """The games a Replay can start from, and the default: the first disputed game still played.
+
+    Any reported game can be replayed. While nobody has won the series (a Replay that wasn't
+    finished), so can the next unplayed game, which keeps every played game standing."""
+    games = sorted(g.game_no for g in match.games)
+    if settlement.series_winner(match) is None:
+        games.append(len(games) + 1)
+    disputed = [n for n in sorted(match.dispute_games or []) if n in games]
+    return {"games": games, "default": disputed[0] if disputed else games[0]}
+
+
+def _replay_from(match: Match, from_game: object) -> int:
+    choices = replay_choices(match)
+    if from_game is None:
+        return choices["default"]
+    if not _is_int(from_game) or from_game not in choices["games"]:
+        raise MatchmakingError(
+            "validation", "pick the game to replay from", 400, {"fromGame": f"must be one of {choices['games']}"}
+        )
+    return from_game
+
+
+def rule(
+    match: Match, user: User, outcome: object, reason: object, games: object = None, from_game: object = None
+) -> None:
     """Give the Ruling on a Disputed match. The first Ruling saved wins: the match row is locked,
     and once it has a Ruling every later attempt gets already_ruled."""
     _require_open(match)
@@ -192,6 +216,10 @@ def rule(match: Match, user: User, outcome: object, reason: object, games: objec
         settlement.complete(match, "Ruling: the reported result stands.")
     elif outcome == "overturn":
         details["corrections"] = _overturn(match, games)
+    elif outcome == "replay":
+        details["fromGame"] = _replay_from(match, from_game)
+        mm.replay(match, details["fromGame"])
+        details["deadline"] = clock.iso(match.replay_deadline)
     else:
         settlement.void(match, "Ruling: the match is void. It counts for no one.")
     match.ruling = outcome
@@ -218,6 +246,8 @@ def summary_dict(match: Match, viewer: User) -> dict:
         "platform": match.platform,
         "players": [_name(match.player_a), _name(match.player_b)],
         "disputedAt": clock.iso(match.disputed_at),
+        # Back from a Replay whose players didn't settle it by the deadline.
+        "replayNotFinished": match.replay_not_finished,
         "claim": None
         if match.claimed_by_id is None
         else {
@@ -237,14 +267,27 @@ def _was_disputed():
 def dispute_record(user: User) -> dict:
     """Disputes this player filed and how each was ruled, newest first, so an Admin can spot
     someone who disputes every loss."""
-    rows = list(
-        db.session.scalars(select(Match).where(Match.ended_by_id == user.id, _was_disputed()).order_by(Match.id.desc()))
+    current = db.session.scalars(select(Match).where(Match.ended_by_id == user.id, _was_disputed()))
+    disputes = [{"matchId": m.id, "game": m.game, "at": clock.iso(m.disputed_at), "outcome": m.ruling} for m in current]
+    # Disputes from before a Replay, whose games were disputed again (maybe by the other player).
+    replayed = db.session.scalars(
+        select(Match).where(
+            Match.earlier_disputes.is_not(None), or_(Match.player_a_id == user.id, Match.player_b_id == user.id)
+        )
     )
-    outcomes = Counter(m.ruling or "pending" for m in rows)
+    disputes += [
+        {"matchId": m.id, "game": m.game, "at": d["at"], "outcome": d["ruling"] and d["ruling"]["outcome"]}
+        for m in replayed
+        for d in m.earlier_disputes
+        if d["by"] == user.id
+    ]
+    # Newest filing first: a Replay can bring a new dispute on an older match. Disputes filed before
+    # filing times were kept have no time, so they sort last, by match.
+    disputes.sort(key=lambda d: (d["at"] or "", d["matchId"]), reverse=True)
     return {
-        "filed": len(rows),
-        "outcomes": dict(outcomes),
-        "disputes": [{"matchId": m.id, "game": m.game, "at": clock.iso(m.disputed_at), "outcome": m.ruling} for m in rows],
+        "filed": len(disputes),
+        "outcomes": dict(Counter(d["outcome"] or "pending" for d in disputes)),
+        "disputes": disputes,
     }
 
 
@@ -284,10 +327,15 @@ def case_dict(match: Match, viewer: User) -> dict:
             },
         },
         "messages": [{"id": m.id, "from": m.user_id, "text": m.text, "at": clock.iso(m.created_at)} for m in match.messages],
+        "earlierDisputes": [
+            {**d, "ruling": d["ruling"] and {**d["ruling"], "by": _ref(db.session.get(User, d["ruling"]["byId"]))}}
+            for d in match.earlier_disputes or []
+        ],
         "records": {str(p.id): dispute_record(p) for p in players},
         "ruling": None
         if match.ruling is None
         else {**mm.ruling_dict(match), "by": _ref(db.session.get(User, match.ruled_by_id))},
+        "replayFrom": replay_choices(match),
         "playedIn": _played_in(match, viewer),
         "canAct": can_act(match, viewer),
     }
