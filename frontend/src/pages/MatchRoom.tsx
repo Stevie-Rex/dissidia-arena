@@ -457,6 +457,7 @@ function DisputePanel({ match, onSave }: { match: Match; onSave: (text: string) 
   const fieldId = useId()
   const open = match.status === 'disputed'
   const filer = d.by === 'you' ? 'You' : opp
+  const replaying = !open && match.ruling?.outcome === 'replay'
 
   // A newly saved statement came back from the server: show it rather than the editor.
   const [seen, setSeen] = useState(mine?.updatedAt)
@@ -469,6 +470,7 @@ function DisputePanel({ match, onSave }: { match: Match; onSave: (text: string) 
   return (
     <Card tone="gold" role="region" aria-label="Dispute">
       <Sub>dispute</Sub>
+      {replaying && <span className="text-sm text-muted">Read-only: this dispute led to a Replay.</span>}
       {d.reason === null ? (
         <span className="text-sm text-muted">No details (filed before the dispute form)</span>
       ) : (

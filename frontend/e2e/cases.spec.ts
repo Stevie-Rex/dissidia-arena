@@ -30,7 +30,7 @@ function theCase(overrides: Record<string, unknown> = {}) {
         { matchId: 12, game: '012', at: '2026-11-01T12:00:00Z', outcome: 'uphold' },
       ] },
     },
-    replayFrom: { games: [1, 2, 3], default: 3 }, ruling: null, playedIn: false, canAct: false,
+    replayFrom: { games: [1, 2, 3], default: 3 }, earlierDisputes: [], ruling: null, playedIn: false, canAct: false,
     ...overrides,
   }
 }
@@ -178,5 +178,22 @@ test('an unfinished Replay is marked in the case list and on the case', async ({
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
   await page.goto('/admin')
   await expect(page.getByRole('region', { name: 'Open cases' }).getByRole('listitem')).toContainText('Replay not finished')
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+})
+
+test('Admins see the dispute from before a Replay, with both sides and the Ruling', async ({ page }) => {
+  await onCase(page, 'admin', theCase({
+    dispute: { games: [3], reason: 'Lag again in the replay.', by: 2, statements: {} },
+    earlierDisputes: [{ games: [3], reason: 'They quit game 3.', by: 2, at: '2026-11-21T12:00:00Z',
+      statements: { 7: { text: 'They rage quit, I won.', updatedAt: '2026-11-21T12:05:00Z' } },
+      ruling: { outcome: 'replay', reason: 'Play game 3 again.', at: '2026-11-21T13:00:00Z', byId: 8, by: ref(8, 'Kefka') } }],
+  }))
+  await expect(page.getByRole('region', { name: 'Dispute', exact: true })).toContainText('Lag again in the replay.')
+  const earlier = page.getByRole('region', { name: 'Earlier disputes' })
+  await expect(earlier).toContainText('Disputed games: 3')
+  await expect(earlier).toContainText('Rival wrote: They quit game 3.')
+  await expect(earlier).toContainText('They rage quit, I won.')
+  await expect(earlier).toContainText('Rival did not add their side.')
+  await expect(earlier).toContainText('Ruling: Replayed by Kefka: Play game 3 again.')
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 })

@@ -314,6 +314,10 @@ def case_dict(match: Match, viewer: User) -> dict:
             },
         },
         "messages": [{"id": m.id, "from": m.user_id, "text": m.text, "at": clock.iso(m.created_at)} for m in match.messages],
+        "earlierDisputes": [
+            {**d, "ruling": d["ruling"] and {**d["ruling"], "by": _ref(db.session.get(User, d["ruling"]["byId"]))}}
+            for d in match.earlier_disputes or []
+        ],
         "records": {str(p.id): dispute_record(p) for p in players},
         "ruling": None
         if match.ruling is None

@@ -103,6 +103,16 @@ export interface DisputeRecord {
   disputes: { matchId: number; game: GameId; at: string | null; outcome: RulingOutcome | null }[]
 }
 
+/** A dispute from before a Replay: what was disputed, both sides, and the Replay Ruling. */
+export interface EarlierDispute {
+  games: number[]
+  reason: string | null
+  by: number | null
+  at: string | null
+  statements: Record<string, DisputeStatement>
+  ruling: (Ruling & { by: PlayerRef | null }) | null
+}
+
 /** The case page. Players are referred to by user ID, unlike the players' own view. */
 export interface Case extends Omit<CaseSummary, 'players'> {
   status: MatchStatus
@@ -116,6 +126,8 @@ export interface Case extends Omit<CaseSummary, 'players'> {
   dispute: { games: number[]; reason: string | null; by: number | null; statements: Record<string, DisputeStatement> }
   messages: { id: number; from: number | null; text: string; at: string }[]
   records: Record<string, DisputeRecord>
+  /** Disputes from before a Replay whose games were disputed again, oldest first. Players never see these. */
+  earlierDisputes: EarlierDispute[]
   ruling: (Ruling & { by: PlayerRef | null }) | null
   /** The games a Replay can start from, and the one the form starts on (the first disputed game). */
   replayFrom: { games: number[]; default: number }

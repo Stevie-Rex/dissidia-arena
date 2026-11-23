@@ -294,6 +294,37 @@ function CaseView({ data, onChange }: { data: Case; onChange: (c: Case) => void 
             </div>
           ))}
         </Card>
+
+        {data.earlierDisputes.length > 0 && (
+          <Card className="flex flex-col gap-3" role="region" aria-label="Earlier disputes">
+            <Sub>earlier disputes (players can't see these)</Sub>
+            {data.earlierDisputes.map((d, i) => (
+              <div key={i} className="flex flex-col gap-1 border-t border-line pt-2 first:border-t-0 first:pt-0">
+                {d.reason === null ? (
+                  <span className="text-sm text-muted">No details (filed before the dispute form)</span>
+                ) : (
+                  <>
+                    <b className="text-sm">Disputed games: {d.games.join(', ')}</b>
+                    <span className="whitespace-pre-wrap text-sm">
+                      {name(d.by)} wrote: <q>{d.reason}</q>
+                    </span>
+                  </>
+                )}
+                {data.players.map((p) => (
+                  <span key={p.id} className="whitespace-pre-wrap text-sm">
+                    <b>{p.displayName}'s side: </b>
+                    {d.statements[p.id]?.text ?? `${p.displayName} did not add their side.`}
+                  </span>
+                ))}
+                {d.ruling && (
+                  <span className="whitespace-pre-wrap text-sm">
+                    Ruling: {OUTCOME_NAMES[d.ruling.outcome]} by {d.ruling.by?.displayName ?? 'an Admin'}: {d.ruling.reason}
+                  </span>
+                )}
+              </div>
+            ))}
+          </Card>
+        )}
       </div>
 
       <div className="flex flex-col gap-4">

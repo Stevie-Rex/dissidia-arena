@@ -436,11 +436,33 @@ def dispute(match: Match, user: User, games: object = None, reason: object = Non
         errors["reason"] = f"must be 1-{MAX_STATEMENT_LEN} characters"
     if errors:
         raise MatchmakingError("validation", "say which games you dispute and why", 400, errors)
+    if match.disputed_at is not None:  # the replayed games: the earlier dispute goes to the record
+        _archive_dispute(match)
     match.dispute_games = sorted(set(games))
     match.dispute_reason = reason
     match.ended_by_id = user.id
     _back_to_the_admins(match)
     post_system(match, "Result disputed. An Admin will review it.")
+
+
+def _archive_dispute(match: Match) -> None:
+    """Move the current dispute, its statements and its Replay Ruling to earlier_disputes, so a
+    new dispute starts afresh: players write new statements and only Admins see the old ones."""
+    ruling = None
+    if match.ruling is not None:
+        ruling = {**ruling_dict(match), "byId": match.ruled_by_id}
+    earlier = {
+        "games": match.dispute_games or [],
+        "reason": match.dispute_reason,
+        "by": match.ended_by_id,
+        "at": clock.iso(match.disputed_at),
+        "statements": {
+            str(st.user_id): {"text": st.text, "updatedAt": clock.iso(st.updated_at)} for st in match.statements
+        },
+        "ruling": ruling,
+    }
+    match.earlier_disputes = [*(match.earlier_disputes or []), earlier]  # reassign: JSON doesn't track mutation
+    match.statements.clear()
 
 
 def _back_to_the_admins(match: Match, replay_unfinished: bool = False) -> None:
@@ -454,16 +476,28 @@ def _back_to_the_admins(match: Match, replay_unfinished: bool = False) -> None:
 
 def expire_replay_if_due(match: Match) -> bool:
     """The Replay deadline passed before the match settled: back to the Admins as Disputed, marked
-    "Replay not finished", and both players are free to queue."""
+    "Replay not finished", and both players are free to queue. A reported result the opponent
+    hadn't confirmed yet is dropped: the game whose report ended the series is wiped."""
     if match.status not in OPEN_STATUSES or match.replay_deadline is None or clock.now() < match.replay_deadline:
         return False
+    dropped = None
+    if match.status == "reported":
+        last = match.games[-1]
+        dropped = {"n": last.game_no, "winnerId": last.winner_id, "reportedById": last.reported_by_id}
+        match.games.remove(last)
+        match.winner_id = match.reported_by_id = match.confirm_deadline = None
     _back_to_the_admins(match, replay_unfinished=True)
-    post_system(match, f"The Replay wasn't finished within {REPLAY_HOURS} hours. An Admin will rule again.")
+    note = " The reported result was dropped, as it wasn't confirmed in time." if dropped else ""
+    post_system(match, f"The Replay wasn't finished within {REPLAY_HOURS} hours.{note} An Admin will rule again.")
     admin_log.record(
         "replay_not_finished",
         f"The match wasn't settled within {REPLAY_HOURS} hours of the Replay Ruling.",
         match_id=match.id,
-        details={"deadline": clock.iso(match.replay_deadline), "gamesPlayed": len(match.games)},
+        details={
+            "deadline": clock.iso(match.replay_deadline),
+            "gamesPlayed": len(match.games),
+            "droppedReport": dropped,
+        },
     )
     return True
 

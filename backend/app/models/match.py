@@ -85,6 +85,9 @@ class Match(db.Model):
     # to Disputed with replay_unfinished set, for an Admin to rule again.
     replay_deadline: Mapped[datetime | None] = mapped_column(DateTime, index=True)
     replay_unfinished: Mapped[bool] = mapped_column(default=False, nullable=False)
+    # Disputes from before a Replay, when the replayed games were disputed again: games, reason,
+    # who filed it and when, both statements and the Replay Ruling. Admins see them; players don't.
+    earlier_disputes: Mapped[list[dict] | None] = mapped_column(JSON)
 
     # The current Ruling: outcome (uphold | overturn | replay | void), the reason players see, who gave it and when.
     # Players are never shown ruled_by_id. Earlier Rulings live in the Admin log.

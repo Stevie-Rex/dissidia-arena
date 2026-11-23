@@ -8,7 +8,7 @@ from app import clock
 from app import matchmaking as mm
 from app.extensions import db
 from tests.test_cases import case, claim, claimed_by_admin
-from tests.test_disputes import dispute, reported
+from tests.test_disputes import dispute, reported, statement
 from tests.test_auto_confirm import after, parse, tick
 from tests.test_queue import NT_BO3, report
 
@@ -192,3 +192,82 @@ def test_a_finished_series_cant_be_replayed_from_after_its_last_game(make_player
     *_, mid, c = claimed_by_admin(make_player, make_admin)  # reported 2-1 in 3 games
     assert case(c, mid).get_json()["replayFrom"] == {"games": [1, 2, 3], "default": 3}
     assert replay(c, mid, from_game=4).status_code == 400
+
+
+def test_a_replayed_result_still_unconfirmed_at_the_deadline_is_dropped(make_player, make_admin, monkeypatch):
+    a, ca, b, cb, mid, c = replaying(make_player, make_admin)  # games 1-2 stand: 1-1
+    after(monkeypatch, mm.REPLAY_SECONDS - mm.CONFIRM_SECONDS + 60)
+    assert report(ca, mid, 3, a).get_json()["status"] == "reported"  # B never confirms
+
+    after(monkeypatch, mm.CONFIRM_SECONDS - 59)  # the Replay deadline passes first
+    assert [m.id for m in tick()["replayExpired"]] == [mid]
+    page = case(c, mid).get_json()
+    assert page["status"] == "disputed" and page["replayNotFinished"] is True
+    assert [g["n"] for g in page["games"]] == [1, 2]  # the unconfirmed game 3 is gone
+    assert page["winner"] is None and page["reportedBy"] is None
+    m = ca.get(f"/api/matches/{mid}").get_json()
+    assert m["confirmDeadline"] is None and m["score"] == {"you": 1, "opponent": 1}
+    assert "The reported result was dropped" in m["messages"][-1]["text"]
+
+    after(monkeypatch, mm.CONFIRM_SECONDS)
+    assert tick()["autoConfirmed"] == []
+    assert ca.get("/api/me").get_json()["rankedWins"] == 0
+    entry = c.get("/api/admin/log").get_json()["entries"][0]
+    assert entry["action"] == "replay_not_finished" and entry["details"]["droppedReport"] == {"n": 3, "winnerId": a.id, "reportedById": a.id}
+
+
+def test_during_a_replay_players_see_the_old_dispute_but_cant_change_it(make_player, make_admin):
+    a, ca, b, cb, mid = disputed_games(make_player, [3])
+    statement(ca, mid, "Game 3 was clean.")
+    _, c = make_admin()
+    claim(c, mid)
+    replay(c, mid)
+
+    d = cb.get(f"/api/matches/{mid}").get_json()["dispute"]
+    assert d["games"] == [3] and d["statements"]["opponent"]["text"] == "Game 3 was clean."
+    res = statement(cb, mid, "Late addition.")
+    assert res.status_code == 409 and res.get_json()["error"] == "bad_status"
+    assert cb.get(f"/api/matches/{mid}").get_json()["dispute"]["statements"]["you"] is None
+
+
+def test_a_new_dispute_after_a_replay_starts_afresh_and_only_admins_see_the_old_one(make_player, make_admin):
+    a, ca, b, cb, mid = disputed_games(make_player, [3])
+    statement(ca, mid, "Game 3 was clean.")
+    statement(cb, mid, "They pulled my cable.")
+    _, c = make_admin()
+    claim(c, mid)
+    replay(c, mid, reason="Play game 3 again.")
+    report(ca, mid, 3, a)
+    dispute(cb, mid, games=[3], reason="Lag again in the replay.")
+
+    for client in (ca, cb):
+        m = client.get(f"/api/matches/{mid}").get_json()
+        assert m["dispute"]["reason"] == "Lag again in the replay."
+        assert m["dispute"]["statements"] == {"you": None, "opponent": None}
+        assert "earlierDisputes" not in m
+    assert statement(ca, mid, "The replay was clean too.").status_code == 200
+
+    page = case(c, mid).get_json()
+    assert page["dispute"]["reason"] == "Lag again in the replay."
+    assert list(page["dispute"]["statements"]) == [str(a.id)]
+    (old,) = page["earlierDisputes"]
+    assert old["games"] == [3] and old["reason"] == "Game 3 was mine, they misclicked." and old["by"] == b.id
+    assert {k: v["text"] for k, v in old["statements"].items()} == {
+        str(a.id): "Game 3 was clean.",
+        str(b.id): "They pulled my cable.",
+    }
+    assert old["ruling"]["outcome"] == "replay" and old["ruling"]["reason"] == "Play game 3 again."
+    assert old["at"]
+
+
+def test_an_unfinished_replay_keeps_its_dispute_and_statements(make_player, make_admin, monkeypatch):
+    a, ca, b, cb, mid = disputed_games(make_player, [3])
+    statement(ca, mid, "Game 3 was clean.")
+    _, c = make_admin()
+    claim(c, mid)
+    replay(c, mid)
+    after(monkeypatch, mm.REPLAY_SECONDS + 1)
+    tick()
+    d = ca.get(f"/api/matches/{mid}").get_json()["dispute"]
+    assert d["reason"] == "Game 3 was mine, they misclicked." and d["statements"]["you"]["text"] == "Game 3 was clean."
+    assert case(c, mid).get_json()["earlierDisputes"] == []
