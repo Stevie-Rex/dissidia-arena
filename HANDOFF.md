@@ -1,6 +1,6 @@
 # Handoff: Dissidia Arena
 
-_Last updated 2026-11-21. Branch: `feat/queue-matchmaking`._
+_Last updated 2026-11-21._
 
 **The website's new look is built** (Rift and Classic interfaces, with the reward ladder).
 The bot is finished for now. Read this file, then the spec, then `backend/README.md` for setup.
@@ -79,8 +79,6 @@ marked **(ask)**.
 8. **Cosmos and Chaos in a 1v1.** Matches have `player_a` (who waited longest, and hosts) and `player_b`. A sensible
    default: you are always shown as Cosmos and your opponent as Chaos, which matches the current colours (crystal
    = you, crimson = opponent). **(ask)** if the owner wants fixed sides instead.
-9. **No browser tests yet.** The spec's acceptance checks use Playwright and axe, and neither is set up in `frontend/`.
-   Add them when you reach step 9 of the spec's build order.
 
 The spec's other open questions (forfeits counting as wins, more rewards, a switch sound) are still the owner's.
 
@@ -96,17 +94,6 @@ The spec's build order, adjusted for React:
 Steps 1 and 3 are frontend only and can start without the backend by using the defaults.
 
 ## Current state
-
-### Git
-- `main` holds only the first scaffold commit. **Nothing else is merged to `main`.**
-- `feat/queue-matchmaking`, newest first:
-  - the `docs:` commit adding this file, the spec and the theme package. **Local only, not pushed.**
-  - `fa2da2e` Discord bot (queueing and notifications). **Local only, not pushed.**
-  - `3286c6f` Bo3 ranked, region widening, background matchmaker. **Local only, not pushed.**
-  - `b5d59f1` phase 1: real queue and matchmaking (web)
-- `.DS_Store` in the repo root shows as modified. It's tracked by mistake despite `.gitignore`, so leave it out of
-  commits (or untrack it with `git rm --cached .DS_Store` if the owner agrees).
-- Commit IDs changed on 2026-11-21 when history was rewritten (see Security). Old IDs in older notes won't resolve.
 
 ### Security
 - The first commit used to contain a real `.env`. On 2026-11-21 it was stripped from all history and every branch
@@ -164,7 +151,7 @@ website: the "Match on" DM links to the match room.
 
 ### Tests
 ```bash
-cd backend && .venv/bin/python -m pytest      # 172 pass: SQLite in memory, Discord mocked
+cd backend && .venv/bin/python -m pytest      # SQLite in memory, Discord mocked
 cd frontend && npm run build && npm run lint   # clean
 cd frontend && npm run test:e2e                # Playwright + axe, API mocked (no backend needed)
 ```
@@ -181,10 +168,9 @@ SQLite ignores row-locking clauses, so concurrent pairing is only truly exercise
 1. **No ratings or seasons.** Completed matches only count toward `ranked_wins` (and so rewards).
    Planned: a `Season` table per game, Glicko-2 ratings per player/game/season, soft reset each season, players hidden
    from the ladder until about 5 matches. Then move Ladder and Profile off mock data.
-2. **Only Uphold, Overturn and Void Rulings so far.** Admins Claim Disputed matches and rule on them at `/admin` (#8), and
-   the bot pings each game server's moderator role (`GuildConfig.mod_role_id`) for a new unclaimed dispute.
-   Still to come: Replay (#10), screenshots (#11), Help requests and Voiding open matches (#12), and
-   the Master reopening settled matches (#13).
+2. **Rulings.** Admins Claim Disputed matches and rule on them at `/admin`, and the bot pings each game server's
+   moderator role (`GuildConfig.mod_role_id`) for a new unclaimed dispute. What's still to build is in the open
+   GitHub issues under #3 and #4.
 3. **No penalties.** `Match.ended_by_id` records who declined, timed out or abandoned.
 4. **Pings only fire on Discord `/queue`,** not when someone queues on the website.
 5. Polling everywhere (site every few seconds, bot every 2s). Fine at this scale.
@@ -197,9 +183,7 @@ SQLite ignores row-locking clauses, so concurrent pairing is only truly exercise
   from memory to auto-report (still needing opponent confirmation). Test reading results before building anything.
 
 ## Conventions
-- Game rules live in `matchmaking.py`. Routes and the bot stay thin. Bot database work goes in `discord_service.py`.
+- Code conventions are in `CODING_STANDARDS.md`.
 - After a model change: `flask db migrate`, review the file, `flask db upgrade`.
-- JSON-only POST/PATCH endpoints (a CSRF measure). Errors are `{"error": code, "message"}`. The spec's 403 body
-  (`{"error": "locked", "reward", "goal", "remaining"}`) fits this. Add a `message` too.
 - Commits use conventional prefixes (`feat:`, `fix:`, `chore:`). Commit only when the owner asks. Never commit `.env`.
 - Keep the "a fan project" line in the footer. The themes use no official logos, art or fonts.

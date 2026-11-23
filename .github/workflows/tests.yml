@@ -50,6 +50,10 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
+      # Colours come from the theme's tokens, never hex values in components.
+      - name: No hex colours in components
+        run: |
+          ! grep -rnE --include='*.tsx' "[\"'\` :[]#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b" src
       # tsc -b then vite build, so this is also the type check.
       - run: npm run build
       - run: npx playwright install --with-deps chromium

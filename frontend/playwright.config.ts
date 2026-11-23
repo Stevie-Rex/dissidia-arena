@@ -9,6 +9,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5174',
     ...devices['Desktop Chrome'],
+    // Cloud sessions have a pre-installed Chromium that may not match the pinned Playwright.
+    launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
   },
   webServer: {
     command: 'npm run dev -- --port 5174 --strictPort',

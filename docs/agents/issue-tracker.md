@@ -36,7 +36,7 @@ Create a GitHub issue.
 
 ## When a skill says "fetch the relevant ticket"
 
-Read it as in **Read an issue** above.
+Read it as in **Read an issue** above, then **Count open blockers**. If any blocker is open, stop before exploring the code: list each open blocker with its own open-blocker count, and ask which to start.
 
 ## Wayfinding operations
 

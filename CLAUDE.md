@@ -4,6 +4,10 @@
 - Never commit issue work directly to `main`. Push the branch and open a PR into `main` that closes the issue.
 - Follow-up fixes for an open PR go on that PR's branch.
 
+## Checks
+
+Backend: `cd backend && .venv/bin/python -m pytest` (setup in `backend/README.md`). Frontend: `cd frontend && npm run lint && npm run build && npm run test:e2e`.
+
 ## Agent skills
 
 ### Issue tracker
