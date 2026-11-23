@@ -9,7 +9,7 @@ import pytest
 from app import create_app
 from app.config import Config
 from app.extensions import db
-from app.matchmaking import now
+from app import clock
 from app.models import User
 
 MASTER_DISCORD_ID = 4242
@@ -76,7 +76,7 @@ def make_admin(make_player):
 
     def make(**kwargs):
         user, client = make_player(**kwargs)
-        user.admin_since = now()
+        user.admin_since = clock.now()
         db.session.commit()
         return user, client
 

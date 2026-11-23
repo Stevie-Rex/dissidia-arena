@@ -2,6 +2,7 @@ from datetime import timedelta
 
 import pytest
 
+from app import clock
 from app import matchmaking as mm
 from app.extensions import db
 from app.models import Match, QueueEntry, User
@@ -95,7 +96,7 @@ def test_longest_waiting_player_is_matched_and_hosts(make_player):
     (a, ca), (b, cb) = make_player(), make_player()
     ca.post("/api/queue", json=NT_BO3)
     # Simulate a race where both joined before either could pair: pairing happens on poll.
-    db.session.add(QueueEntry(user_id=b.id, region="NA", joined_at=mm.now(), game="nt", mode="1v1", best_of=3, platform="PS4"))
+    db.session.add(QueueEntry(user_id=b.id, region="NA", joined_at=clock.now(), game="nt", mode="1v1", best_of=3, platform="PS4"))
     db.session.commit()
     match = cb.get("/api/queue").get_json()["match"]
     assert match["opponent"]["id"] == a.id
@@ -134,8 +135,8 @@ def test_decline_requeues_the_other_player(make_player):
 def test_accept_timeout_requeues_only_accepters(make_player, monkeypatch):
     a, ca, b, cb, mid = matched_pair(make_player)
     ca.post(f"/api/matches/{mid}/accept")
-    later = mm.now() + timedelta(seconds=mm.ACCEPT_SECONDS + 1)
-    monkeypatch.setattr(mm, "now", lambda: later)
+    later = clock.now() + timedelta(seconds=mm.ACCEPT_SECONDS + 1)
+    monkeypatch.setattr(clock, "now", lambda: later)
 
     state_a = ca.get("/api/queue").get_json()
     assert state_a["match"] is None and state_a["queue"] is not None
@@ -237,7 +238,7 @@ def test_chat(make_player):
 def _age(user, seconds):
     """Pretend this player joined the queue `seconds` ago."""
     entry = db.session.scalar(db.select(QueueEntry).filter_by(user_id=user.id))
-    entry.joined_at = mm.now() - timedelta(seconds=seconds)
+    entry.joined_at = clock.now() - timedelta(seconds=seconds)
     db.session.commit()
 
 
@@ -270,7 +271,7 @@ def test_same_region_preferred_over_longer_waiting_foreigner(make_player):
 
 def _enqueue(user, region="NA", **settings):
     s = {"game": "nt", "mode": "1v1", "best_of": 3, "platform": "PS4", **settings}
-    db.session.add(QueueEntry(user_id=user.id, region=region, joined_at=mm.now(), source="discord", **s))
+    db.session.add(QueueEntry(user_id=user.id, region=region, joined_at=clock.now(), source="discord", **s))
     db.session.commit()
 
 
@@ -288,8 +289,8 @@ def test_tick_pairs_players_who_never_poll(make_player):
 def test_tick_expires_accept_windows(make_player, monkeypatch):
     a, ca, b, cb, mid = matched_pair(make_player)
     ca.post(f"/api/matches/{mid}/accept")
-    later = mm.now() + timedelta(seconds=mm.ACCEPT_SECONDS + 1)
-    monkeypatch.setattr(mm, "now", lambda: later)
+    later = clock.now() + timedelta(seconds=mm.ACCEPT_SECONDS + 1)
+    monkeypatch.setattr(clock, "now", lambda: later)
     result = mm.tick()
     db.session.commit()
     assert [m.id for m in result["expired"]] == [mid]

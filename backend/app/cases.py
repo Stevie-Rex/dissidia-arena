@@ -13,12 +13,12 @@ from collections.abc import Callable
 
 from sqlalchemy import or_, select
 
-from . import admin_log
+from . import admin_log, clock
 from . import admin
 from .admin import is_master, require_reason
 from . import matchmaking as mm
 from .extensions import db
-from .matchmaking import MatchmakingError, iso, now, score
+from .matchmaking import MatchmakingError, score
 from .models import Match, User
 
 
@@ -71,7 +71,7 @@ def can_act(match: Match, user: User) -> bool:
 
 def _set_claim(match: Match, user: User | None) -> None:
     match.claimed_by_id = user.id if user else None
-    match.claimed_at = now() if user else None
+    match.claimed_at = clock.now() if user else None
 
 
 def claim(match: Match, user: User) -> None:
@@ -144,7 +144,7 @@ def rule(match: Match, user: User, outcome: object, reason: object) -> None:
     match.ruling = outcome
     match.ruling_reason = reason
     match.ruled_by_id = user.id
-    match.ruled_at = now()
+    match.ruled_at = clock.now()
     claimed_by = match.claimed_by_id  # not the ruler when the Master rules on an Admin's Claim
     _set_claim(match, None)
     admin_log.record(
@@ -164,12 +164,12 @@ def summary_dict(match: Match, viewer: User) -> dict:
         "game": match.game,
         "platform": match.platform,
         "players": [_name(match.player_a), _name(match.player_b)],
-        "disputedAt": iso(match.disputed_at),
+        "disputedAt": clock.iso(match.disputed_at),
         "claim": None
         if match.claimed_by_id is None
         else {
             "by": _ref(db.session.get(User, match.claimed_by_id)),
-            "at": iso(match.claimed_at),
+            "at": clock.iso(match.claimed_at),
             "byYou": match.claimed_by_id == viewer.id,
         },
     }
@@ -191,7 +191,7 @@ def dispute_record(user: User) -> dict:
     return {
         "filed": len(rows),
         "outcomes": dict(outcomes),
-        "disputes": [{"matchId": m.id, "game": m.game, "at": iso(m.disputed_at), "outcome": m.ruling} for m in rows],
+        "disputes": [{"matchId": m.id, "game": m.game, "at": clock.iso(m.disputed_at), "outcome": m.ruling} for m in rows],
     }
 
 
@@ -227,10 +227,10 @@ def case_dict(match: Match, viewer: User) -> dict:
             "reason": match.dispute_reason,  # None: filed before the dispute form
             "by": match.ended_by_id,
             "statements": {
-                str(st.user_id): {"text": st.text, "updatedAt": iso(st.updated_at)} for st in match.statements
+                str(st.user_id): {"text": st.text, "updatedAt": clock.iso(st.updated_at)} for st in match.statements
             },
         },
-        "messages": [{"id": m.id, "from": m.user_id, "text": m.text, "at": iso(m.created_at)} for m in match.messages],
+        "messages": [{"id": m.id, "from": m.user_id, "text": m.text, "at": clock.iso(m.created_at)} for m in match.messages],
         "records": {str(p.id): dispute_record(p) for p in players},
         "ruling": None
         if match.ruling is None

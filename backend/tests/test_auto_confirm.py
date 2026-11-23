@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 
 from app import admin_log
+from app import clock
 from app import matchmaking as mm
 from app.extensions import db
 from tests.test_queue import NT_BO3, report, started
@@ -24,7 +25,7 @@ def parse(iso: str) -> datetime:
 def test_reporting_sets_a_confirm_deadline_2_hours_out(make_player):
     *_, cb, mid, body = reported_2_0(make_player)
     deadline = parse(body["confirmDeadline"])
-    assert timedelta(hours=2) - timedelta(seconds=5) <= deadline - mm.now() <= timedelta(hours=2)
+    assert timedelta(hours=2) - timedelta(seconds=5) <= deadline - clock.now() <= timedelta(hours=2)
     assert cb.get(f"/api/matches/{mid}").get_json()["confirmDeadline"] == body["confirmDeadline"]
 
 
@@ -34,8 +35,8 @@ def test_active_matches_have_no_confirm_deadline(make_player):
 
 
 def after(monkeypatch, seconds):
-    later = mm.now() + timedelta(seconds=seconds)
-    monkeypatch.setattr(mm, "now", lambda: later)
+    later = clock.now() + timedelta(seconds=seconds)
+    monkeypatch.setattr(clock, "now", lambda: later)
 
 
 def tick():

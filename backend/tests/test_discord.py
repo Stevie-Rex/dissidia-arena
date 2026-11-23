@@ -4,6 +4,7 @@ import pytest
 
 from app import bot
 from app import discord_service as svc
+from app import clock
 from app import matchmaking as mm
 from app.extensions import db
 from app.models import GuildConfig, Match, QueueEntry, User
@@ -113,8 +114,8 @@ def test_ping_cooldown_and_no_ping_when_matched(guilds, monkeypatch):
     # Within the cooldown: no ping.
     assert call(svc.join, profile(3), NT_GUILD, "PC")["pings"] == []
     call(svc.leave, 9003)
-    later = mm.now() + svc.PING_COOLDOWN
-    monkeypatch.setattr(mm, "now", lambda: later)
+    later = clock.now() + svc.PING_COOLDOWN
+    monkeypatch.setattr(clock, "now", lambda: later)
     assert call(svc.join, profile(3), NT_GUILD, "PC")["pings"] == [{"channel_id": 1, "role_id": 10}]
 
 
@@ -131,7 +132,7 @@ def _pair(guilds_):
     call(svc.join, a, NT_GUILD, "PS4")
     call(svc.join, b, NT_GUILD, "PS4")  # NA vs EU: not paired yet
     for i, entry in enumerate(db.session.query(QueueEntry).order_by(QueueEntry.id)):
-        entry.joined_at = mm.now() - timedelta(seconds=mm.REGION_WIDEN_SECONDS + 10 - i)
+        entry.joined_at = clock.now() - timedelta(seconds=mm.REGION_WIDEN_SECONDS + 10 - i)
     db.session.commit()
     return a, b
 
@@ -168,8 +169,8 @@ def test_decline_notifies_cancel_and_requeue(guilds):
 def test_old_matches_are_not_notified(guilds, monkeypatch):
     _pair(guilds)
     call(mm.tick)
-    later = mm.now() + svc.NOTIFY_WINDOW + timedelta(minutes=1)
-    monkeypatch.setattr(mm, "now", lambda: later)
+    later = clock.now() + svc.NOTIFY_WINDOW + timedelta(minutes=1)
+    monkeypatch.setattr(clock, "now", lambda: later)
     events = call(svc.collect_notifications)
     assert all(e["status"] != "pending" for e in events)
 
@@ -228,8 +229,8 @@ def _reported(guilds_, monkeypatch, minutes_later=30):
     call(svc.match_action, b.id, mid, mm.accept)
     call(svc.collect_notifications)
     # A Bo3 takes longer than NOTIFY_WINDOW, which mustn't stop result DMs.
-    later = mm.now() + timedelta(minutes=minutes_later)
-    monkeypatch.setattr(mm, "now", lambda: later)
+    later = clock.now() + timedelta(minutes=minutes_later)
+    monkeypatch.setattr(clock, "now", lambda: later)
     for n in (1, 2):
         call(lambda n=n: mm.report_game(mm.lock_match(mid), _user(a), n, _user(a).id))
     return a, b, mid
@@ -296,7 +297,7 @@ def test_no_ping_once_the_case_is_claimed(guilds, monkeypatch, app):
 
     _with_mod_roles()
     a, b, mid = _disputed(guilds, monkeypatch)
-    admin = User(discord_id=5555, username="kefka", admin_since=mm.now())
+    admin = User(discord_id=5555, username="kefka", admin_since=clock.now())
     db.session.add(admin)
     call(lambda: cases.claim(mm.lock_match(mid), admin))
     (ev,) = call(svc.collect_notifications)
@@ -315,7 +316,7 @@ def test_a_ruling_dms_both_players_without_the_admins_name(guilds, monkeypatch, 
 
     a, b, mid = _disputed(guilds, monkeypatch)
     call(svc.collect_notifications)
-    admin = User(discord_id=5555, username="kefka", admin_since=mm.now())
+    admin = User(discord_id=5555, username="kefka", admin_since=clock.now())
     db.session.add(admin)
     call(lambda: cases.claim(mm.lock_match(mid), admin))
     call(lambda: cases.rule(mm.lock_match(mid), admin, outcome, "Clip shows the result."))
