@@ -73,6 +73,9 @@ in the queue channel if the player's DMs are closed. Reporting results is on the
 
 Tests use in-memory SQLite and mock Discord's API, so they need neither MariaDB nor credentials.
 
+GitHub Actions (`.github/workflows/tests.yml`) runs these on every pull request and every push to
+`main`, along with the frontend's lint, build and Playwright tests.
+
 ## Migrations
 
 After changing models: `FLASK_APP=run.py .venv/bin/flask db migrate -m "describe change"`,
