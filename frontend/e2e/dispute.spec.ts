@@ -5,8 +5,15 @@ import { mockApi } from './mock'
 // Seen from the signed-in tester (id 1). The opponent (id 2) reported a 2-1 win.
 const player = (id: number, displayName: string) => ({ id, displayName, avatarUrl: '', region: 'EU', gameId: `id${id}`, accepted: true })
 
+const noShots = { you: [], opponent: [] }
+const shot = (id: number, removed = false) => ({
+  id, url: removed ? null : `/api/matches/42/screenshots/${id}`, at: '2026-11-21T12:10:00Z', round: 0, removed,
+})
+// A 1x1 PNG, enough for the browser to load an <img>.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+
 function reportedMatch(overrides: Record<string, unknown> = {}) {
-  return {
+  const match = {
     id: 42, game: 'nt', mode: '1v1', bestOf: 3, platform: 'PS4', region: 'EU', status: 'reported',
     acceptDeadline: '2026-11-21T10:00:00Z', createdAt: '2026-11-21T10:00:00Z', finishedAt: null,
     confirmDeadline: new Date(Date.now() + 2 * 3600_000 - 30_000).toISOString().replace(/\.\d+Z$/, 'Z'),
@@ -20,6 +27,9 @@ function reportedMatch(overrides: Record<string, unknown> = {}) {
     winner: 'opponent', reportedBy: 'opponent', endedBy: null, dispute: null, rewardsUnlocked: [], messages: [],
     ...overrides,
   }
+  // The server always sends a dispute's screenshots, so a dispute written without them has none.
+  if (match.dispute) match.dispute = { screenshots: noShots, ...(match.dispute as object) }
+  return match
 }
 
 const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
@@ -39,7 +49,7 @@ async function inRoom(page: Page, match: Record<string, unknown>) {
     if (path.endsWith('/dispute')) {
       const { games, reason } = req.postDataJSON()
       current = { ...current, status: 'disputed', endedBy: 'you', confirmDeadline: null,
-        dispute: { games, reason, by: 'you', statements: { you: null, opponent: null } } }
+        dispute: { games, reason, by: 'you', statements: { you: null, opponent: null }, screenshots: noShots } }
     } else if (path.endsWith('/statement')) {
       const d = current.dispute as { statements: Record<string, unknown> }
       current = { ...current, dispute: { ...d, statements: { ...d.statements, you: { text: req.postDataJSON().text, updatedAt: '2026-11-21T12:00:00Z' } } } }
@@ -216,7 +226,85 @@ test('a new dispute after a Replay starts your side afresh', async ({ page }) =>
   await expect(panel).toContainText('My old side.')
 
   // Replayed, and the replayed game 3 disputed again: the server cleared both sides.
-  shown = { ...shown, dispute: { round: 1, games: [3], reason: 'Lag again.', by: 'you', statements: { you: null, opponent: null } } }
+  shown = { ...shown, dispute: { round: 1, games: [3], reason: 'Lag again.', by: 'you', statements: { you: null, opponent: null }, screenshots: noShots } }
   await expect(panel).toContainText('Lag again.', { timeout: 10_000 })
   await expect(panel.getByRole('textbox', { name: 'Your side' })).toHaveValue('')
+})
+
+
+/** A Disputed match whose server state the test changes as uploads arrive. Records every upload. */
+async function disputedWithUploads(page: Page, opponentShots: unknown[], yours: unknown[] = []) {
+  await mockApi(page, { wins: 0 })
+  const uploads: { header: string | undefined; type: string | undefined }[] = []
+  let mine = yours
+  const current = () =>
+    reportedMatch({
+      status: 'disputed', endedBy: 'you', confirmDeadline: null,
+      dispute: { round: 0, games: [3], reason: 'Game 3 was mine.', by: 'you', statements: { you: null, opponent: null },
+        screenshots: { you: mine, opponent: opponentShots } },
+    })
+  await page.route('**/api/matches/42', (r) => r.fulfill(json(current())))
+  await page.route('**/api/matches/42/screenshots', (r) => {
+    const headers = r.request().headers()
+    uploads.push({ header: headers['x-arena-upload'], type: headers['content-type'] })
+    mine = [...mine, shot(100 + mine.length)]
+    return r.fulfill({ ...json(current()), status: 201 })
+  })
+  await page.route('**/api/matches/42/screenshots/*', (r) => r.fulfill({ status: 200, contentType: 'image/png', body: PNG }))
+  await page.goto('/match/live?match=42')
+  return uploads
+}
+
+test('you can add up to three screenshots to a dispute, and see your opponent\'s', async ({ page }) => {
+  const uploads = await disputedWithUploads(page, [shot(1)])
+  const panel = page.getByRole('region', { name: 'Dispute' })
+  await expect(panel.getByRole('img', { name: 'Screenshot 1 from Rival' })).toBeVisible()
+  // Visible isn't enough: a broken image is visible too. It must have actually loaded.
+  await expect
+    .poll(() => panel.getByRole('img', { name: 'Screenshot 1 from Rival' }).evaluate((img: HTMLImageElement) => img.naturalWidth))
+    .toBeGreaterThan(0)
+  await expect(panel.getByLabel('Add a screenshot (0 of 3)')).toBeVisible()
+  expect((await new AxeBuilder({ page }).include('[aria-label="Dispute"]').analyze()).violations).toEqual([])
+
+  const file = { name: 'clip.png', mimeType: 'image/png', buffer: PNG }
+  await panel.getByLabel('Add a screenshot (0 of 3)').setInputFiles(file)
+  await expect(panel.getByRole('img', { name: 'Screenshot 1 from you' })).toBeVisible()
+  // A multipart upload with the custom header the server requires.
+  expect(uploads).toHaveLength(1)
+  expect(uploads[0].header).toBe('1')
+  expect(uploads[0].type).toMatch(/^multipart\/form-data; boundary=/)
+
+  await panel.getByLabel('Add a screenshot (1 of 3)').setInputFiles(file)
+  await panel.getByLabel('Add a screenshot (2 of 3)').setInputFiles(file)
+  await expect(panel.getByText('You have added all 3 screenshots.')).toBeVisible()
+  await expect(panel.getByLabel(/Add a screenshot/)).toHaveCount(0)
+  expect((await new AxeBuilder({ page }).include('[aria-label="Dispute"]').analyze()).violations).toEqual([])
+})
+
+test('a file over 5 MB is refused before it is sent', async ({ page }) => {
+  const uploads = await disputedWithUploads(page, [])
+  const panel = page.getByRole('region', { name: 'Dispute' })
+  await panel.getByLabel('Add a screenshot (0 of 3)').setInputFiles({
+    name: 'huge.png', mimeType: 'image/png', buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
+  })
+  await expect(panel.getByRole('alert')).toHaveText('Each screenshot can be up to 5 MB.')
+  expect(uploads).toEqual([])
+})
+
+test('screenshots deleted after 90 days show a placeholder', async ({ page }) => {
+  await mockApi(page, { wins: 0 })
+  const ruled = reportedMatch({
+    status: 'completed', endedBy: 'you', confirmDeadline: null,
+    dispute: { round: 0, games: [3], reason: 'Game 3 was mine.', by: 'you', statements: { you: null, opponent: null },
+      screenshots: { you: [shot(2, true)], opponent: [shot(1, true), shot(3, true)] } },
+    ruling: { outcome: 'uphold', reason: 'The clip is clear.', at: '2026-08-01T12:00:00Z' },
+  })
+  await page.route('**/api/matches/42', (r) => r.fulfill(json(ruled)))
+  await page.goto('/match/live?match=42')
+  const panel = page.getByRole('region', { name: 'Dispute' })
+  await expect(panel.getByText('Screenshot removed after 90 days')).toHaveCount(3)
+  await expect(panel.getByRole('img')).toHaveCount(0)
+  // The Ruling is over, so there is nothing left to add to.
+  await expect(panel.getByLabel(/Add a screenshot/)).toHaveCount(0)
+  expect((await new AxeBuilder({ page }).include('[aria-label="Dispute"]').analyze()).violations).toEqual([])
 })

@@ -15,6 +15,8 @@ const LOG = {
       reason: 'Runs the NT community', details: {}, at: '2026-11-21T12:00:00Z' },
     { id: 1, actor: null, action: 'auto_confirm', matchId: 42, target: { id: 2, displayName: 'Rival' },
       reason: "The opponent didn't confirm or dispute within 2 hours.", details: {}, at: '2026-11-21T11:00:00Z' },
+    { id: 0, actor: null, action: 'purge_screenshots', matchId: 30, target: null,
+      reason: 'Deleted 2 dispute screenshots, 90 days after the final Ruling.', details: { count: 2 }, at: '2026-11-20T11:00:00Z' },
   ],
   page: 1,
   hasMore: true,
@@ -77,9 +79,10 @@ test('Admins read the Admin log, page by page', async ({ page }) => {
   await signedInAs(page, 'admin')
   await page.goto('/admin/log')
   const entries = page.getByRole('region', { name: 'Admin log entries' })
-  await expect(entries.getByRole('listitem')).toHaveCount(2)
+  await expect(entries.getByRole('listitem')).toHaveCount(3)
   await expect(entries.getByRole('listitem').first()).toContainText('Tester appointed an Admin: Kefka')
   await expect(entries.getByRole('listitem').nth(1)).toContainText('System confirmed a result automatically')
+  await expect(entries.getByRole('listitem').nth(2)).toContainText('System deleted dispute screenshots · Match #30')
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 
   await page.getByRole('button', { name: 'Older' }).click()

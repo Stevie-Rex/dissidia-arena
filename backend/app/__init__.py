@@ -23,6 +23,7 @@ def create_app(config_object: object = Config) -> Flask:
     from .routes.health import bp as health_bp
     from .routes.me import bp as me_bp
     from .routes.queue import bp as queue_bp
+    from .routes.screenshots import bp as screenshots_bp
 
     app.register_blueprint(health_bp, url_prefix="/api")
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
@@ -30,6 +31,7 @@ def create_app(config_object: object = Config) -> Flask:
     app.register_blueprint(queue_bp, url_prefix="/api")
     app.register_blueprint(appearance_bp, url_prefix="/api")
     app.register_blueprint(admin_bp, url_prefix="/api")
+    app.register_blueprint(screenshots_bp, url_prefix="/api")
 
     from . import bot, rewards, worker
 

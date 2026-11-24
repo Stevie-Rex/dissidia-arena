@@ -127,6 +127,7 @@ def test_matches_disputed_before_the_form_still_load(make_player):
         "reason": None,
         "by": "opponent",
         "statements": {"you": None, "opponent": None},
+        "screenshots": {"you": [], "opponent": []},
     }
     # Players can still add their side.
     assert statement(ca, mid, "Here's what happened.").status_code == 200

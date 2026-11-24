@@ -122,8 +122,19 @@ export interface Case extends Omit<CaseSummary, 'players'> {
   reportedBy: number | null
   winner: number | null
   games: { n: number; winner: number; reportedBy: number; details: GameDetails }[]
-  /** reason is null on disputes filed before the dispute form. statements are keyed by user ID. */
-  dispute: { games: number[]; reason: string | null; by: number | null; statements: Record<string, DisputeStatement> }
+  /**
+   * reason is null on disputes filed before the dispute form. statements are keyed by user ID. screenshots
+   * are keyed by the user who uploaded them and include every dispute's: those with a round below `round`
+   * belong to an earlier dispute.
+   */
+  dispute: {
+    games: number[]
+    reason: string | null
+    by: number | null
+    statements: Record<string, DisputeStatement>
+    round: number
+    screenshots: Record<string, Screenshot[]>
+  }
   messages: { id: number; from: number | null; text: string; at: string }[]
   records: Record<string, DisputeRecord>
   /** Disputes from before a Replay whose games were disputed again, oldest first. Players never see these. */
@@ -175,6 +186,22 @@ export interface DisputeStatement {
   updatedAt: string
 }
 
+/** A screenshot a player uploaded to a Disputed match. url is null once it has been deleted (removed). */
+export interface Screenshot {
+  id: number
+  url: string | null
+  at: string
+  /** Which dispute it belongs to: 0 for the first, one more after each Replay that was disputed again. */
+  round: number
+  removed: boolean
+}
+
+/** What the server accepts: up to this many screenshots each, this many MB per file. */
+export const MAX_SCREENSHOTS = 3
+export const MAX_SCREENSHOT_MB = 5
+/** The accept list for the file picker. The server checks the real file type too. */
+export const SCREENSHOT_TYPES = 'image/png,image/jpeg,image/webp'
+
 /** The dispute form and each player's side. games is empty and reason null on disputes filed before the form. */
 export interface Dispute {
   /** Goes up when the replayed games are disputed again: a new dispute, with new statements. */
@@ -183,6 +210,8 @@ export interface Dispute {
   reason: string | null
   by: Side | null
   statements: Record<Side, DisputeStatement | null>
+  /** This dispute's screenshots, yours and your opponent's. */
+  screenshots: Record<Side, Screenshot[]>
 }
 
 /** One of your Disputed matches, for the "add your side" notice. */
@@ -275,6 +304,20 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return (res.status === 204 ? undefined : await res.json()) as T
 }
 
+/** The one non-JSON POST. The custom header means a cross-site form can't send it (the server checks it). */
+async function upload<T>(path: string, file: File): Promise<T> {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(`/api${path}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'X-Arena-Upload': '1' }, // no Content-Type: the browser adds it, with the multipart boundary
+    body: form,
+  })
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null))
+  return (await res.json()) as T
+}
+
 export const api = {
   /** Returns null when signed out. */
   me: () => request<Me>('GET', '/me').catch((e) => (e instanceof ApiError && e.status === 401 ? null : Promise.reject(e))),
@@ -292,6 +335,7 @@ export const api = {
   dispute: (id: number, games: number[], reason: string) =>
     request<Match>('POST', `/matches/${id}/dispute`, { games, reason }),
   saveStatement: (id: number, text: string) => request<Match>('PUT', `/matches/${id}/statement`, { text }),
+  uploadScreenshot: (id: number, file: File) => upload<Match>(`/matches/${id}/screenshots`, file),
   sendMessage: (id: number, text: string) => request<Match>('POST', `/matches/${id}/messages`, { text }),
 
   appearance: () => request<Appearance>('GET', '/me/appearance'),

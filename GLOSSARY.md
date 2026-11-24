@@ -62,6 +62,10 @@ _Avoid_: Contested match, dispute ticket
 An Admin's decision on a Disputed match: Uphold (the reported result stands), Overturn (the other player wins), Replay (the match is played again) or Void (no one wins and there is no rematch).
 _Avoid_: Verdict, resolution, decision
 
+**Screenshot**:
+An image a player uploads to back up their side of a Disputed match, up to 3 each. The other player and every Admin can see it. It is deleted 90 days after the case closes (the final Ruling, or for a Replay when the replayed match settles), leaving a placeholder, while the statements and the Ruling stay.
+_Avoid_: Evidence file, attachment, proof
+
 **Claim**:
 An Admin taking sole charge of a Disputed match or Help request. Only the claiming Admin can act on it, until they release it or the Master takes it over.
 _Avoid_: Assign, lock, ticket owner

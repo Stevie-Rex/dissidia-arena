@@ -16,6 +16,7 @@ const ACTIONS: Record<string, string> = {
   release_claim: 'released a Claim',
   take_over_claim: 'took over a case',
   ruling: 'gave a Ruling',
+  purge_screenshots: 'deleted dispute screenshots',
 }
 
 /** The Admin log, in the Admin area. */

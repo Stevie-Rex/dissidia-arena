@@ -10,7 +10,7 @@ const player = (id: number, displayName: string) => ({ id, displayName, avatarUr
 const noRecord = { filed: 0, outcomes: {}, disputes: [] }
 
 function theCase(overrides: Record<string, unknown> = {}) {
-  return {
+  const page = {
     kind: 'dispute', matchId: 42, game: 'nt', platform: 'PS4', disputedAt: '2026-11-21T12:00:00Z', claim: null,
     status: 'disputed', players: [player(7, 'Ashe'), player(2, 'Rival')], score: [2, 1], winsNeeded: 2,
     reportedBy: 7, winner: 7,
@@ -33,11 +33,14 @@ function theCase(overrides: Record<string, unknown> = {}) {
     replayFrom: { games: [1, 2, 3], default: 3 }, earlierDisputes: [], ruling: null, playedIn: false, canAct: false,
     ...overrides,
   }
+  // The server always sends the dispute's round and screenshots, so a dispute written without them has none.
+  return { ...page, dispute: { round: 0, screenshots: {}, ...(page.dispute as object) } }
 }
 
 /** Signed in with this role, looking at a case the server describes as `start`. Records what the page sends. */
-async function onCase(page: Page, role: Role, start: Record<string, unknown>) {
+async function onCase(page: Page, role: Role, start: Record<string, unknown>, extraRoutes?: () => Promise<void>) {
   await mockApi(page, { wins: 0, role })
+  await extraRoutes?.() // after mockApi: the last route registered is the first to answer
   const sent: { path: string; body: unknown }[] = []
   let current = start
   await page.route('**/api/admin/**', (r) => {
@@ -195,5 +198,35 @@ test('Admins see the dispute from before a Replay, with both sides and the Rulin
   await expect(earlier).toContainText('They rage quit, I won.')
   await expect(earlier).toContainText('Rival did not add their side.')
   await expect(earlier).toContainText('Ruling: Replayed by Kefka: Play game 3 again.')
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+})
+
+
+test('the case page shows every screenshot, with a placeholder for deleted ones', async ({ page }) => {
+  const shot = (id: number, round: number, removed = false) => ({
+    id, url: removed ? null : `/api/matches/42/screenshots/${id}`, at: '2026-11-21T12:10:00Z', round, removed,
+  })
+  const base = theCase()
+  await onCase(
+    page,
+    'admin',
+    theCase({
+      dispute: { ...(base.dispute as object), round: 1,
+        screenshots: { 2: [shot(1, 0), shot(2, 1)], 7: [shot(3, 1, true)] } },
+    }),
+    () =>
+      page.route('**/api/matches/42/screenshots/*', (r) =>
+        r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') }),
+      ),
+  )
+  const dispute = page.getByRole('region', { name: 'Dispute', exact: true })
+  await expect(dispute.getByRole('img', { name: 'Screenshot 1 from Rival' })).toBeVisible()
+  await expect(dispute.getByRole('img', { name: 'Screenshot 2 from Rival' })).toBeVisible()
+  // Visible isn't enough: a broken image is visible too. Both must have actually loaded.
+  for (const name of ['Screenshot 1 from Rival', 'Screenshot 2 from Rival'])
+    await expect.poll(() => dispute.getByRole('img', { name }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+  await expect(dispute.getByText('Earlier dispute')).toHaveCount(1) // only the first one, from before a Replay
+  await expect(dispute.getByText('Screenshot removed after 90 days')).toHaveCount(1)
+  await expect(dispute.getByText('No screenshots.')).toHaveCount(0)
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 })
