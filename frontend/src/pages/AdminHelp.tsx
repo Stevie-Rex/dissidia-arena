@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import AdminTabs from '../components/AdminTabs'
 import RoleGate from '../components/RoleGate'
@@ -22,6 +22,14 @@ function HelpRequestLoader() {
   const id = Number(useParams().id)
   const [data, setData] = useState<HelpRequestCase | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // The route keeps this mounted when :id changes, so a response for the request we left must not replace the new one.
+  const currentId = useRef(id)
+  useEffect(() => {
+    currentId.current = id
+  }, [id])
+  const accept = useCallback((d: HelpRequestCase) => {
+    if (d.helpRequestId === currentId.current) setData(d)
+  }, [])
 
   useEffect(() => {
     let current = true
@@ -35,7 +43,7 @@ function HelpRequestLoader() {
   }, [id])
 
   // A failed reload rejects, so the action that asked for it shows the error (see run in HelpRequestView).
-  const reload = useCallback(() => api.helpRequest(id).then(setData), [id])
+  const reload = useCallback(() => api.helpRequest(id).then(accept), [id, accept])
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,7 +52,7 @@ function HelpRequestLoader() {
       {error && !data && <Alert>{error}</Alert>}
       {!data && !error && <Sub>Loading…</Sub>}
       {/* keyed so moving to another request starts its forms afresh */}
-      {data && <HelpRequestView key={data.helpRequestId} data={data} onChange={setData} reload={reload} />}
+      {data && <HelpRequestView key={data.helpRequestId} data={data} onChange={accept} reload={reload} />}
     </div>
   )
 }
