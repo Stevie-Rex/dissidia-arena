@@ -51,10 +51,10 @@ test('a player asks an Admin about their match, and sees that it was sent', asyn
   await form.getByLabel('What do you need help with?').fill('  Rival left and is not answering.  ')
   await form.getByRole('button', { name: 'Send to the Admins' }).click()
 
-  expect(sent).toEqual([{ path: '/api/matches/42/help', body: { message: 'Rival left and is not answering.' } }])
   const done = page.getByRole('region', { name: 'Help request' })
   await expect(done).toContainText('An Admin will look at this match.')
   await expect(done).toContainText('Rival left and is not answering.')
+  expect(sent).toEqual([{ path: '/api/matches/42/help', body: { message: 'Rival left and is not answering.' } }])
   await expect(page.getByRole('button', { name: 'Ask an Admin' })).toHaveCount(0)
   expect((await new AxeBuilder({ page }).include('[aria-label="Help request"]').analyze()).violations).toEqual([])
 })

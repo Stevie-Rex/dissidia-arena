@@ -11,6 +11,8 @@ already locked, raise MatchmakingError, and leave committing to the caller.
 
 from datetime import timedelta
 
+from sqlalchemy import select
+
 from . import clock
 from .errors import MatchmakingError
 from .extensions import db
@@ -39,6 +41,20 @@ def open_by(match: Match, user: User) -> HelpRequest | None:
     return next((h for h in match.help_requests if h.user_id == user.id and h.closed_at is None), None)
 
 
+def _has_open_request(match: Match, user: User) -> bool:
+    """Whether the player has an open request on the match, as of now. A locking read, so it sees what
+    a request that committed while this one waited for the match lock already saved (a plain read
+    can still be looking at the snapshot taken when the player's session loaded)."""
+    return (
+        db.session.scalar(
+            select(HelpRequest.id)
+            .where(HelpRequest.match_id == match.id, HelpRequest.user_id == user.id, HelpRequest.closed_at.is_(None))
+            .with_for_update()
+        )
+        is not None
+    )
+
+
 def can_ask(match: Match, user: User) -> bool:
     """Whether the match page should offer this player the "Ask an Admin" button."""
     return played_in(match, user) and _askable(match) and open_by(match, user) is None
@@ -53,7 +69,7 @@ def ask(match: Match, user: User, message: object) -> HelpRequest:
         raise MatchmakingError(
             "help_unavailable", "you can ask an Admin about a match that is open or was completed in the last 90 days"
         )
-    if open_by(match, user) is not None:
+    if _has_open_request(match, user):
         raise MatchmakingError("help_already_asked", "an Admin hasn't closed your last request on this match yet")
     text = message.strip() if isinstance(message, str) else ""
     if not text or len(text) > MAX_MESSAGE_LEN:

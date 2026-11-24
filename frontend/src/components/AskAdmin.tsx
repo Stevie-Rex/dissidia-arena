@@ -8,10 +8,11 @@ import { Btn, Card, Pill, Sub } from './ui'
  * Shown when the server says the match is open or was completed in the last 90 days.
  * Once you've asked, it says so until an Admin closes the request.
  */
-export default function AskAdmin({ match, onAsk }: { match: Match; onAsk: (message: string) => void }) {
+export default function AskAdmin({ match, onAsk }: { match: Match; onAsk: (message: string) => Promise<void> }) {
   const [asking, setAsking] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [sending, setSending] = useState(false)
   const fieldId = useId()
   const errorId = useId()
 
@@ -41,9 +42,12 @@ export default function AskAdmin({ match, onAsk }: { match: Match; onAsk: (messa
         className="flex flex-col gap-2"
         onSubmit={(e) => {
           e.preventDefault()
+          if (sending) return
           if (!message.trim()) return setError('Say what you need help with.')
           setError(null)
-          onAsk(message.trim())
+          setSending(true)
+          // On success the form is replaced by the request card; on failure the draft stays for another try.
+          void onAsk(message.trim()).finally(() => setSending(false))
         }}
       >
         <label htmlFor={fieldId} className="text-xs text-muted">
@@ -55,6 +59,8 @@ export default function AskAdmin({ match, onAsk }: { match: Match; onAsk: (messa
           maxLength={MAX_HELP_MESSAGE}
           rows={3}
           onChange={(e) => setMessage(e.target.value)}
+          required
+          aria-describedby={error ? errorId : undefined}
           aria-invalid={error ? true : undefined}
           placeholder="For example: my opponent left and isn't answering"
           className={FIELD}
@@ -65,7 +71,9 @@ export default function AskAdmin({ match, onAsk }: { match: Match; onAsk: (messa
           </span>
         )}
         <div className="flex gap-2">
-          <Btn type="submit">Send to the Admins</Btn>
+          <Btn type="submit" disabled={sending}>
+            {sending ? 'Sending…' : 'Send to the Admins'}
+          </Btn>
           <Pill onClick={() => setAsking(false)}>Cancel</Pill>
         </div>
       </form>

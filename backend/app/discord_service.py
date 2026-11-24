@@ -249,7 +249,7 @@ def collect_notifications() -> list[dict]:
 
 def _help_request_events() -> list[dict]:
     """New Help requests, each told to the bot once: it pings the game's moderator role, unless an
-    Admin has already Claimed the request. A later Claim, release or takeover never pings again."""
+    Admin has already Claimed or closed the request. A later Claim, release or takeover never pings again."""
     since = clock.now() - NOTIFY_WINDOW
     rows = db.session.scalars(
         select(HelpRequest)
@@ -266,7 +266,7 @@ def _help_request_events() -> list[dict]:
                 "helpRequestId": help_request.id,
                 "matchId": match.id,
                 "game": match.game,
-                "modPings": [] if help_request.claimed_by_id is not None else _role_pings(match.game),
+                "modPings": [] if help_request.claimed_by_id or help_request.closed_at else _role_pings(match.game),
                 "players": [],
             }
         )

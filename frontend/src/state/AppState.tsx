@@ -69,7 +69,7 @@ interface AppState {
   disputeResult: (games: number[], reason: string) => void
   saveStatement: (matchId: number, text: string) => void
   /** "Ask an Admin": raises a Help request on one of your matches. */
-  askAdmin: (matchId: number, message: string) => void
+  askAdmin: (matchId: number, message: string) => Promise<void>
   uploadScreenshot: (matchId: number, file: File) => void
   /** A match you opened by link (?match=), such as a Disputed one, shown in the match room instead of `live`. */
   viewed: Match | null
@@ -335,7 +335,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const askAdmin = useCallback(
     (matchId: number, message: string) => {
       setMatchError(null)
-      api.askAdmin(matchId, message).then(applyMatch, (e) => setMatchError(errorMessage(e)))
+      return api.askAdmin(matchId, message).then(applyMatch, (e) => setMatchError(errorMessage(e)))
     },
     [applyMatch],
   )

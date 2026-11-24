@@ -353,6 +353,20 @@ def test_no_ping_for_a_help_request_claimed_before_the_bot_collects_it(guilds):
     assert call(svc.collect_notifications) == []
 
 
+def test_no_ping_for_a_help_request_closed_before_the_bot_collects_it(guilds):
+    from app import cases
+
+    _with_mod_roles()
+    a, b, mid = _active(guilds)
+    hid = _ask_for_help(a, mid)
+    admin = User(discord_id=5555, username="kefka", admin_since=clock.now())
+    db.session.add(admin)
+    call(lambda: cases.claim(cases.find_help_request(hid, lock=True), admin))
+    call(lambda: cases.close_help_request(cases.find_help_request(hid, lock=True), admin, "Sorted."))
+    (ev,) = call(svc.collect_notifications)
+    assert ev["kind"] == "help" and ev["modPings"] == []
+
+
 def test_releasing_a_help_request_doesnt_ping_again(guilds):
     from app import cases
 

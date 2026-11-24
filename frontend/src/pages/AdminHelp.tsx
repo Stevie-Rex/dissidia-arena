@@ -34,7 +34,8 @@ function HelpRequestLoader() {
     }
   }, [id])
 
-  const reload = useCallback(() => api.helpRequest(id).then(setData, (e) => setError(errorMessage(e))), [id])
+  // A failed reload rejects, so the action that asked for it shows the error (see run in HelpRequestView).
+  const reload = useCallback(() => api.helpRequest(id).then(setData), [id])
 
   return (
     <div className="flex flex-col gap-6">
