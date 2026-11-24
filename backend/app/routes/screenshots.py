@@ -66,7 +66,10 @@ def fetch(match_id: int, shot_id: int):
     file = screenshots.path(shot)
     if not file.is_file():  # the row says it's there but the disk disagrees: not found, not a server error
         raise mm.MatchmakingError("not_found", "screenshot not found", 404)
-    resp = send_file(file, mimetype=shot.content_type, max_age=0)
+    try:
+        resp = send_file(file, mimetype=shot.content_type, max_age=0)
+    except FileNotFoundError:  # deleted by the retention job between the check above and now
+        raise mm.MatchmakingError("not_found", "screenshot not found", 404) from None
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["Cache-Control"] = "private, no-cache"  # evidence: revalidate every time, never shared
     return resp

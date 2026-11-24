@@ -259,6 +259,10 @@ test('you can add up to three screenshots to a dispute, and see your opponent\'s
   const uploads = await disputedWithUploads(page, [shot(1)])
   const panel = page.getByRole('region', { name: 'Dispute' })
   await expect(panel.getByRole('img', { name: 'Screenshot 1 from Rival' })).toBeVisible()
+  // Visible isn't enough: a broken image is visible too. It must have actually loaded.
+  await expect
+    .poll(() => panel.getByRole('img', { name: 'Screenshot 1 from Rival' }).evaluate((img: HTMLImageElement) => img.naturalWidth))
+    .toBeGreaterThan(0)
   await expect(panel.getByLabel('Add a screenshot (0 of 3)')).toBeVisible()
   expect((await new AxeBuilder({ page }).include('[aria-label="Dispute"]').analyze()).violations).toEqual([])
 

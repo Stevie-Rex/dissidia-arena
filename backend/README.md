@@ -45,8 +45,9 @@ FLASK_APP=run.py .venv/bin/flask matchmaker
 
 Players upload up to 3 screenshots each to a Disputed match. They are stored in `UPLOAD_DIR`
 (default `backend/uploads`; use a persistent volume in deployment) under random names.
-The matchmaker loop deletes them 90 days after the final Ruling, once an hour. Without the
-matchmaker, run the job yourself (cron works):
+The matchmaker loop deletes them once an hour, when the case has been closed for 90 days: the
+final Ruling, or for a Replay, when the replayed match settled. Without the matchmaker, run the job
+yourself (cron works):
 
 ```bash
 FLASK_APP=run.py .venv/bin/flask purge-screenshots

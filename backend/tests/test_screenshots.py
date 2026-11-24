@@ -387,3 +387,70 @@ def test_a_replay_is_not_final_so_the_90_days_run_from_when_it_settles(app, make
     days_later(monkeypatch, 100 + 90, 1)
     assert [m.id for m in run_purge()] == [mid]
     assert stored_files(app) == []
+
+
+# ---------------------------------------------------------------- failures along the way
+
+
+def test_a_failed_write_leaves_no_partial_file(app, make_player, monkeypatch):
+    from pathlib import Path
+
+    import pytest
+
+    *_, cb, mid = disputed(make_player)
+    real = Path.write_bytes
+
+    def disk_full(self, data):
+        real(self, data[:10])  # a partial file lands before the volume runs out
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(Path, "write_bytes", disk_full)
+    with pytest.raises(OSError):
+        upload(cb, mid)
+    assert stored_files(app) == []
+
+
+def test_a_screenshot_deleted_while_being_served_is_not_found(make_player, monkeypatch):
+    from app.routes import screenshots as routes
+
+    a, ca, b, cb, mid = disputed(make_player)
+    url = upload(cb, mid).get_json()["dispute"]["screenshots"]["you"][0]["url"]
+
+    def vanished(*args, **kwargs):
+        raise FileNotFoundError
+
+    monkeypatch.setattr(routes, "send_file", vanished)
+    res = cb.get(url)
+    assert res.status_code == 404 and res.get_json()["error"] == "not_found"
+
+
+def test_one_file_that_cannot_be_deleted_does_not_stop_the_other_cases(app, make_player, make_admin, monkeypatch):
+    from pathlib import Path
+
+    first = upheld(make_player, make_admin)
+    second = upheld(make_player, make_admin)
+    days_later(monkeypatch, 91)
+    real = Path.unlink
+    stuck = {"name": None}
+
+    def unlink(self, missing_ok=False):
+        if stuck["name"] is None and self.parent == Path(app.config["UPLOAD_DIR"]):
+            stuck["name"] = self.name  # the first file we try is stuck (a permissions problem)
+        if self.name == stuck["name"]:
+            raise PermissionError(13, "Permission denied")
+        return real(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", unlink)
+    purged = run_purge()
+    # Every other screenshot was deleted and marked removed; only the stuck one is left to retry.
+    assert [f.name for f in stored_files(app)] == [stuck["name"]]
+    assert len(purged) == 2
+    pages = [
+        c.get(f"/api/matches/{m[4]}").get_json()["dispute"]["screenshots"] for m in (first, second) for c in (m[1],)
+    ]
+    removed = [s["removed"] for p in pages for s in p["you"] + p["opponent"]]
+    assert removed.count(True) == 5 and removed.count(False) == 1
+
+    monkeypatch.setattr(Path, "unlink", real)
+    assert len(run_purge()) == 1  # the next run retries just the one that failed
+    assert stored_files(app) == []

@@ -57,6 +57,27 @@ def purge_screenshots() -> list:
     return purged
 
 
+def cycle(last_purge: float) -> float:
+    """One pass of the matchmaker loop: a matchmaking tick, then the screenshot job if it is due.
+    Each fails on its own, so a broken tick never stops retention. Returns when retention last ran
+    (or was last tried: a failing purge waits its hour, it doesn't retry every tick)."""
+    try:
+        run_once()
+    except Exception:
+        log.exception("tick failed")  # keep going; the next tick retries
+    finally:
+        db.session.remove()  # fresh session each tick so we never see stale rows
+    if time.monotonic() - last_purge >= PURGE_EVERY_SECONDS:
+        last_purge = time.monotonic()
+        try:
+            purge_screenshots()
+        except Exception:
+            log.exception("screenshot purge failed")
+        finally:
+            db.session.remove()
+    return last_purge
+
+
 def register(app: Flask) -> None:
     @app.cli.command("purge-screenshots")
     def purge_screenshots_command() -> None:
@@ -71,13 +92,5 @@ def register(app: Flask) -> None:
         log.info("matchmaker running every %ss", interval)
         last_purge = float("-inf")  # so the first pass also runs it
         while True:
-            try:
-                run_once()
-                if time.monotonic() - last_purge >= PURGE_EVERY_SECONDS:
-                    last_purge = time.monotonic()  # set first: a failing purge retries in an hour, not every tick
-                    purge_screenshots()
-            except Exception:
-                log.exception("tick failed")  # keep going; the next tick retries
-            finally:
-                db.session.remove()  # fresh session each tick so we never see stale rows
+            last_purge = cycle(last_purge)
             time.sleep(interval)

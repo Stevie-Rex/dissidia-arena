@@ -12,6 +12,7 @@ outside the transaction is the file, so it is written last, once nothing can ref
 """
 
 import io
+import logging
 import secrets
 from collections.abc import Callable
 from datetime import timedelta
@@ -25,6 +26,8 @@ from . import admin_log, clock
 from .errors import MatchmakingError
 from .extensions import db
 from .models import DisputeScreenshot, Match, User
+
+log = logging.getLogger("screenshots")
 
 MAX_PER_PLAYER = 3
 # Screenshots are deleted this long after the case closed. Statements and Rulings are kept.
@@ -84,7 +87,8 @@ def _clean_copy(data: bytes) -> tuple[bytes, str]:
     if len(data) > MAX_BYTES:
         raise _invalid("each screenshot can be up to 5 MB")
     try:
-        with Image.open(io.BytesIO(data)) as img:
+        # Only try the formats we accept, so a file that claims to be anything else is never parsed.
+        with Image.open(io.BytesIO(data), formats=list(ALLOWED)) as img:
             fmt = img.format
             if fmt not in ALLOWED:
                 raise _invalid("screenshots must be PNG, JPEG or WebP images")
@@ -110,7 +114,16 @@ def add(match: Match, user: User, data: bytes) -> DisputeScreenshot:
         raise MatchmakingError("not_found", "match not found", 404)
     if match.status != "disputed":
         raise MatchmakingError("bad_status", f"match is {match.status}: screenshots are for Disputed matches")
-    mine = [s for s in match.screenshots if s.user_id == user.id and s.round == match.dispute_round]
+    # A locking read, so the count includes every upload already committed, not an older snapshot.
+    mine = db.session.scalars(
+        select(DisputeScreenshot.id)
+        .where(
+            DisputeScreenshot.match_id == match.id,
+            DisputeScreenshot.user_id == user.id,
+            DisputeScreenshot.round == match.dispute_round,
+        )
+        .with_for_update()
+    ).all()
     if len(mine) >= MAX_PER_PLAYER:
         raise MatchmakingError(
             "too_many_screenshots", f"you can add up to {MAX_PER_PLAYER} screenshots to a dispute"
@@ -121,7 +134,12 @@ def add(match: Match, user: User, data: bytes) -> DisputeScreenshot:
     name = secrets.token_hex(16) + ext
     directory = Path(current_app.config["UPLOAD_DIR"])
     directory.mkdir(parents=True, exist_ok=True)
-    (directory / name).write_bytes(clean)
+    target = directory / name
+    try:
+        target.write_bytes(clean)
+    except OSError:  # such as a full volume: don't leave half a file that no row points to
+        target.unlink(missing_ok=True)
+        raise
     shot = DisputeScreenshot(
         user_id=user.id,
         round=match.dispute_round,
@@ -153,16 +171,27 @@ def purge() -> list[Match]:
         .order_by(Match.id)
         .with_for_update()
     ).all()
+    purged = []
     for match in due:
-        removed = [s for s in match.screenshots if s.removed_at is None]
-        for shot in removed:
-            path(shot).unlink(missing_ok=True)
+        removed = 0
+        for shot in match.screenshots:
+            if shot.removed_at is not None:
+                continue
+            try:
+                path(shot).unlink(missing_ok=True)
+            except OSError:
+                # Leave this one as it is (still eligible next run) and carry on with the rest.
+                log.warning("match %s: could not delete screenshot %s", match.id, shot.id, exc_info=True)
+                continue
             shot.filename = None
             shot.removed_at = clock.now()
-        admin_log.record(
-            "purge_screenshots",
-            f"Deleted {len(removed)} dispute screenshots, {RETENTION_DAYS} days after the final Ruling.",
-            match_id=match.id,
-            details={"count": len(removed)},
-        )
-    return list(due)
+            removed += 1
+        if removed:
+            admin_log.record(
+                "purge_screenshots",
+                f"Deleted {removed} dispute screenshots, {RETENTION_DAYS} days after the case closed.",
+                match_id=match.id,
+                details={"count": removed},
+            )
+            purged.append(match)
+    return purged

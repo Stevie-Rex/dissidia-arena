@@ -46,7 +46,8 @@ class Config:
     MASTER_DISCORD_ID = os.environ.get("MASTER_DISCORD_ID", "").strip()
 
     # Where dispute screenshots are stored (a Docker volume in deployment). Files get random names.
-    UPLOAD_DIR = os.environ.get("UPLOAD_DIR", str(Path(__file__).resolve().parents[1] / "uploads"))
+    # Resolved once, so uploads, fetches and the purge all mean the same folder whatever the working directory.
+    UPLOAD_DIR = str(Path(os.environ.get("UPLOAD_DIR") or Path(__file__).resolve().parents[1] / "uploads").resolve())
     # Rejects an oversize request before it is read into memory. A little over the 5 MB per screenshot
     # (app.screenshots.MAX_BYTES) to leave room for the multipart framing.
     MAX_CONTENT_LENGTH = 6 * 1024 * 1024

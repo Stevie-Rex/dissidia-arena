@@ -63,7 +63,7 @@ An Admin's decision on a Disputed match: Uphold (the reported result stands), Ov
 _Avoid_: Verdict, resolution, decision
 
 **Screenshot**:
-An image a player uploads to back up their side of a Disputed match, up to 3 each. The other player and every Admin can see it. It is deleted 90 days after the final Ruling, leaving a placeholder, while the statements and the Ruling stay.
+An image a player uploads to back up their side of a Disputed match, up to 3 each. The other player and every Admin can see it. It is deleted 90 days after the case closes (the final Ruling, or for a Replay when the replayed match settles), leaving a placeholder, while the statements and the Ruling stay.
 _Avoid_: Evidence file, attachment, proof
 
 **Claim**:
