@@ -68,6 +68,7 @@ interface AppState {
   confirmResult: () => void
   disputeResult: (games: number[], reason: string) => void
   saveStatement: (matchId: number, text: string) => void
+  uploadScreenshot: (matchId: number, file: File) => void
   /** A match you opened by link (?match=), such as a Disputed one, shown in the match room instead of `live`. */
   viewed: Match | null
   /** Load one of your matches into `viewed`. Queue polling never replaces it. */
@@ -329,6 +330,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     },
     [applyMatch],
   )
+  const uploadScreenshot = useCallback(
+    (matchId: number, file: File) => {
+      setMatchError(null)
+      api.uploadScreenshot(matchId, file).then(applyMatch, (e) => setMatchError(errorMessage(e)))
+    },
+    [applyMatch],
+  )
   const openMatch = useCallback((id: number) => {
     setMatchError(null)
     setViewed(null)
@@ -410,6 +418,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       confirmResult,
       disputeResult,
       saveStatement,
+      uploadScreenshot,
       viewed,
       openMatch,
       disputes: server?.disputes ?? NO_DISPUTES,
@@ -427,7 +436,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       user, signedIn, onboarded, signIn, signOut, finishOnboarding, stepDown, myGames, region, ids, game, setGame,
       signInPrompt, requireSignIn, queue, setQueue, phase, elapsed, acceptLeft, server, queueError, pending,
       startQueue, cancelQueue, acceptMatch, declineMatch, live, matchError, sendChat, reportGame, confirmResult,
-      disputeResult, saveStatement, viewed, openMatch, abandonMatch, closeMatch, party,
+      disputeResult, saveStatement, uploadScreenshot, viewed, openMatch, abandonMatch, closeMatch, party,
       inviteToParty, removeFromParty, toggleReady, invite, dismissInvite, acceptInvite,
     ],
   )

@@ -5,6 +5,7 @@ import { useApp } from '../state/AppState'
 import type { GameDetails, Match, RulingOutcome, Side } from '../lib/api'
 import { Avatar, Btn, Card, Pill, Select, SideGlyph, Sub } from '../components/ui'
 import VictoryReward from '../components/appearance/VictoryReward'
+import { ScreenshotList, ScreenshotUpload } from '../components/Screenshots'
 import { FIELD, cx } from '../lib/format'
 
 const RULING_NOTES: Record<RulingOutcome, string> = {
@@ -17,7 +18,7 @@ const RULING_NOTES: Record<RulingOutcome, string> = {
 /** 1p — match room: connect info + report on the left, opponent-only chat on the right. */
 export default function MatchRoom() {
   const {
-    live: current, viewed, matchError, sendChat, reportGame, confirmResult, disputeResult, saveStatement, openMatch,
+    live: current, viewed, matchError, sendChat, reportGame, confirmResult, disputeResult, saveStatement, uploadScreenshot, openMatch,
     abandonMatch, closeMatch, startQueue,
   } = useApp()
   const navigate = useNavigate()
@@ -137,6 +138,7 @@ export default function MatchRoom() {
               key={`${live.id}-${live.dispute.round}`}
               match={live}
               onSave={(text) => saveStatement(live.id, text)}
+              onUpload={(file) => uploadScreenshot(live.id, file)}
             />
           )}
 
@@ -457,7 +459,7 @@ function DisputeForm({
 }
 
 /** The dispute as both players see it, with your statement editable until there's a Ruling. */
-function DisputePanel({ match, onSave }: { match: Match; onSave: (text: string) => void }) {
+function DisputePanel({ match, onSave, onUpload }: { match: Match; onSave: (text: string) => void; onUpload: (file: File) => void }) {
   const d = match.dispute!
   const opp = match.opponent.displayName
   const mine = d.statements.you
@@ -494,6 +496,7 @@ function DisputePanel({ match, onSave }: { match: Match; onSave: (text: string) 
 
       <Sub>{opp}'s side</Sub>
       <span className="whitespace-pre-wrap text-sm">{theirs ? theirs.text : `${opp} has not added their side yet.`}</span>
+      <ScreenshotList shots={d.screenshots.opponent} owner={opp} />
 
       <Sub>your side</Sub>
       {open && editing ? (
@@ -533,6 +536,8 @@ function DisputePanel({ match, onSave }: { match: Match; onSave: (text: string) 
           )}
         </>
       )}
+      <ScreenshotList shots={d.screenshots.you} owner="you" />
+      {open && <ScreenshotUpload count={d.screenshots.you.length} onUpload={onUpload} />}
     </Card>
   )
 }

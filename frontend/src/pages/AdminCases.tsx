@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import AdminTabs from '../components/AdminTabs'
 import RoleGate from '../components/RoleGate'
+import { ScreenshotList } from '../components/Screenshots'
 import { Btn, Card, PageTitle, Select, Sub } from '../components/ui'
 import { GAMES } from '../data/mock'
 import {
@@ -291,6 +292,11 @@ function CaseView({ data, onChange }: { data: Case; onChange: (c: Case) => void 
               <span className="whitespace-pre-wrap text-sm">
                 {data.dispute.statements[p.id]?.text ?? `${p.displayName} has not added their side.`}
               </span>
+              <ScreenshotList
+                shots={data.dispute.screenshots[p.id] ?? []}
+                owner={p.displayName}
+                currentRound={data.dispute.round}
+              />
             </div>
           ))}
         </Card>

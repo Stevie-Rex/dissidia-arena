@@ -110,6 +110,9 @@ class Match(db.Model):
     statements: Mapped[list["DisputeStatement"]] = relationship(
         back_populates="match", order_by="DisputeStatement.id", cascade="all, delete-orphan"
     )
+    screenshots: Mapped[list["DisputeScreenshot"]] = relationship(
+        back_populates="match", order_by="DisputeScreenshot.id", cascade="all, delete-orphan"
+    )
 
     @property
     def replay_not_finished(self) -> bool:
@@ -161,3 +164,26 @@ class DisputeStatement(db.Model):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     match: Mapped[Match] = relationship(back_populates="statements")
+
+
+class DisputeScreenshot(db.Model):
+    """A screenshot a player uploaded as evidence on a Disputed match (see app.screenshots).
+
+    The image lives in the upload directory under a random file name. Once the retention job
+    deletes it, the row stays with removed_at set and no file name, so players and Admins see
+    the placeholder rather than a gap."""
+
+    __tablename__ = "dispute_screenshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    # Which dispute it belongs to: the number of earlier disputes the match had when it was uploaded.
+    # A Replay that is disputed again starts a new round, with a fresh 3 screenshots each.
+    round: Mapped[int] = mapped_column(Integer, nullable=False)
+    filename: Mapped[str | None] = mapped_column(String(64))
+    content_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    match: Mapped[Match] = relationship(back_populates="screenshots")

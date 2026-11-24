@@ -44,3 +44,9 @@ class Config:
     # The site owner's Discord user ID. That user is the Master (see GLOSSARY.md): they appoint and
     # remove Admins. Power comes only from this value, so it can't be taken over from the website.
     MASTER_DISCORD_ID = os.environ.get("MASTER_DISCORD_ID", "").strip()
+
+    # Where dispute screenshots are stored (a Docker volume in deployment). Files get random names.
+    UPLOAD_DIR = os.environ.get("UPLOAD_DIR", str(Path(__file__).resolve().parents[1] / "uploads"))
+    # Rejects an oversize request before it is read into memory. A little over the 5 MB per screenshot
+    # (app.screenshots.MAX_BYTES) to leave room for the multipart framing.
+    MAX_CONTENT_LENGTH = 6 * 1024 * 1024

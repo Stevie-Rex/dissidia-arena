@@ -41,6 +41,17 @@ without ever loading the site. The bot runs this loop itself; without the bot, r
 FLASK_APP=run.py .venv/bin/flask matchmaker
 ```
 
+## Dispute screenshots
+
+Players upload up to 3 screenshots each to a Disputed match. They are stored in `UPLOAD_DIR`
+(default `backend/uploads`; use a persistent volume in deployment) under random names.
+The matchmaker loop deletes them 90 days after the final Ruling, once an hour. Without the
+matchmaker, run the job yourself (cron works):
+
+```bash
+FLASK_APP=run.py .venv/bin/flask purge-screenshots
+```
+
 ## Discord bot
 
 Uses the same Discord application as sign-in.

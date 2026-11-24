@@ -15,7 +15,7 @@ from datetime import timedelta
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from . import admin_log, clock, rewards, settlement
+from . import admin_log, clock, rewards, screenshots, settlement
 from .errors import MatchmakingError
 from .match_room import post_system
 from .extensions import db
@@ -620,6 +620,7 @@ def _dispute_dict(match: Match, rel: Callable[[int | None], str | None]) -> dict
         "reason": match.dispute_reason,
         "by": rel(match.ended_by_id),
         "statements": statements,
+        "screenshots": screenshots.for_players(match, rel),
     }
 
 
