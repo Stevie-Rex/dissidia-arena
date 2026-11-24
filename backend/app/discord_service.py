@@ -15,7 +15,7 @@ from sqlalchemy import or_, select
 from . import clock
 from . import matchmaking as mm
 from .extensions import db
-from .models import GuildConfig, Match, User
+from .models import GuildConfig, HelpRequest, Match, User
 from .models.user import REGIONS
 from .routes.me import MAX_GAME_ID_LEN
 
@@ -26,13 +26,14 @@ NOTIFY_WINDOW = timedelta(minutes=10)
 # Statuses players get a DM for. Reporting in Discord comes later.
 NOTIFY_STATUSES = ("pending", "active", "reported", "disputed", "cancelled")
 # Ends that only get a DM when they came from a Ruling (a normal confirm sends none).
-RULING_STATUSES = ("completed", "voided")
+# A voided match always gets one: it is either a Void Ruling or an Admin freeing the players.
+RULING_STATUSES = ("completed",)
 
 
 def _notifies(match: Match) -> bool:
     # A Replay Ruling isn't what settled a replayed match: its players settled it themselves.
     settled_by_ruling = match.ruling is not None and match.ruling != "replay"
-    return match.status in NOTIFY_STATUSES or (match.status in RULING_STATUSES and settled_by_ruling)
+    return match.status in NOTIFY_STATUSES or match.status == "voided" or (match.status in RULING_STATUSES and settled_by_ruling)
 
 
 def _mod_pings(match: Match) -> list[dict]:
@@ -40,11 +41,15 @@ def _mod_pings(match: Match) -> list[dict]:
     servers, unless an Admin has already Claimed it. The role grants no powers on the site."""
     if match.status != "disputed" or match.claimed_by_id is not None:
         return []
+    return _role_pings(match.game)
+
+
+def _role_pings(game: str) -> list[dict]:
     return [
         {"channel_id": c.queue_channel_id, "role_id": c.mod_role_id}
         for c in db.session.scalars(
             select(GuildConfig)
-            .where(GuildConfig.game == match.game, GuildConfig.mod_role_id.is_not(None))
+            .where(GuildConfig.game == game, GuildConfig.mod_role_id.is_not(None))
             .order_by(GuildConfig.guild_id)
         )
     ]
@@ -220,6 +225,7 @@ def collect_notifications() -> list[dict]:
             continue
         events.append(
             {
+                "kind": "match",
                 "matchId": match.id,
                 "game": match.game,
                 "status": match.status,
@@ -236,6 +242,32 @@ def collect_notifications() -> list[dict]:
                     }
                     for p in _recipients(match)
                 ],
+            }
+        )
+    return events + _help_request_events()
+
+
+def _help_request_events() -> list[dict]:
+    """New Help requests, each told to the bot once: it pings the game's moderator role, unless an
+    Admin has already Claimed or closed the request. A later Claim, release or takeover never pings again."""
+    since = clock.now() - NOTIFY_WINDOW
+    rows = db.session.scalars(
+        select(HelpRequest)
+        .where(HelpRequest.notified.is_(False), HelpRequest.created_at >= since)
+        .order_by(HelpRequest.id)
+    ).all()
+    events = []
+    for help_request in rows:
+        help_request.notified = True
+        match = help_request.match
+        events.append(
+            {
+                "kind": "help",
+                "helpRequestId": help_request.id,
+                "matchId": match.id,
+                "game": match.game,
+                "modPings": [] if help_request.claimed_by_id or help_request.closed_at else _role_pings(match.game),
+                "players": [],
             }
         )
     return events

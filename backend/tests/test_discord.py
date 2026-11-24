@@ -310,6 +310,105 @@ def test_servers_without_a_moderator_role_get_no_ping(guilds, monkeypatch):
     assert ev["modPings"] == []
 
 
+def _active(guilds_):
+    """A match both players accepted, and the notifications for it already collected. Returns (a, b, match id)."""
+    a, b = _pair(guilds_)
+    mid = call(svc.collect_notifications)[0]["matchId"]
+    call(svc.match_action, a.id, mid, mm.accept)
+    call(svc.match_action, b.id, mid, mm.accept)
+    call(svc.collect_notifications)
+    return a, b, mid
+
+
+def _ask_for_help(a, mid):
+    from app import help_requests
+
+    return call(lambda: help_requests.ask(mm.lock_match(mid), _user(a), "My opponent vanished.")).id
+
+
+def test_a_help_request_pings_the_games_moderator_role_once(guilds):
+    _with_mod_roles()
+    a, b, mid = _active(guilds)
+    hid = _ask_for_help(a, mid)
+    (ev,) = call(svc.collect_notifications)
+    assert ev["kind"] == "help" and ev["helpRequestId"] == hid and ev["matchId"] == mid and ev["players"] == []
+    assert ev["modPings"] == [{"channel_id": 1, "role_id": 77}]  # the NT server only
+    assert bot.mod_ping_text(ev, ev["modPings"][0], "http://x/") == (
+        f"<@&77> A player asked for an Admin: Dissidia NT match #{mid}. http://x/admin/help-requests/{hid}"
+    )
+    assert call(svc.collect_notifications) == []  # no re-ping
+
+
+def test_no_ping_for_a_help_request_claimed_before_the_bot_collects_it(guilds):
+    from app import cases
+
+    _with_mod_roles()
+    a, b, mid = _active(guilds)
+    hid = _ask_for_help(a, mid)
+    admin = User(discord_id=5555, username="kefka", admin_since=clock.now())
+    db.session.add(admin)
+    call(lambda: cases.claim(cases.find_help_request(hid, lock=True), admin))
+    (ev,) = call(svc.collect_notifications)
+    assert ev["kind"] == "help" and ev["modPings"] == []
+    assert call(svc.collect_notifications) == []
+
+
+def test_no_ping_for_a_help_request_closed_before_the_bot_collects_it(guilds):
+    from app import cases
+
+    _with_mod_roles()
+    a, b, mid = _active(guilds)
+    hid = _ask_for_help(a, mid)
+    admin = User(discord_id=5555, username="kefka", admin_since=clock.now())
+    db.session.add(admin)
+    call(lambda: cases.claim(cases.find_help_request(hid, lock=True), admin))
+    call(lambda: cases.close_help_request(cases.find_help_request(hid, lock=True), admin, "Sorted."))
+    (ev,) = call(svc.collect_notifications)
+    assert ev["kind"] == "help" and ev["modPings"] == []
+
+
+def test_releasing_a_help_request_doesnt_ping_again(guilds):
+    from app import cases
+
+    _with_mod_roles()
+    a, b, mid = _active(guilds)
+    hid = _ask_for_help(a, mid)
+    call(svc.collect_notifications)
+    admin = User(discord_id=5555, username="kefka", admin_since=clock.now())
+    db.session.add(admin)
+    call(lambda: cases.claim(cases.find_help_request(hid, lock=True), admin))
+    call(lambda: cases.release(cases.find_help_request(hid, lock=True), admin))
+    assert call(svc.collect_notifications) == []
+
+
+def test_a_help_request_nobody_collected_for_a_while_isnt_announced(guilds, monkeypatch):
+    _with_mod_roles()
+    a, b, mid = _active(guilds)
+    _ask_for_help(a, mid)
+    later = clock.now() + svc.NOTIFY_WINDOW + timedelta(minutes=1)
+    monkeypatch.setattr(clock, "now", lambda: later)
+    assert [e for e in call(svc.collect_notifications) if e.get("kind") == "help"] == []
+
+
+def test_voiding_an_open_match_dms_both_players_without_the_reason_or_the_admins_name(guilds):
+    from app import cases
+
+    a, b, mid = _active(guilds)
+    admin = User(discord_id=5555, username="kefka", admin_since=clock.now())
+    db.session.add(admin)
+    call(lambda: cases.void_open(mm.lock_match(mid), admin, "Rival vanished."))
+
+    (ev,) = call(svc.collect_notifications)
+    assert ev["status"] == "voided" and ev["modPings"] == []
+    assert sorted(p["discordId"] for p in ev["players"]) == sorted([a.id, b.id])
+    for p in ev["players"]:
+        embed, view = bot.render_match("voided", p, "http://x")
+        assert view is None and embed.title == "Match voided"
+        assert "counts for no one" in embed.description and "Rival vanished" not in embed.description
+        assert "kefka" not in embed.description and f"http://x/match/live?match={mid}" in embed.description
+    assert call(svc.collect_notifications) == []
+
+
 @pytest.mark.parametrize("outcome, status", [("uphold", "completed"), ("void", "voided")])
 def test_a_ruling_dms_both_players_without_the_admins_name(guilds, monkeypatch, outcome, status):
     from app import cases

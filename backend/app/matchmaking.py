@@ -15,11 +15,12 @@ from datetime import timedelta
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
-from . import admin_log, clock, rewards, screenshots, settlement
+from . import admin_log, clock, help_requests, rewards, screenshots, settlement
 from .errors import MatchmakingError
 from .match_room import post_system
 from .extensions import db
 from .models import DisputeStatement, Match, MatchGame, MatchMessage, QueueEntry, User
+from .models.match import OPEN_STATUSES
 
 # Long enough to notice a Discord DM, not so long a no-show stalls the queue.
 ACCEPT_SECONDS = 60
@@ -46,8 +47,6 @@ GAME_RULES = {
     "012": {"modes": ("1v1",), "best_of": (3,), "platforms": ("PPSSPP",)},
     "nt": {"modes": ("1v1",), "best_of": (3,), "platforms": ("PS4", "PC")},
 }
-
-OPEN_STATUSES = ("pending", "active", "reported")
 
 
 # ---------------------------------------------------------------- queue
@@ -672,6 +671,8 @@ def match_dict(match: Match, viewer: User) -> dict:
         "dispute": _dispute_dict(match, rel),
         "rewardsUnlocked": rewards.rewards_from_match(match, me.id) if match.status == "completed" else [],
         "ruling": ruling_dict(match),
+        "canAskAdmin": help_requests.can_ask(match, viewer),
+        "helpRequest": help_requests.player_dict(help_requests.open_by(match, viewer)),
         "messages": [
             {"id": m.id, "from": "system" if m.user_id is None else rel(m.user_id), "text": m.text, "at": clock.iso(m.created_at)}
             for m in match.messages

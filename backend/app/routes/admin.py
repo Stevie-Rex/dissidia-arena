@@ -72,7 +72,7 @@ def read_log():
 def list_cases():
     user = current_user()
     claimed = {"yes": True, "no": False}.get(request.args.get("claimed", ""))
-    return jsonify({"cases": [cases.summary_dict(m, user) for m in cases.open_disputes(claimed)]})
+    return jsonify({"cases": cases.case_list(user, claimed)})
 
 
 @bp.get("/admin/disputes/<int:match_id>")
@@ -112,3 +112,56 @@ def take_over(match_id: int):
 def rule(match_id: int):
     data = json_body()
     return _case_action(match_id, lambda m, u: cases.rule(m, u, data.get("outcome"), data.get("reason"), data.get("games"), data.get("fromGame")))
+
+
+@bp.post("/admin/matches/<int:match_id>/void")
+@admin_required
+def void_match(match_id: int):
+    """Void a match that is still open. Returns the case view of the match, as the Rulings do."""
+    user = current_user()
+    reason = json_body().get("reason")
+    match = cases.act_on_match(match_id, user, lambda m, u: cases.void_open(m, u, reason))
+    db.session.commit()
+    return jsonify(cases.case_dict(match, user))
+
+
+# ---------------------------------------------------------------- Help requests
+
+
+@bp.get("/admin/help-requests/<int:help_request_id>")
+@admin_required
+def get_help_request(help_request_id: int):
+    return jsonify(cases.help_case_dict(cases.find_help_request(help_request_id), current_user()))
+
+
+def _help_action(help_request_id: int, action):
+    """Run a Help request action (see cases.act_on_help_request for the locking), commit, and return its page."""
+    user = current_user()
+    help_request = cases.act_on_help_request(help_request_id, user, action)
+    db.session.commit()
+    return jsonify(cases.help_case_dict(help_request, user))
+
+
+@bp.post("/admin/help-requests/<int:help_request_id>/claim")
+@admin_required
+def claim_help_request(help_request_id: int):
+    return _help_action(help_request_id, cases.claim)
+
+
+@bp.post("/admin/help-requests/<int:help_request_id>/release")
+@admin_required
+def release_help_request(help_request_id: int):
+    return _help_action(help_request_id, cases.release)
+
+
+@bp.post("/admin/help-requests/<int:help_request_id>/takeover")
+@master_required
+def take_over_help_request(help_request_id: int):
+    return _help_action(help_request_id, cases.take_over)
+
+
+@bp.post("/admin/help-requests/<int:help_request_id>/close")
+@admin_required
+def close_help_request(help_request_id: int):
+    reason = json_body().get("reason")
+    return _help_action(help_request_id, lambda h, u: cases.close_help_request(h, u, reason))

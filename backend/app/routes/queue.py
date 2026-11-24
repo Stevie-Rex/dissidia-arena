@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify
 
+from .. import help_requests
 from .. import matchmaking as mm
 from ..auth import current_user, login_required
 from ..extensions import db
@@ -121,3 +122,19 @@ def leave(match_id: int):
 @login_required
 def post_message(match_id: int):
     return _match_action(match_id, mm.post_message, json_body().get("text"))
+
+
+@bp.post("/matches/<int:match_id>/help")
+@login_required
+def ask_for_help(match_id: int):
+    """"Ask an Admin": a Help request on one of your own matches."""
+    message = json_body().get("message")
+    match = mm.lock_match(match_id)
+    user = current_user()
+    if match is None:
+        raise mm.MatchmakingError("not_found", "match not found", 404)
+    help_requests.ask(match, user, message)
+    db.session.commit()
+    resp = jsonify(mm.match_dict(match, user))
+    resp.status_code = 201
+    return resp

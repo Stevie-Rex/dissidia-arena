@@ -17,6 +17,8 @@ export function roleLinks(role: Role | undefined) {
 
 /** Matches the server's limit on reasons for Admin and Master actions. */
 export const MAX_REASON = 2000
+/** The longest message a player can send with a Help request (app.help_requests.MAX_MESSAGE_LEN). */
+export const MAX_HELP_MESSAGE = 500
 
 export interface Me {
   id: number
@@ -88,6 +90,23 @@ export interface CaseSummary {
   claim: CaseClaim | null
 }
 
+/** A Help request row of the Admin case list. players are [player A, player B]. */
+export interface HelpRequestSummary {
+  kind: 'help'
+  helpRequestId: number
+  matchId: number
+  game: GameId
+  platform: string
+  players: [string, string]
+  message: string
+  askedBy: PlayerRef
+  askedAt: string
+  claim: CaseClaim | null
+}
+
+/** What the Admin case list holds: Disputed matches and Help requests. */
+export type CaseListRow = CaseSummary | HelpRequestSummary
+
 export interface CasePlayer {
   id: number
   displayName: string
@@ -111,6 +130,28 @@ export interface EarlierDispute {
   at: string | null
   statements: Record<string, DisputeStatement>
   ruling: (Ruling & { by: PlayerRef | null }) | null
+}
+
+/** The Help request page: the request, and the match it is about. Players are referred to by user ID. */
+export interface HelpRequestCase extends Omit<HelpRequestSummary, 'players'> {
+  players: [string, string]
+  match: {
+    id: number
+    status: MatchStatus
+    players: [CasePlayer, CasePlayer]
+    score: [number, number]
+    winsNeeded: number
+    winner: number | null
+    games: { n: number; winner: number; reportedBy: number }[]
+    messages: { id: number; from: number | null; text: string; at: string }[]
+    createdAt: string
+    finishedAt: string | null
+    /** The match is still open, and you didn't play in it (the Master can anyway). */
+    canVoid: boolean
+  }
+  closed: { by: PlayerRef | null; at: string; reason: string } | null
+  playedIn: boolean
+  canAct: boolean
 }
 
 /** The case page. Players are referred to by user ID, unlike the players' own view. */
@@ -270,6 +311,10 @@ export interface Match extends QueueSettings {
   dispute: Dispute | null
   ruling: Ruling | null
   messages: { id: number; from: Side | 'system'; text: string; at: string }[]
+  /** Whether you can press "Ask an Admin": the match is open or was completed in the last 90 days, and you have no open request. */
+  canAskAdmin: boolean
+  /** Your open Help request on this match. Closing reasons stay with the Admins. */
+  helpRequest: { id: number; message: string; at: string } | null
   /** Rewards this match earned for you (non-empty only for the winner of a completed match). */
   rewardsUnlocked: Pick<RewardDef, 'key' | 'name' | 'goal'>[]
   /** Only on the confirm response: reward keys you unlocked just now. */
@@ -337,12 +382,20 @@ export const api = {
   saveStatement: (id: number, text: string) => request<Match>('PUT', `/matches/${id}/statement`, { text }),
   uploadScreenshot: (id: number, file: File) => upload<Match>(`/matches/${id}/screenshots`, file),
   sendMessage: (id: number, text: string) => request<Match>('POST', `/matches/${id}/messages`, { text }),
+  askAdmin: (id: number, message: string) => request<Match>('POST', `/matches/${id}/help`, { message }),
 
   appearance: () => request<Appearance>('GET', '/me/appearance'),
   saveAppearance: (changes: Partial<Preferences>) => request<Appearance>('PATCH', '/me/appearance', changes),
   rewards: () => request<{ rewards: RewardDef[] }>('GET', '/rewards'),
 
-  cases: () => request<{ cases: CaseSummary[] }>('GET', '/admin/cases'),
+  cases: () => request<{ cases: CaseListRow[] }>('GET', '/admin/cases'),
+  helpRequest: (id: number) => request<HelpRequestCase>('GET', `/admin/help-requests/${id}`),
+  helpRequestAction: (id: number, action: 'claim' | 'release' | 'takeover') =>
+    request<HelpRequestCase>('POST', `/admin/help-requests/${id}/${action}`),
+  closeHelpRequest: (id: number, reason: string) =>
+    request<HelpRequestCase>('POST', `/admin/help-requests/${id}/close`, { reason }),
+  /** Voids a match that is still open. */
+  voidMatch: (id: number, reason: string) => request<unknown>('POST', `/admin/matches/${id}/void`, { reason }),
   case: (id: number) => request<Case>('GET', `/admin/disputes/${id}`),
   caseAction: (id: number, action: 'claim' | 'release' | 'takeover') => request<Case>('POST', `/admin/disputes/${id}/${action}`),
   /** `games` only for an Overturn: the games whose winner the Admin corrected. */

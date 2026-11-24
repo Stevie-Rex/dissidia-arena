@@ -192,8 +192,12 @@ async def reply(interaction: discord.Interaction, text: str) -> None:
 
 
 def mod_ping_text(event: dict, ping: dict, frontend_url: str) -> str:
-    """The moderator-role ping in one server for a new Disputed match, with a link to the case."""
-    case = f"{frontend_url.rstrip('/')}/admin/cases/{event['matchId']}"
+    """The moderator-role ping in one server for a new Disputed match or Help request, with a link to the case."""
+    base = frontend_url.rstrip("/")
+    if event["kind"] == "help":
+        game = GAME_NAMES[event["game"]]
+        return f"<@&{ping['role_id']}> A player asked for an Admin: {game} match #{event['matchId']}. {base}/admin/help-requests/{event['helpRequestId']}"
+    case = f"{base}/admin/cases/{event['matchId']}"
     what = "Replay not finished" if event["replayNotFinished"] else "was disputed"
     return f"<@&{ping['role_id']}> A result needs an Admin: {GAME_NAMES[event['game']]} match #{event['matchId']} {what}. {case}"
 
@@ -280,6 +284,18 @@ def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.
                 f"[match room]({room}); an Admin will look at both sides."
             ),
             color=discord.Color.gold(),
+        )
+        return embed, None
+
+    if status == "voided" and not (m["ruling"] and m["ruling"]["outcome"] == "void"):
+        # An Admin voided a match that was still open, so it has no Void Ruling (or only an earlier Replay).
+        embed = discord.Embed(
+            title="Match voided",
+            description=(
+                f"{title_line}\n\nAn Admin voided your match against **{opp_name}**. It counts for no one, "
+                f"and you're free to queue again.\n\nSee the [match room]({room})."
+            ),
+            color=discord.Color.blurple(),
         )
         return embed, None
 

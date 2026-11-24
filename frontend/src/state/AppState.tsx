@@ -68,6 +68,8 @@ interface AppState {
   confirmResult: () => void
   disputeResult: (games: number[], reason: string) => void
   saveStatement: (matchId: number, text: string) => void
+  /** "Ask an Admin": raises a Help request on one of your matches. */
+  askAdmin: (matchId: number, message: string) => Promise<void>
   uploadScreenshot: (matchId: number, file: File) => void
   /** A match you opened by link (?match=), such as a Disputed one, shown in the match room instead of `live`. */
   viewed: Match | null
@@ -330,6 +332,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     },
     [applyMatch],
   )
+  const askAdmin = useCallback(
+    (matchId: number, message: string) => {
+      setMatchError(null)
+      return api.askAdmin(matchId, message).then(applyMatch, (e) => setMatchError(errorMessage(e)))
+    },
+    [applyMatch],
+  )
   const uploadScreenshot = useCallback(
     (matchId: number, file: File) => {
       setMatchError(null)
@@ -418,6 +427,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       confirmResult,
       disputeResult,
       saveStatement,
+      askAdmin,
       uploadScreenshot,
       viewed,
       openMatch,
@@ -436,7 +446,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       user, signedIn, onboarded, signIn, signOut, finishOnboarding, stepDown, myGames, region, ids, game, setGame,
       signInPrompt, requireSignIn, queue, setQueue, phase, elapsed, acceptLeft, server, queueError, pending,
       startQueue, cancelQueue, acceptMatch, declineMatch, live, matchError, sendChat, reportGame, confirmResult,
-      disputeResult, saveStatement, uploadScreenshot, viewed, openMatch, abandonMatch, closeMatch, party,
+      disputeResult, saveStatement, askAdmin, uploadScreenshot, viewed, openMatch, abandonMatch, closeMatch, party,
       inviteToParty, removeFromParty, toggleReady, invite, dismissInvite, acceptInvite,
     ],
   )

@@ -1,6 +1,9 @@
 """
-Cases for the Admins (see GLOSSARY.md: Disputed match, Claim, Ruling, Void): the case list and
-case page, Claims, and Rulings.
+Cases for the Admins (see GLOSSARY.md: Disputed match, Help request, Claim, Ruling, Void): the case
+list and case pages, Claims, Rulings, closing Help requests, and Voiding open matches.
+
+A case is a Disputed match or a Help request. Both are Claimed, released and taken over by the same
+functions, which take either one.
 
 Follows matchmaking.py's conventions: functions work on the current db.session and leave
 committing to the caller, they take a match already locked (act() does this for routes), and they
@@ -13,13 +16,13 @@ from collections.abc import Callable
 
 from sqlalchemy import or_, select
 
-from . import admin_log, clock, screenshots, settlement
+from . import admin_log, clock, help_requests, screenshots, settlement
 from . import admin
 from .admin import is_master, require_reason
 from . import matchmaking as mm
 from .extensions import db
 from .errors import MatchmakingError
-from .models import Match, User
+from .models import HelpRequest, Match, User
 
 
 def _name(user: User | None) -> str | None:
@@ -41,82 +44,106 @@ def open_disputes(claimed: bool | None = None) -> list[Match]:
 # ---------------------------------------------------------------- Claims
 
 
-def _require_open(match: Match) -> None:
+Case = Match | HelpRequest  # what an Admin can Claim
+
+
+def _match_of(case: Case) -> Match:
+    return case.match if isinstance(case, HelpRequest) else case
+
+
+def _record(case: Case, action: str, reason: str, actor: User, target_id: int | None = None, **details) -> None:
+    """The Admin log entry for an action on a case. A Help request's entries carry its ID."""
+    if isinstance(case, HelpRequest):
+        details = {"helpRequestId": case.id, **details}
+    admin_log.record(action, reason, actor=actor, match_id=_match_of(case).id, target_id=target_id, details=details)
+
+
+def _require_open(case: Case) -> None:
+    if isinstance(case, HelpRequest):
+        if case.closed_at is not None:
+            raise MatchmakingError("already_closed", "this Help request is already closed")
+        return
+    match = case
     if match.ruling is not None:
         raise MatchmakingError("already_ruled", "this case already has a Ruling")
     if match.status != "disputed":
         raise MatchmakingError("not_open", f"match is {match.status}")
 
 
-def _played_in(match: Match, user: User) -> bool:
-    return user.id in (match.player_a_id, match.player_b_id)
+_played_in = help_requests.played_in
 
 
-def _forbid_own_match(match: Match, user: User) -> None:
-    """No Admin rules in their own favour. The Master can, so their disputes never wait on an Admin."""
-    if _played_in(match, user) and not is_master(user):
+def _forbid_own_match(case: Case, user: User) -> None:
+    """No Admin acts on their own match. The Master can, so their cases never wait on an Admin."""
+    if _played_in(_match_of(case), user) and not is_master(user):
         raise MatchmakingError("own_match", "you played in this match", 403)
 
 
-def _holds_claim(match: Match, user: User) -> bool:
-    return match.claimed_by_id == user.id
+def _holds_claim(case: Case, user: User) -> bool:
+    return case.claimed_by_id == user.id
 
 
-def can_act(match: Match, user: User) -> bool:
-    """Whether the case page should offer this viewer the Ruling controls."""
-    if match.status != "disputed":
+def can_act(case: Case, user: User) -> bool:
+    """Whether the case page should offer this viewer the Ruling (or closing) controls."""
+    if isinstance(case, HelpRequest):
+        if case.closed_at is not None:
+            return False
+    elif case.status != "disputed":
         return False
-    return is_master(user) or (_holds_claim(match, user) and not _played_in(match, user))
+    return is_master(user) or (_holds_claim(case, user) and not _played_in(_match_of(case), user))
 
 
-def _set_claim(match: Match, user: User | None) -> None:
-    match.claimed_by_id = user.id if user else None
-    match.claimed_at = clock.now() if user else None
+def _set_claim(case: Case, user: User | None) -> None:
+    case.claimed_by_id = user.id if user else None
+    case.claimed_at = clock.now() if user else None
 
 
-def claim(match: Match, user: User) -> None:
+def claim(case: Case, user: User) -> None:
     """An Admin takes sole charge of a case. Claiming your own Claim again changes nothing."""
-    _require_open(match)
-    _forbid_own_match(match, user)
-    if _holds_claim(match, user):
+    _require_open(case)
+    _forbid_own_match(case, user)
+    if _holds_claim(case, user):
         return
-    if match.claimed_by_id is not None:
+    if case.claimed_by_id is not None:
         raise MatchmakingError("already_claimed", "another Admin is handling this case")
-    _set_claim(match, user)
-    admin_log.record("claim", "Claimed the case.", actor=user, match_id=match.id)
+    _set_claim(case, user)
+    _record(case, "claim", "Claimed the case.", user)
 
 
-def release(match: Match, user: User) -> None:
+def release(case: Case, user: User) -> None:
     """The claiming Admin, or the Master, lets go of a Claim so someone else can take the case."""
-    _require_open(match)
-    if match.claimed_by_id is None or not (_holds_claim(match, user) or is_master(user)):
+    _require_open(case)
+    if case.claimed_by_id is None or not (_holds_claim(case, user) or is_master(user)):
         raise MatchmakingError("not_claimed_by_you", "you don't hold the Claim on this case", 403)
-    holder = match.claimed_by_id
-    _set_claim(match, None)
-    admin_log.record("release_claim", "Released the Claim.", actor=user, match_id=match.id, target_id=holder)
+    holder = case.claimed_by_id
+    _set_claim(case, None)
+    _record(case, "release_claim", "Released the Claim.", user, holder)
 
 
 def release_all(user: User, actor: User, why: str) -> None:
     """An Admin leaving the role lets go of every open Claim, so their cases don't get stuck.
     Called by app.admin when an Admin is removed or steps down."""
-    held = db.session.scalars(
-        select(Match).where(Match.claimed_by_id == user.id, Match.status == "disputed").with_for_update()
-    )
-    for match in held:
-        _set_claim(match, None)
-        admin_log.record(
-            "release_claim", why, actor=actor, match_id=match.id, target_id=user.id, details={"automatic": True}
+    held: list[Case] = list(
+        db.session.scalars(
+            select(Match).where(Match.claimed_by_id == user.id, Match.status == "disputed").with_for_update()
         )
+    )
+    held += db.session.scalars(
+        select(HelpRequest).where(HelpRequest.claimed_by_id == user.id, HelpRequest.closed_at.is_(None)).with_for_update()
+    )
+    for case in held:
+        _set_claim(case, None)
+        _record(case, "release_claim", why, actor, user.id, automatic=True)
 
 
-def take_over(match: Match, master: User) -> None:
+def take_over(case: Case, master: User) -> None:
     """The Master takes over a case, whoever holds it, so nothing waits on an absent Admin."""
-    _require_open(match)
-    if _holds_claim(match, master):
+    _require_open(case)
+    if _holds_claim(case, master):
         return
-    holder = match.claimed_by_id
-    _set_claim(match, master)
-    admin_log.record("take_over_claim", "Took over the case.", actor=master, match_id=match.id, target_id=holder)
+    holder = case.claimed_by_id
+    _set_claim(case, master)
+    _record(case, "take_over_claim", "Took over the case.", master, holder)
 
 
 # ---------------------------------------------------------------- Rulings
@@ -237,6 +264,121 @@ def rule(
     )
 
 
+# ---------------------------------------------------------------- Voiding open matches
+
+
+def void_open(match: Match, user: User, reason: object) -> None:
+    """An Admin Voids a match that is still open (pending, active or reported), for example one a
+    player vanished from. Both players are free to queue again and nothing counts against anyone.
+    Not a Ruling: a Disputed match is Voided by a Void Ruling, so it gets not_open here."""
+    if match.status not in mm.OPEN_STATUSES:
+        raise MatchmakingError("not_open", f"match is {match.status}")
+    _forbid_own_match(match, user)
+    reason = require_reason(reason)
+    previous = match.status
+    settlement.void(match, "An Admin voided this match. It counts for no one.")
+    admin_log.record("void_match", reason, actor=user, match_id=match.id, details={"from": previous})
+
+
+# ---------------------------------------------------------------- Help requests
+
+
+def close_help_request(help_request: HelpRequest, user: User, reason: object) -> None:
+    """Close a Help request with a reason, which can pass it to the Master as a note. Like a Ruling, it
+    needs the Claim (or the Master) and is refused for the Admin's own match. The reason goes in the
+    Admin log and is not shown to the player."""
+    _require_open(help_request)
+    _forbid_own_match(help_request, user)
+    if not (_holds_claim(help_request, user) or is_master(user)):
+        raise MatchmakingError("not_claimed_by_you", "Claim the request before closing it", 403)
+    reason = require_reason(reason)
+    claimed_by = help_request.claimed_by_id  # not the closer when the Master closes an Admin's Claim
+    help_request.closed_by_id = user.id
+    help_request.closed_at = clock.now()
+    help_request.close_reason = reason
+    _set_claim(help_request, None)
+    _record(help_request, "close_help_request", reason, user, claimedById=claimed_by)
+
+
+def open_help_requests(claimed: bool | None = None) -> list[HelpRequest]:
+    """Help requests no Admin has closed, oldest first. claimed filters by Claim."""
+    q = select(HelpRequest).where(HelpRequest.closed_at.is_(None)).order_by(HelpRequest.created_at, HelpRequest.id)
+    if claimed is not None:
+        q = q.where(HelpRequest.claimed_by_id.is_not(None) if claimed else HelpRequest.claimed_by_id.is_(None))
+    return list(db.session.scalars(q))
+
+
+def _claim_dict(case: Case, viewer: User) -> dict | None:
+    if case.claimed_by_id is None:
+        return None
+    return {
+        "by": _ref(db.session.get(User, case.claimed_by_id)),
+        "at": clock.iso(case.claimed_at),
+        "byYou": case.claimed_by_id == viewer.id,
+    }
+
+
+def help_summary_dict(help_request: HelpRequest, viewer: User) -> dict:
+    """One Help request row of the case list."""
+    match = help_request.match
+    return {
+        "kind": "help",
+        "helpRequestId": help_request.id,
+        "matchId": match.id,
+        "game": match.game,
+        "platform": match.platform,
+        "players": [_name(match.player_a), _name(match.player_b)],
+        "message": help_request.message,
+        "askedBy": _ref(help_request.user),
+        "askedAt": clock.iso(help_request.created_at),
+        "claim": _claim_dict(help_request, viewer),
+    }
+
+
+def help_case_dict(help_request: HelpRequest, viewer: User) -> dict:
+    """The Help request page: the request and enough of the match to act on it."""
+    match = help_request.match
+    s = settlement.score(match)
+    can_void = match.status in mm.OPEN_STATUSES and (is_master(viewer) or not _played_in(match, viewer))
+    return {
+        **help_summary_dict(help_request, viewer),
+        "match": {
+            "id": match.id,
+            "status": match.status,
+            "players": [_player_dict(match, p) for p in (match.player_a, match.player_b)],
+            "score": [s[match.player_a_id], s[match.player_b_id]],
+            "winsNeeded": settlement.wins_needed(match),
+            "winner": match.winner_id,
+            "games": [{"n": g.game_no, "winner": g.winner_id, "reportedBy": g.reported_by_id} for g in match.games],
+            "messages": [
+                {"id": m.id, "from": m.user_id, "text": m.text, "at": clock.iso(m.created_at)} for m in match.messages
+            ],
+            "createdAt": clock.iso(match.created_at),
+            "finishedAt": clock.iso(match.finished_at),
+            "canVoid": can_void,
+        },
+        "closed": None
+        if help_request.closed_at is None
+        else {
+            "by": _ref(db.session.get(User, help_request.closed_by_id)),
+            "at": clock.iso(help_request.closed_at),
+            "reason": help_request.close_reason,
+        },
+        "playedIn": _played_in(match, viewer),
+        "canAct": can_act(help_request, viewer),
+    }
+
+
+def case_list(viewer: User, claimed: bool | None = None) -> list[dict]:
+    """The Admins' case list: Disputed matches waiting for a Ruling and Help requests nobody has
+    closed, oldest first."""
+    rows = [(m.disputed_at, summary_dict(m, viewer)) for m in open_disputes(claimed)]
+    rows += [(h.created_at, help_summary_dict(h, viewer)) for h in open_help_requests(claimed)]
+    # Disputes from before filing times were kept have no time, so they come first, as the oldest.
+    rows.sort(key=lambda r: (r[0] is not None, r[0] or clock.now()))
+    return [row for _, row in rows]
+
+
 def summary_dict(match: Match, viewer: User) -> dict:
     """One row of the case list."""
     return {
@@ -248,13 +390,7 @@ def summary_dict(match: Match, viewer: User) -> dict:
         "disputedAt": clock.iso(match.disputed_at),
         # Back from a Replay whose players didn't settle it by the deadline.
         "replayNotFinished": match.replay_not_finished,
-        "claim": None
-        if match.claimed_by_id is None
-        else {
-            "by": _ref(db.session.get(User, match.claimed_by_id)),
-            "at": clock.iso(match.claimed_at),
-            "byYou": match.claimed_by_id == viewer.id,
-        },
+        "claim": _claim_dict(match, viewer),
     }
 
 
@@ -352,12 +488,45 @@ def act(match_id: int, user: User, action: Callable[[Match, User], None]) -> Mat
     takes the same locks in the same order (their user row, then their Claimed matches), so an
     action at the same moment as a removal either finishes first (and its Claim is released) or
     sees the role gone. Neither can deadlock the other."""
-    db.session.get(User, user.id, with_for_update=True, populate_existing=True)
-    if admin.role(user) == "player":
-        raise MatchmakingError("forbidden", "you don't have access to this", 403)
+    _lock_admin(user)
     match = find_case(match_id, lock=True)
     action(match, user)
     return match
+
+
+def _lock_admin(user: User) -> None:
+    db.session.get(User, user.id, with_for_update=True, populate_existing=True)
+    if admin.role(user) == "player":
+        raise MatchmakingError("forbidden", "you don't have access to this", 403)
+
+
+def act_on_match(match_id: int, user: User, action: Callable[[Match, User], None]) -> Match:
+    """Like act(), for an action on any match, not only one that was disputed (Voiding an open match)."""
+    _lock_admin(user)
+    match = mm.lock_match(match_id)
+    if match is None:
+        raise MatchmakingError("not_found", "match not found", 404)
+    action(match, user)
+    return match
+
+
+def act_on_help_request(help_request_id: int, user: User, action: Callable[[HelpRequest, User], None]) -> HelpRequest:
+    """Like act(), for a Help request: lock the Admin's row, check their role again, then lock the
+    request (the same order act() takes, so removing an Admin can't deadlock against a Claim)."""
+    _lock_admin(user)
+    help_request = find_help_request(help_request_id, lock=True)
+    action(help_request, user)
+    return help_request
+
+
+def find_help_request(help_request_id: int, lock: bool = False) -> HelpRequest:
+    """A Help request, open or closed. lock=True locks its row, as every action that changes it needs."""
+    help_request = db.session.get(
+        HelpRequest, help_request_id, with_for_update=lock or None, populate_existing=lock or None
+    )
+    if help_request is None:
+        raise MatchmakingError("not_found", "help request not found", 404)
+    return help_request
 
 
 def find_case(match_id: int, lock: bool = False) -> Match:
