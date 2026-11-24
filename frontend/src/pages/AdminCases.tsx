@@ -11,12 +11,12 @@ import {
   errorMessage,
   type Case,
   type CasePlayer,
-  type CaseSummary,
+  type CaseListRow,
   type DisputeRecord,
   type RulingExtra,
   type RulingOutcome,
 } from '../lib/api'
-import { FIELD, cx } from '../lib/format'
+import { FIELD, cx, since } from '../lib/format'
 import { useApp } from '../state/AppState'
 
 /** How long a Replay has to settle before it comes back as a case (matchmaking.REPLAY_HOURS). */
@@ -43,12 +43,7 @@ const OUTCOME_NAMES: Record<RulingOutcome, string> = {
   void: 'Voided',
 }
 
-const since = (iso: string) => {
-  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
-  return mins < 60 ? `${mins} min` : mins < 48 * 60 ? `${Math.round(mins / 60)} h` : `${Math.round(mins / 1440)} days`
-}
-
-function Alert({ children }: { children: string }) {
+export function Alert({ children }: { children: string }) {
   return (
     <p role="alert" className="m-0 text-sm text-chaos-soft">
       {children}
@@ -58,7 +53,7 @@ function Alert({ children }: { children: string }) {
 
 // ---------------------------------------------------------------- the case list
 
-/** The Admin area's front page: open Disputed matches, and whether each is claimed. */
+/** The Admin area's front page: open Disputed matches and Help requests, and whether each is claimed. */
 export default function AdminCases() {
   return (
     <RoleGate allow={['admin', 'master']} who="Admins">
@@ -72,7 +67,7 @@ export default function AdminCases() {
 }
 
 function CaseList() {
-  const [cases, setCases] = useState<CaseSummary[] | null>(null)
+  const [cases, setCases] = useState<CaseListRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -91,24 +86,34 @@ function CaseList() {
   if (cases.length === 0)
     return (
       <Card>
-        <p className="m-0 text-sm">No Disputed matches are waiting for a Ruling.</p>
+        <p className="m-0 text-sm">No Disputed matches or Help requests are waiting for an Admin.</p>
       </Card>
     )
   return (
     <section aria-label="Open cases">
       <ul className="m-0 flex list-none flex-col gap-2 p-0">
         {cases.map((c) => (
-          <li key={c.matchId}>
+          <li key={c.kind === 'help' ? `help-${c.helpRequestId}` : `dispute-${c.matchId}`}>
             <Card className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-col gap-1">
-                <Link to={`/admin/cases/${c.matchId}`} className="font-semibold text-gold-note hover:text-crystal-soft">
-                  Match #{c.matchId}: {c.players[0]} vs {c.players[1]}
+                <Link
+                  to={c.kind === 'help' ? `/admin/help-requests/${c.helpRequestId}` : `/admin/cases/${c.matchId}`}
+                  className="font-semibold text-gold-note hover:text-crystal-soft"
+                >
+                  {c.kind === 'help' && 'Help request: '}Match #{c.matchId}: {c.players[0]} vs {c.players[1]}
                 </Link>
                 <Sub>
                   {GAMES[c.game].name} · {c.platform}
-                  {c.disputedAt && <> · disputed {since(c.disputedAt)} ago</>}
+                  {c.kind === 'help' ? (
+                    <> · asked {since(c.askedAt)} ago</>
+                  ) : (
+                    c.disputedAt && <> · disputed {since(c.disputedAt)} ago</>
+                  )}
                 </Sub>
-                {c.replayNotFinished && <span className="text-sm font-semibold text-gold-note">Replay not finished</span>}
+                {c.kind === 'help' && <span className="line-clamp-2 whitespace-pre-wrap text-sm">{c.message}</span>}
+                {c.kind === 'dispute' && c.replayNotFinished && (
+                  <span className="text-sm font-semibold text-gold-note">Replay not finished</span>
+                )}
               </div>
               <span className={cx('text-sm', c.claim ? 'text-fg-dim' : 'text-gold-note')}>
                 {c.claim ? `Claimed by ${c.claim.byYou ? 'you' : c.claim.by.displayName}` : 'Unclaimed'}

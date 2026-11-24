@@ -5,6 +5,7 @@ import { useApp } from '../state/AppState'
 import type { GameDetails, Match, RulingOutcome, Side } from '../lib/api'
 import { Avatar, Btn, Card, Pill, Select, SideGlyph, Sub } from '../components/ui'
 import VictoryReward from '../components/appearance/VictoryReward'
+import AskAdmin from '../components/AskAdmin'
 import { ScreenshotList, ScreenshotUpload } from '../components/Screenshots'
 import { FIELD, cx } from '../lib/format'
 
@@ -18,7 +19,7 @@ const RULING_NOTES: Record<RulingOutcome, string> = {
 /** 1p — match room: connect info + report on the left, opponent-only chat on the right. */
 export default function MatchRoom() {
   const {
-    live: current, viewed, matchError, sendChat, reportGame, confirmResult, disputeResult, saveStatement, uploadScreenshot, openMatch,
+    live: current, viewed, matchError, sendChat, reportGame, confirmResult, disputeResult, saveStatement, askAdmin, uploadScreenshot, openMatch,
     abandonMatch, closeMatch, startQueue,
   } = useApp()
   const navigate = useNavigate()
@@ -145,6 +146,9 @@ export default function MatchRoom() {
           {!canChat && <Finished match={live} onDone={() => done(`/${live.game}`)} onAgain={() => done('/queue', true)} />}
 
           {live.games.length > 0 && <GameList match={live} />}
+
+          {/* keyed so the form starts empty (and closed) on another match */}
+          <AskAdmin key={live.id} match={live} onAsk={(message) => askAdmin(live.id, message)} />
 
           {live.status === 'active' && (
             <button

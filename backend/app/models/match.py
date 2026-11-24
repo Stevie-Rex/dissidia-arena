@@ -10,6 +10,9 @@ from .user import User
 # Where a queue entry came from. The bot (phase 2) will add "discord".
 SOURCES = ("web", "discord")
 
+# A match still being played: neither settled nor with the Admins. Its players can't queue again.
+OPEN_STATUSES = ("pending", "active", "reported")
+
 
 class QueueEntry(db.Model):
     """A player currently searching. One row per player: you can only be in one queue."""
@@ -112,6 +115,9 @@ class Match(db.Model):
     )
     screenshots: Mapped[list["DisputeScreenshot"]] = relationship(
         back_populates="match", order_by="DisputeScreenshot.id", cascade="all, delete-orphan"
+    )
+    help_requests: Mapped[list["HelpRequest"]] = relationship(
+        back_populates="match", order_by="HelpRequest.id", cascade="all, delete-orphan"
     )
 
     @property

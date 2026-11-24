@@ -19,6 +19,7 @@ import Discord from './pages/Discord'
 import Rewards from './pages/Rewards'
 import Config from './pages/Config'
 import AdminCases, { CasePage } from './pages/AdminCases'
+import { HelpRequestPage } from './pages/AdminHelp'
 import AdminLog from './pages/AdminLog'
 import MasterPanel from './pages/MasterPanel'
 
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="config" element={<Config />} />
           <Route path="admin" element={<AdminCases />} />
           <Route path="admin/cases/:id" element={<CasePage />} />
+          <Route path="admin/help-requests/:id" element={<HelpRequestPage />} />
           <Route path="admin/log" element={<AdminLog />} />
           <Route path="master" element={<MasterPanel />} />
           <Route path="*" element={<Navigate to="/" replace />} />

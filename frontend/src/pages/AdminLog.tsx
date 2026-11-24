@@ -16,6 +16,8 @@ const ACTIONS: Record<string, string> = {
   release_claim: 'released a Claim',
   take_over_claim: 'took over a case',
   ruling: 'gave a Ruling',
+  void_match: 'voided an open match',
+  close_help_request: 'closed a Help request',
   purge_screenshots: 'deleted dispute screenshots',
 }
 
