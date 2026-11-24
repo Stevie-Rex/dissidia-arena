@@ -203,6 +203,31 @@ def test_players_admins_and_the_master_can_fetch_a_screenshot_and_outsiders_cann
     assert app.test_client().get(url).status_code == 401
 
 
+def test_a_screenshot_whose_file_has_gone_missing_is_not_found_rather_than_an_error(app, make_player):
+    a, ca, b, cb, mid = disputed(make_player)
+    url = upload(cb, mid).get_json()["dispute"]["screenshots"]["you"][0]["url"]
+    for f in stored_files(app):
+        f.unlink()
+    res = cb.get(url)
+    assert res.status_code == 404 and res.get_json()["error"] == "not_found"
+
+
+def test_an_upload_that_cannot_be_saved_leaves_no_file_behind(app, make_player, monkeypatch):
+    import pytest
+
+    from app.extensions import db
+
+    *_, cb, mid = disputed(make_player)
+
+    def failing_commit():
+        raise RuntimeError("database went away")
+
+    monkeypatch.setattr(db.session, "commit", failing_commit)
+    with pytest.raises(RuntimeError):
+        upload(cb, mid)
+    assert stored_files(app) == []
+
+
 def test_a_screenshot_is_only_served_under_its_own_match(make_player):
     a, ca, b, cb, mid = disputed(make_player)
     url = upload(cb, mid).get_json()["dispute"]["screenshots"]["you"][0]["url"]

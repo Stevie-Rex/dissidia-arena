@@ -327,7 +327,7 @@ def case_dict(match: Match, viewer: User) -> dict:
             },
             # Every screenshot from every dispute on this match, each marked with its round. This
             # dispute's is `round`; a Replay that was disputed again leaves the earlier ones behind.
-            "round": screenshots.current_round(match),
+            "round": match.dispute_round,
             "screenshots": screenshots.for_admins(match),
         },
         "messages": [{"id": m.id, "from": m.user_id, "text": m.text, "at": clock.iso(m.created_at)} for m in match.messages],

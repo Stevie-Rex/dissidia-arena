@@ -615,7 +615,7 @@ def _dispute_dict(match: Match, rel: Callable[[int | None], str | None]) -> dict
         statements[rel(st.user_id)] = {"text": st.text, "updatedAt": clock.iso(st.updated_at)}
     return {
         # Counts disputes from before a Replay, so the site can tell a new dispute from the same one.
-        "round": len(match.earlier_disputes or []),
+        "round": match.dispute_round,
         "games": match.dispute_games or [],
         "reason": match.dispute_reason,
         "by": rel(match.ended_by_id),

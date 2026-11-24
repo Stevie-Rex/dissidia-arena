@@ -36,11 +36,6 @@ MAX_PIXELS = 40_000_000
 ALLOWED = {"PNG": ("image/png", ".png"), "JPEG": ("image/jpeg", ".jpg"), "WEBP": ("image/webp", ".webp")}
 
 
-def current_round(match: Match) -> int:
-    """Which dispute is live: each earlier dispute that a Replay led away from adds one."""
-    return len(match.earlier_disputes or [])
-
-
 def url(match: Match, shot: DisputeScreenshot) -> str:
     return f"/api/matches/{match.id}/screenshots/{shot.id}"
 
@@ -59,7 +54,7 @@ def for_players(match: Match, rel: Callable[[int | None], str | None]) -> dict[s
     """The live dispute's screenshots as the players see them: yours and your opponent's."""
     out: dict[str, list[dict]] = {"you": [], "opponent": []}
     for shot in match.screenshots:
-        if shot.round == current_round(match):
+        if shot.round == match.dispute_round:
             out[rel(shot.user_id)].append(screenshot_dict(match, shot))
     return out
 
@@ -115,7 +110,7 @@ def add(match: Match, user: User, data: bytes) -> DisputeScreenshot:
         raise MatchmakingError("not_found", "match not found", 404)
     if match.status != "disputed":
         raise MatchmakingError("bad_status", f"match is {match.status}: screenshots are for Disputed matches")
-    mine = [s for s in match.screenshots if s.user_id == user.id and s.round == current_round(match)]
+    mine = [s for s in match.screenshots if s.user_id == user.id and s.round == match.dispute_round]
     if len(mine) >= MAX_PER_PLAYER:
         raise MatchmakingError(
             "too_many_screenshots", f"you can add up to {MAX_PER_PLAYER} screenshots to a dispute"
@@ -129,7 +124,7 @@ def add(match: Match, user: User, data: bytes) -> DisputeScreenshot:
     (directory / name).write_bytes(clean)
     shot = DisputeScreenshot(
         user_id=user.id,
-        round=current_round(match),
+        round=match.dispute_round,
         filename=name,
         content_type=content_type,
         created_at=clock.now(),

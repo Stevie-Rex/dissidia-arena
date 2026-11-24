@@ -115,6 +115,12 @@ class Match(db.Model):
     )
 
     @property
+    def dispute_round(self) -> int:
+        """Which dispute of this match is live: 0 for the first, and one more for each earlier dispute
+        that a Replay led away from."""
+        return len(self.earlier_disputes or [])
+
+    @property
     def replay_not_finished(self) -> bool:
         """Disputed because a Replay wasn't settled by its deadline: the "Replay not finished" marker."""
         return self.status == "disputed" and self.replay_unfinished

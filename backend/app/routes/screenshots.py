@@ -15,7 +15,8 @@ bp = Blueprint("screenshots", __name__)
 bp.register_error_handler(mm.MatchmakingError, matchmaking_error)
 
 # The one non-JSON POST, so a cross-site HTML form must not be able to send it. A form can't set
-# a custom header, and a cross-site script that sets one is stopped by the browser's CORS check.
+# a custom header, and a cross-site script that sets one makes the browser send a CORS preflight
+# first, which this API never approves (it allows no cross-origin requests).
 UPLOAD_HEADER = "X-Arena-Upload"
 
 
@@ -36,8 +37,14 @@ def upload(match_id: int):
     user = current_user()
     if match is None:
         raise mm.MatchmakingError("not_found", "match not found", 404)
-    screenshots.add(match, user, file.read(screenshots.MAX_BYTES + 1))
-    db.session.commit()
+    stored = screenshots.path(screenshots.add(match, user, file.read(screenshots.MAX_BYTES + 1)))
+    try:
+        db.session.commit()
+    except Exception:
+        # The file isn't part of the transaction, so don't leave it behind with no row to find it by.
+        db.session.rollback()
+        stored.unlink(missing_ok=True)
+        raise
     resp = jsonify(mm.match_dict(match, user))
     resp.status_code = 201
     return resp
@@ -56,7 +63,10 @@ def fetch(match_id: int, shot_id: int):
         raise mm.MatchmakingError("not_found", "screenshot not found", 404)
     if shot.removed_at is not None:
         raise mm.MatchmakingError("screenshot_removed", "Screenshot removed after 90 days", 410)
-    resp = send_file(screenshots.path(shot), mimetype=shot.content_type, max_age=0)
+    file = screenshots.path(shot)
+    if not file.is_file():  # the row says it's there but the disk disagrees: not found, not a server error
+        raise mm.MatchmakingError("not_found", "screenshot not found", 404)
+    resp = send_file(file, mimetype=shot.content_type, max_age=0)
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["Cache-Control"] = "private, no-cache"  # evidence: revalidate every time, never shared
     return resp
