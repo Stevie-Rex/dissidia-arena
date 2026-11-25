@@ -87,10 +87,15 @@ const FRAME_PATHS: Record<Exclude<Frame, 'none'>, { outer: string; inner: string
   },
 }
 
-/** A game emblem inside a silver-edged frame, drawn at any size. */
-export function FramedCrest({ frame, game, size }: { frame: Frame; game: '012' | 'NT'; size: number }) {
+/** How big the icon sits inside each frame, as a share of the frame's size. */
+const ICON_SCALE: Record<Frame, number> = { none: 0.8, diamond: 0.52, hexagon: 0.52, shield: 0.5 }
+
+/**
+ * Any icon inside a silver-edged frame, at any size. `icon` gets the inner size. The frame's fill reads
+ * --frame-top and --frame-bottom, so a selected row can tint it.
+ */
+export function FramedIcon({ frame, size, icon }: { frame: Frame; size: number; icon: (size: number) => ReactNode }) {
   const id = useId()
-  const emblem = Math.round(size * (frame === 'none' ? 0.8 : frame === 'shield' ? 0.5 : 0.52))
   return (
     <span className="lab-crest" style={{ width: size, height: size }}>
       {frame !== 'none' && (
@@ -102,19 +107,26 @@ export function FramedCrest({ frame, game, size }: { frame: Frame; game: '012' |
               <stop offset="1" stopColor="var(--silver-lo)" />
             </linearGradient>
             <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="var(--raised)" />
-              <stop offset="1" stopColor="var(--bg)" />
+              <stop offset="0" stopColor="var(--frame-top, var(--raised))" />
+              <stop offset="1" stopColor="var(--frame-bottom, var(--bg))" />
             </linearGradient>
           </defs>
-          <path d={FRAME_PATHS[frame].outer} fill={`url(#${id}-fill)`} stroke={`url(#${id}-silver)`} strokeWidth="3.5" strokeLinejoin="round" />
-          <path d={FRAME_PATHS[frame].inner} fill="none" stroke="var(--silver-edge)" strokeWidth="1" opacity="0.45" strokeLinejoin="round" />
+          <path d={FRAME_PATHS[frame].outer} fill={`url(#${id}-fill)`} stroke={`url(#${id}-silver)`} strokeWidth={size < 40 ? 5 : 3.5} strokeLinejoin="round" />
+          {size >= 40 && (
+            <path d={FRAME_PATHS[frame].inner} fill="none" stroke="var(--silver-edge)" strokeWidth="1" opacity="0.45" strokeLinejoin="round" />
+          )}
         </svg>
       )}
       <span className="lab-crest__emblem" style={frame === 'shield' ? { marginTop: -size * 0.06 } : undefined}>
-        <GameEmblem game={game} size={emblem} />
+        {icon(Math.round(size * ICON_SCALE[frame]))}
       </span>
     </span>
   )
+}
+
+/** A game emblem inside a frame. */
+export function FramedCrest({ frame, game, size }: { frame: Frame; game: '012' | 'NT'; size: number }) {
+  return <FramedIcon frame={frame} size={size} icon={(s) => <GameEmblem game={game} size={s} />} />
 }
 
 /* ---------- backdrop and hero ---------- */

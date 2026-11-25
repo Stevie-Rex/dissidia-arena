@@ -6,7 +6,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode, type Synthetic
 
 import { Avatar } from '../components/ui'
 import { cx } from '../lib/format'
-import { FacetBackdrop, FramedCrest, GameEmblem, HeroComposition, MoonGlyph, SoundGlyph, SunGlyph, type Frame } from './crests'
+import { FacetBackdrop, FramedCrest, FramedIcon, GameEmblem, HeroComposition, MoonGlyph, SoundGlyph, SunGlyph, type Frame } from './crests'
 import {
   GiCrenulatedShield,
   GiCrossedSwords,
@@ -21,7 +21,6 @@ import {
   GiWingedSword,
   PhGearFill,
 } from './icons'
-import { hinted } from './hints'
 import { HelpStrip, MenuBars, PickerList, TabTitle, type MenuItem, type PickerSpec } from './menus'
 import { GAMES, MATCH, OPPONENT, PLAYER, nextUnlock, type LabGame } from './sample'
 import { loadMuted, playMatchFound, saveMuted, unlockAudio } from './sound'
@@ -148,7 +147,7 @@ function StatusContent({
   return (
     <>
       <div className="lab-status__head">
-        <GiCrossedSwords size={22} />
+        <FramedIcon frame="diamond" size={34} icon={(s) => <GiCrossedSwords size={s} />} />
         <span className="lab-status__title">Match found</span>
         <span className="lab-status__time">{formatMinSec(left)}</span>
       </div>
@@ -180,15 +179,34 @@ function StatusContent({
 
 /* ---------- sidebar ---------- */
 
-type NavEntry = { key: string; label: string; icon: ReactNode; page?: Page; hint: string }
+type Glyph = (size: number) => ReactNode
+
+/** An icon in the chosen crest frame (the bevelled diamond), or plain. */
+function crest(frame: Frame, framedSize: number, plainSize: number, glyph: Glyph) {
+  return frame === 'none' ? glyph(plainSize) : <FramedIcon frame={frame} size={framedSize} icon={glyph} />
+}
+
+type NavEntry = { key: string; label: string; glyph: Glyph; page?: Page; hint: string }
 
 const NAV: NavEntry[] = [
-  { key: 'hub', label: 'Hub', icon: <GiStoneTower size={20} />, page: 'hub', hint: 'Your game at a glance: the queue, your open match and the Season.' },
-  { key: 'queue', label: 'Queue', icon: <GiCrossedSwords size={20} />, page: 'match', hint: 'Find a ranked 1v1 Bo3 opponent.' },
-  { key: 'ladder', label: 'Ladder', icon: <GiLaurels size={20} />, hint: 'Where every player stands this Season.' },
-  { key: 'profile', label: 'Profile', icon: <GiVisoredHelm size={20} />, hint: 'Your matches, your record and your card.' },
-  { key: 'rewards', label: 'Rewards', icon: <GiTrophy size={20} />, hint: 'The unlocks your ranked wins earn.' },
+  { key: 'hub', label: 'Hub', glyph: (s) => <GiStoneTower size={s} />, page: 'hub', hint: 'Your game at a glance: the queue, your open match and the Season.' },
+  { key: 'queue', label: 'Queue', glyph: (s) => <GiCrossedSwords size={s} />, page: 'match', hint: 'Find a ranked 1v1 Bo3 opponent.' },
+  { key: 'ladder', label: 'Ladder', glyph: (s) => <GiLaurels size={s} />, hint: 'Where every player stands this Season.' },
+  { key: 'profile', label: 'Profile', glyph: (s) => <GiVisoredHelm size={s} />, hint: 'Your matches, your record and your card.' },
+  { key: 'rewards', label: 'Rewards', glyph: (s) => <GiTrophy size={s} />, hint: 'The unlocks your ranked wins earn.' },
 ]
+
+const ADMIN_NAV: MenuItem = {
+  key: 'admin',
+  label: 'Admin',
+  hint: 'Cases, the Admin log and Admins. Only Admins see this.',
+  badge: '3',
+  children: [
+    { key: 'cases', label: 'Cases', hint: 'Disputed matches and Help requests waiting for an Admin.' },
+    { key: 'log', label: 'Admin log', hint: 'Every Admin action, newest first.' },
+    { key: 'admins', label: 'Admins', hint: 'Appoint and remove Admins. Only the Master sees this.' },
+  ],
+}
 
 function PlayerCard() {
   const next = nextUnlock(PLAYER.rankedWins)
@@ -226,17 +244,6 @@ function PlayerCard() {
   )
 }
 
-function NavButton({ entry, active, onGo }: { entry: NavEntry; active: boolean; onGo: (p: Page) => void }) {
-  const h = hinted(`nav-${entry.key}`, entry.hint)
-  return (
-    <button type="button" aria-current={active ? 'page' : undefined} onClick={() => entry.page && onGo(entry.page)} {...h.props}>
-      {entry.icon}
-      <span>{entry.label}</span>
-      {h.node}
-    </button>
-  )
-}
-
 function Sidebar({
   page,
   setPage,
@@ -247,6 +254,7 @@ function Sidebar({
   muted,
   setMuted,
   admin,
+  frame,
   statusSlot,
 }: {
   page: Page
@@ -258,10 +266,15 @@ function Sidebar({
   muted: boolean
   setMuted: (m: boolean) => void
   admin: boolean
+  frame: Frame
   statusSlot: ReactNode
 }) {
-  const active = NAV_KEY[page]
-  const adminHint = hinted('nav-admin', 'Cases, the Admin log and Admins.')
+  const items: MenuItem[] = NAV.map((n) => ({ key: n.key, label: n.label, hint: n.hint, icon: crest(frame, 30, 20, n.glyph) }))
+  if (admin) items.push({ ...ADMIN_NAV, icon: crest(frame, 30, 20, (s) => <GiCrenulatedShield size={s} />) })
+  const pick = (key: string) => {
+    const target = NAV.find((n) => n.key === key)?.page
+    if (target) setPage(target)
+  }
   return (
     <aside className="lab-sidebar" aria-label="Sidebar">
       <button type="button" className="lab-brand" onClick={() => setPage('home')}>
@@ -271,7 +284,7 @@ function Sidebar({
       <div className="lab-switch" role="group" aria-label="Game">
         {GAMES.map((g) => (
           <button key={g.id} type="button" aria-pressed={game === g.id} title={g.name} onClick={() => setGame(g.id)}>
-            <GameEmblem game={g.id} size={22} />
+            {crest(frame, 30, 22, (s) => <GameEmblem game={g.id} size={s} />)}
             <span>{g.id}</span>
           </button>
         ))}
@@ -279,19 +292,7 @@ function Sidebar({
 
       <PlayerCard />
 
-      <nav className="lab-nav" aria-label="Main">
-        {NAV.map((n) => (
-          <NavButton key={n.key} entry={n} active={active === n.key} onGo={setPage} />
-        ))}
-        {admin && (
-          <button type="button" className="lab-nav__admin" {...adminHint.props}>
-            <GiCrenulatedShield size={20} />
-            <span>Admin</span>
-            <span className="lab-nav__badge">3</span>
-            {adminHint.node}
-          </button>
-        )}
-      </nav>
+      <MenuBars label="Main" items={items} current={NAV_KEY[page] || undefined} onPick={pick} compact />
 
       {statusSlot}
 
@@ -343,13 +344,13 @@ function Credits() {
 
 /* ---------- phone bottom bar: five equal tiles ---------- */
 
-function BottomBar({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
-  const tiles: { key: string; label: string; icon: ReactNode; page?: Page }[] = [
-    { key: 'hub', label: 'Hub', icon: <GiStoneTower size={24} />, page: 'hub' },
-    { key: 'ladder', label: 'Ladder', icon: <GiLaurels size={24} /> },
-    { key: 'queue', label: 'Queue', icon: <GiCrossedSwords size={24} />, page: 'match' },
-    { key: 'profile', label: 'Profile', icon: <GiVisoredHelm size={24} /> },
-    { key: 'more', label: 'More', icon: <GiHamburgerMenu size={24} />, page: 'menus' },
+function BottomBar({ page, setPage, frame }: { page: Page; setPage: (p: Page) => void; frame: Frame }) {
+  const tiles: { key: string; label: string; glyph: Glyph; page?: Page }[] = [
+    { key: 'hub', label: 'Hub', glyph: (s) => <GiStoneTower size={s} />, page: 'hub' },
+    { key: 'ladder', label: 'Ladder', glyph: (s) => <GiLaurels size={s} /> },
+    { key: 'queue', label: 'Queue', glyph: (s) => <GiCrossedSwords size={s} />, page: 'match' },
+    { key: 'profile', label: 'Profile', glyph: (s) => <GiVisoredHelm size={s} /> },
+    { key: 'more', label: 'More', glyph: (s) => <GiHamburgerMenu size={s} />, page: 'menus' },
   ]
   const active = NAV_KEY[page]
   return (
@@ -362,7 +363,7 @@ function BottomBar({ page, setPage }: { page: Page; setPage: (p: Page) => void }
           aria-current={active === t.key ? 'page' : undefined}
           onClick={() => t.page && setPage(t.page)}
         >
-          <span className="lab-tile__emblem">{t.icon}</span>
+          <span className="lab-tile__emblem">{crest(frame, 36, 24, t.glyph)}</span>
           <span className="lab-tile__label">{t.label}</span>
         </button>
       ))}
@@ -764,7 +765,19 @@ const SHARDS = Array.from({ length: 14 }, (_, i) => ({
   r: (i % 2 ? 1 : -1) * (90 + ((i * 61) % 180)),
 }))
 
-function MatchFound({ anim, game, onAccept, onDecline }: { anim: Anim; game: LabGame; onAccept: () => void; onDecline: () => void }) {
+function MatchFound({
+  anim,
+  game,
+  frame,
+  onAccept,
+  onDecline,
+}: {
+  anim: Anim
+  game: LabGame
+  frame: Frame
+  onAccept: () => void
+  onDecline: () => void
+}) {
   return (
     <div className={cx('lab-found', `lab-found--${anim}`)} role="dialog" aria-modal aria-label="Match found">
       <div className="lab-found__fx" aria-hidden>
@@ -811,6 +824,9 @@ function MatchFound({ anim, game, onAccept, onDecline }: { anim: Anim; game: Lab
         )}
       </div>
       <div className="lab-found__card">
+        <span className="lab-found__crest">
+          <FramedCrest frame={frame} game={game} size={72} />
+        </span>
         <p className="lab-kicker">Match found</p>
         <p className="lab-found__title">
           <span className="lab-found__you">{PLAYER.name}</span>
@@ -847,6 +863,7 @@ export default function Lab() {
   const [game, setGame] = useState<LabGame>('012')
   const [admin, setAdmin] = useState(true)
   const [still, setStill] = useState(false)
+  const [frame, setFrame] = useState<Frame>('diamond')
   const [muted, setMutedState] = useState(loadMuted)
   /** Bumped to replay the match-found overlay; 0 means it is closed. */
   const [foundRun, setFoundRun] = useState(0)
@@ -910,7 +927,7 @@ export default function Lab() {
   return (
     <div className={cx('lab', still && 'lab--still')} data-fontset={fontSet} data-mode={mode} data-screen={screen}>
       <header className="lab-toolbar" aria-label="Lab controls">
-        <strong className="lab-toolbar__title">Lab · pass 2</strong>
+        <strong className="lab-toolbar__title">Lab · pass 3</strong>
         <Choice
           label="Page"
           value={page}
@@ -964,6 +981,15 @@ export default function Lab() {
           options={[
             { value: 'floating', label: 'Floating card · Picked' },
             { value: 'sidebar', label: 'Sidebar' },
+          ]}
+        />
+        <Choice
+          label="Crests"
+          value={frame}
+          onChange={setFrame}
+          options={[
+            { value: 'diamond', label: 'Bevelled diamond' },
+            { value: 'none', label: 'Plain' },
           ]}
         />
         <Choice
@@ -1024,6 +1050,7 @@ export default function Lab() {
               muted={muted}
               setMuted={setMuted}
               admin={admin}
+              frame={frame}
               statusSlot={
                 statusSpot === 'sidebar' && statusProps ? (
                   <div className={cx('lab-status lab-status--sidebar', status === 'ready' && 'lab-status--alert')} role="status">
@@ -1051,9 +1078,9 @@ export default function Lab() {
             </div>
           )}
 
-          <BottomBar page={page} setPage={setPage} />
+          <BottomBar page={page} setPage={setPage} frame={frame} />
 
-          {foundRun > 0 && <MatchFound key={foundRun} anim={anim} game={game} onAccept={accept} onDecline={decline} />}
+          {foundRun > 0 && <MatchFound key={foundRun} anim={anim} game={game} frame={frame} onAccept={accept} onDecline={decline} />}
         </div>
       </div>
     </div>

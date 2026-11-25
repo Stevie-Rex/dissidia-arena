@@ -36,27 +36,48 @@ export type MenuItem = {
   label: string
   hint: string
   icon?: ReactNode
+  badge?: string
   children?: MenuItem[]
 }
 
-/** Stacked bars. The selection follows the pointer and keyboard focus, like the 012 menus. */
-export function MenuBars({ label, items }: { label: string; items: MenuItem[] }) {
-  const [sel, setSel] = useState(items[0].key)
+/**
+ * Stacked bars. The selection follows the pointer and keyboard focus, like the 012 menus. When the pointer
+ * leaves, it returns to the current page (marked with aria-current and a gold edge).
+ */
+export function MenuBars({
+  label,
+  items,
+  current,
+  onPick,
+  compact,
+}: {
+  label: string
+  items: MenuItem[]
+  current?: string
+  onPick?: (key: string) => void
+  compact?: boolean
+}) {
+  const [hover, setHover] = useState<string | null>(null)
+  // Navigation (onPick) shows no selection when no page of its own is open; a plain menu starts on its first item.
+  const sel = hover ?? current ?? (onPick ? null : items[0].key)
   const bar = (item: MenuItem, sub: boolean) => {
-    const h = hinted(`menu-${item.key}`, item.hint)
+    const h = hinted(`${label}-${item.key}`, item.hint)
     const selected = sel === item.key
     return (
       <li key={item.key}>
         <button
           type="button"
-          className={cx('lab-bar-item', sub && 'lab-bar-item--sub', selected && 'is-selected')}
-          onMouseEnter={() => setSel(item.key)}
-          onFocus={() => setSel(item.key)}
+          className={cx('lab-bar-item', sub && 'lab-bar-item--sub', selected && 'is-selected', current === item.key && 'is-current')}
+          aria-current={current === item.key ? 'page' : undefined}
+          onMouseEnter={() => setHover(item.key)}
+          onFocus={() => setHover(item.key)}
+          onClick={() => onPick?.(item.key)}
           {...h.props}
         >
-          <span className="lab-bar-item__cursor">{selected && <ShardCursor />}</span>
+          <span className="lab-bar-item__cursor">{selected && <ShardCursor size={compact ? 18 : 22} />}</span>
           {item.icon && <span className="lab-bar-item__icon">{item.icon}</span>}
           <span>{item.label}</span>
+          {item.badge && <span className="lab-bar-item__badge">{item.badge}</span>}
           {h.node}
         </button>
         {item.children && <ul className="lab-bars lab-bars--sub">{item.children.map((c) => bar(c, true))}</ul>}
@@ -64,7 +85,7 @@ export function MenuBars({ label, items }: { label: string; items: MenuItem[] })
     )
   }
   return (
-    <nav aria-label={label}>
+    <nav aria-label={label} className={cx(compact && 'lab-bars--compact')} onMouseLeave={() => setHover(null)} onBlur={() => setHover(null)}>
       <ul className="lab-bars">{items.map((i) => bar(i, false))}</ul>
     </nav>
   )
