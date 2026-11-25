@@ -4,6 +4,10 @@
 - Never commit issue work directly to `main`. Push the branch and open a PR into `main` that closes the issue.
 - Follow-up fixes for an open PR go on that PR's branch.
 
+## Beta plan
+
+`docs/prd/beta.md` is the plan for the beta: the interface redesign, deployment, mock-data removal and Season 1. Read it before planning or building any of that work.
+
 ## Agent skills
 
 ### Issue tracker
