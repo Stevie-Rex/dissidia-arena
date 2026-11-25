@@ -1,5 +1,5 @@
 /*
- * Lab (#40), design pass 2. A dev-only page for choosing the Rift redesign by eye. Fixed sample data, no API,
+ * Lab (#40), design pass 4. A dev-only page for choosing the Rift redesign by eye. Fixed sample data, no API,
  * no sign-in. This branch never merges. Decisions so far are recorded on #40.
  */
 import { useEffect, useState, type CSSProperties, type ReactNode, type SyntheticEvent } from 'react'
@@ -35,6 +35,26 @@ type BannerStyle = 'blade' | 'blade2' | 'shard' | 'ribbon'
 type Anim = 'shatter' | 'split' | 'sigil'
 type Page = 'home' | 'hub' | 'match' | 'menus' | 'crests'
 type Screen = 'desktop' | 'phone'
+/** Pass 4: the font for the match score. */
+type ScoreFont = 'chakra' | 'cinzel' | 'marcellus' | 'teko' | 'oxanium'
+/** Pass 4: how the next-unlock bar is coloured. */
+type UnlockBar = 'duo' | 'blue' | 'gold' | 'shift' | 'sweep'
+
+const SCORE_FONTS: { value: ScoreFont; label: string; detail: string }[] = [
+  { value: 'chakra', label: 'Chakra Petch', detail: 'What it uses now (the font set C heading font)' },
+  { value: 'cinzel', label: 'Cinzel', detail: 'Roman, carved-stone numerals' },
+  { value: 'marcellus', label: 'Marcellus SC', detail: 'The title font, so the score matches the headings' },
+  { value: 'teko', label: 'Teko', detail: 'Tall and condensed, like a sports scoreboard' },
+  { value: 'oxanium', label: 'Oxanium', detail: 'Squared and angular, a crystal-cut look' },
+]
+
+const UNLOCK_BARS: { value: UnlockBar; label: string; detail: string }[] = [
+  { value: 'duo', label: 'Blue to gold', detail: 'What it uses now' },
+  { value: 'blue', label: 'Blue', detail: 'One colour, Cosmos blue' },
+  { value: 'gold', label: 'Gold', detail: 'One colour, gold' },
+  { value: 'shift', label: 'Blue turns red', detail: 'One colour that moves from blue to red as you near the unlock' },
+  { value: 'sweep', label: 'Blue to red track', detail: 'A blue-to-red track that the bar reveals as it fills' },
+]
 
 const FONT_SETS: { value: FontSet; label: string; detail: string }[] = [
   { value: 'c', label: 'C · Picked', detail: 'Marcellus SC · Chakra Petch · Barlow' },
@@ -208,7 +228,23 @@ const ADMIN_NAV: MenuItem = {
   ],
 }
 
-function PlayerCard() {
+/** The next-unlock bar. `--p` (0 to 100) drives the colour shift and the sweep. */
+function UnlockMeter({ pct, style, label }: { pct: number; style: UnlockBar; label: string }) {
+  return (
+    <div
+      className={cx('lab-bar', `lab-bar--${style}`)}
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={pct}
+    >
+      <span style={{ width: `${pct}%`, '--p': Math.max(pct, 1) } as CSSProperties} />
+    </div>
+  )
+}
+
+function PlayerCard({ unlockBar }: { unlockBar: UnlockBar }) {
   const next = nextUnlock(PLAYER.rankedWins)
   const pct = next ? Math.round(((PLAYER.rankedWins - next.from) / (next.goal - next.from)) * 100) : 100
   return (
@@ -230,16 +266,7 @@ function PlayerCard() {
           </span>
         )}
       </div>
-      <div
-        className="lab-bar"
-        role="progressbar"
-        aria-label={next ? `Progress to ${next.name}` : 'Every reward unlocked'}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={pct}
-      >
-        <span style={{ width: `${pct}%` }} />
-      </div>
+      <UnlockMeter pct={pct} style={unlockBar} label={next ? `Progress to ${next.name}` : 'Every reward unlocked'} />
     </div>
   )
 }
@@ -255,6 +282,7 @@ function Sidebar({
   setMuted,
   admin,
   frame,
+  unlockBar,
   statusSlot,
 }: {
   page: Page
@@ -267,6 +295,7 @@ function Sidebar({
   setMuted: (m: boolean) => void
   admin: boolean
   frame: Frame
+  unlockBar: UnlockBar
   statusSlot: ReactNode
 }) {
   const items: MenuItem[] = NAV.map((n) => ({ key: n.key, label: n.label, hint: n.hint, icon: crest(frame, 30, 20, n.glyph) }))
@@ -290,7 +319,7 @@ function Sidebar({
         ))}
       </div>
 
-      <PlayerCard />
+      <PlayerCard unlockBar={unlockBar} />
 
       <MenuBars label="Main" items={items} current={NAV_KEY[page] || undefined} onPick={pick} compact />
 
@@ -489,7 +518,19 @@ function Home({ game, onQueue, onMatch }: { game: LabGame; onQueue: () => void; 
   )
 }
 
-function Hub({ style, game, onQueue, onMatch }: { style: BannerStyle; game: LabGame; onQueue: () => void; onMatch: () => void }) {
+function Hub({
+  style,
+  unlockBar,
+  game,
+  onQueue,
+  onMatch,
+}: {
+  style: BannerStyle
+  unlockBar: UnlockBar
+  game: LabGame
+  onQueue: () => void
+  onMatch: () => void
+}) {
   const banners = hubBanners(game, onQueue, onMatch)
   return (
     <div className="lab-page">
@@ -516,6 +557,22 @@ function Hub({ style, game, onQueue, onMatch }: { style: BannerStyle; game: LabG
         ))}
       </div>
 
+      <h2 className="lab-h2 lab-compare-head">Next-unlock bar</h2>
+      <p className="lab-note">Each style at 10%, 40%, 70% and 95% of the way to an unlock. The toolbar sets the one in the sidebar.</p>
+      <div className="lab-unlocks">
+        {UNLOCK_BARS.map((u) => (
+          <div key={u.value} className={cx('lab-unlocks__row', unlockBar === u.value && 'is-picked')}>
+            <div>
+              <p className="lab-unlocks__name">{u.label}</p>
+              <p className="lab-unlocks__detail">{u.detail}</p>
+            </div>
+            {[10, 40, 70, 95].map((pct) => (
+              <UnlockMeter key={pct} pct={pct} style={u.value} label={`${u.label}, ${pct}%`} />
+            ))}
+          </div>
+        ))}
+      </div>
+
       <h2 className="lab-h2 lab-compare-head">The other styles</h2>
       <div className="lab-compare">
         {(['ribbon', 'shard'] as const).map((s) => (
@@ -529,7 +586,20 @@ function Hub({ style, game, onQueue, onMatch }: { style: BannerStyle; game: LabG
   )
 }
 
-function MatchRoom({ game, onFound }: { game: LabGame; onFound: () => void }) {
+/** A Bo3 score, Cosmos side first. */
+function Score({ font, you, them }: { font: ScoreFont; you: number; them: number }) {
+  return (
+    <div className={cx('lab-versus__score', `lab-score--${font}`)} role="img" aria-label={`Score ${you} to ${them}`}>
+      <span className="lab-score__you">{you}</span>
+      <span className="lab-versus__dash" aria-hidden>
+        –
+      </span>
+      <span className="lab-score__them">{them}</span>
+    </div>
+  )
+}
+
+function MatchRoom({ game, scoreFont, onFound }: { game: LabGame; scoreFont: ScoreFont; onFound: () => void }) {
   const [draft, setDraft] = useState('')
   return (
     <div className="lab-page lab-match">
@@ -546,11 +616,7 @@ function MatchRoom({ game, onFound }: { game: LabGame; onFound: () => void }) {
             <div className="lab-versus__tag">You · Cosmos</div>
           </div>
         </div>
-        <div className="lab-versus__score">
-          <span>1</span>
-          <span className="lab-versus__dash">–</span>
-          <span>1</span>
-        </div>
+        <Score font={scoreFont} you={1} them={1} />
         <div className="lab-versus__side lab-versus__side--chaos">
           <div className="text-right">
             <div className="lab-versus__name">{OPPONENT.name}</div>
@@ -610,6 +676,18 @@ function MatchRoom({ game, onFound }: { game: LabGame; onFound: () => void }) {
             </button>
           </form>
         </section>
+      </div>
+
+      <h2 className="lab-h2 lab-compare-head">Score fonts</h2>
+      <p className="lab-note">The same score in each font. The toolbar sets the one at the top.</p>
+      <div className="lab-scorefonts">
+        {SCORE_FONTS.map((f) => (
+          <div key={f.value} className={cx('lab-scorefonts__item', scoreFont === f.value && 'is-picked')}>
+            <Score font={f.value} you={2} them={1} />
+            <p className="lab-unlocks__name">{f.label}</p>
+            <p className="lab-unlocks__detail">{f.detail}</p>
+          </div>
+        ))}
       </div>
 
       <p className="lab-hint">
@@ -864,6 +942,8 @@ export default function Lab() {
   const [admin, setAdmin] = useState(true)
   const [still, setStill] = useState(false)
   const [frame, setFrame] = useState<Frame>('diamond')
+  const [scoreFont, setScoreFont] = useState<ScoreFont>('chakra')
+  const [unlockBar, setUnlockBar] = useState<UnlockBar>('duo')
   const [muted, setMutedState] = useState(loadMuted)
   /** Bumped to replay the match-found overlay; 0 means it is closed. */
   const [foundRun, setFoundRun] = useState(0)
@@ -917,8 +997,8 @@ export default function Lab() {
 
   const content = {
     home: <Home game={game} onQueue={queue} onMatch={() => setPage('match')} />,
-    hub: <Hub style={banner} game={game} onQueue={queue} onMatch={() => setPage('match')} />,
-    match: <MatchRoom game={game} onFound={findMatch} />,
+    hub: <Hub style={banner} unlockBar={unlockBar} game={game} onQueue={queue} onMatch={() => setPage('match')} />,
+    match: <MatchRoom game={game} scoreFont={scoreFont} onFound={findMatch} />,
     menus: <Menus muted={muted} setMuted={setMuted} />,
     crests: <Crests />,
   }[page]
@@ -927,7 +1007,7 @@ export default function Lab() {
   return (
     <div className={cx('lab', still && 'lab--still')} data-fontset={fontSet} data-mode={mode} data-screen={screen}>
       <header className="lab-toolbar" aria-label="Lab controls">
-        <strong className="lab-toolbar__title">Lab · pass 3</strong>
+        <strong className="lab-toolbar__title">Lab · pass 4</strong>
         <Choice
           label="Page"
           value={page}
@@ -1004,6 +1084,21 @@ export default function Lab() {
           ]}
         />
         <Choice
+          label="Score font"
+          value={scoreFont}
+          onChange={(f) => {
+            setScoreFont(f)
+            setPage('match')
+          }}
+          options={SCORE_FONTS.map((f) => ({ value: f.value, label: f.label, title: f.detail }))}
+        />
+        <Choice
+          label="Unlock bar"
+          value={unlockBar}
+          onChange={setUnlockBar}
+          options={UNLOCK_BARS.map((u) => ({ value: u.value, label: u.label, title: u.detail }))}
+        />
+        <Choice
           label="Match found"
           value={anim}
           onChange={(a) => {
@@ -1051,6 +1146,7 @@ export default function Lab() {
               setMuted={setMuted}
               admin={admin}
               frame={frame}
+              unlockBar={unlockBar}
               statusSlot={
                 statusSpot === 'sidebar' && statusProps ? (
                   <div className={cx('lab-status lab-status--sidebar', status === 'ready' && 'lab-status--alert')} role="status">

@@ -1,7 +1,7 @@
 /* Lab (#40), design pass 2. Dev-only; this file never merges. Candidate fonts for the three roles.
    display=block: no fallback face shows while a candidate loads.
    The palettes below are lab drafts; the chosen one moves into theme/tokens.json in the build stage. */
-@import url("https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Cormorant+SC:wght@700&family=Saira+Condensed:wght@500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=block");
+@import url("https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Cormorant+SC:wght@700&family=Saira+Condensed:wght@500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=Cinzel:wght@700;900&family=Teko:wght@500;600&family=Oxanium:wght@700;800&display=block");
 
 /* ---------- palettes: one dark, one light ---------- */
 .lab {
@@ -984,3 +984,56 @@
 .lab--still *, .lab--still *::before, .lab--still *::after { animation: none !important; transition: none !important; }
 .lab--still .lab-found__fx { display: none; }
 .lab--still .lab-btn:hover, .lab--still .lab-btn:active, .lab--still .lab-banner:hover, .lab--still .lab-tile:active { transform: none; }
+
+/* Pass 4: score fonts. Each font is sized so the digits come out about the same height. */
+.lab-score--chakra { font-family: 'Chakra Petch', sans-serif; font-weight: 700; }
+.lab-score--cinzel { font-family: 'Cinzel', serif; font-weight: 900; font-size: 56px; }
+.lab-score--marcellus { font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 58px; }
+.lab-score--teko { font-family: 'Teko', sans-serif; font-weight: 600; font-size: 74px; line-height: 0.8; padding-top: 6px; }
+.lab-score--oxanium { font-family: 'Oxanium', sans-serif; font-weight: 800; }
+.lab-score__you { color: var(--cosmos); text-shadow: 0 0 18px color-mix(in srgb, var(--cosmos) 45%, transparent); }
+.lab-score__them { color: var(--chaos); text-shadow: 0 0 18px color-mix(in srgb, var(--chaos) 45%, transparent); }
+.lab-scorefonts { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.lab-scorefonts__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  text-align: center;
+}
+.lab-scorefonts__item .lab-versus__score { margin-bottom: 8px; }
+.lab-scorefonts__item.is-picked, .lab-unlocks__row.is-picked { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+
+/* Pass 4: next-unlock bar colours. --p is the progress, 1 to 100. */
+.lab-bar--blue span { background: var(--cosmos); box-shadow: 0 0 10px var(--cosmos); }
+.lab-bar--gold span { background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+.lab-bar--shift span {
+  --c: color-mix(in oklab, var(--chaos) calc(var(--p) * 1%), var(--cosmos));
+  background: var(--c);
+  box-shadow: 0 0 10px var(--c);
+}
+.lab-bar--sweep span {
+  background: linear-gradient(90deg, var(--cosmos), var(--chaos)) left / calc(10000% / var(--p)) 100% no-repeat;
+  box-shadow: 0 0 10px color-mix(in oklab, var(--chaos) calc(var(--p) * 1%), var(--cosmos));
+}
+.lab-unlocks { display: flex; flex-direction: column; gap: 8px; }
+.lab-unlocks__row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(4, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.lab-unlocks__name { margin: 0; font-family: var(--f-head); font-weight: 600; font-size: 15px; }
+.lab-unlocks__detail { margin: 0; font-size: 12px; color: var(--muted); }
+@container stage (max-width: 760px) {
+  .lab-unlocks__row { grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .lab-unlocks__row > div:first-child { grid-column: 1 / -1; }
+}
