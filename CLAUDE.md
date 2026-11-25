@@ -9,6 +9,10 @@
 
 Backend: `cd backend && .venv/bin/python -m pytest` (setup in `backend/README.md`). Frontend: `cd frontend && npm run lint && npm run build && npm run test:e2e`.
 
+## Beta plan
+
+`docs/prd/beta.md` is the plan for the beta: the interface redesign, deployment, mock-data removal and Season 1. Read it before planning or building any of that work.
+
 ## Agent skills
 
 ### Issue tracker
