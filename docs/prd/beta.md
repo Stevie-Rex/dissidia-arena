@@ -21,7 +21,7 @@ The beta ships in three stages, in order. Each stage starts when the stage befor
 
 | Stage | Outcome | Blocks |
 |---|---|---|
-| 1. Default interface redesign | The Rift interface has its own fantasy look, with new fonts | Stage 2 |
+| 1. Default interface redesign | The Rift interface has its own esports-meets-fantasy look, with new fonts, a sidebar and a new Admin panel | Stage 2 |
 | 2. Pre-season beta | The site is deployed and players use it, with no Ratings | Stage 3 |
 | 3. Season 1 | Ratings and Ladders are live, and the Master has started Season 1 | Nothing |
 
@@ -33,15 +33,18 @@ A beta can run before Ratings exist because of a rule in #4: a match settled bef
 
 ### Goal
 
-Rework the default Rift interface into a fantasy look that feels made for this community. Fonts change first. Spacing, hierarchy, ornament, colour and copy follow. The redesign covers the pages that ship in the beta. Hidden pages wait.
+Rebuild the default Rift interface so it looks made for this community, not generated. The look is a hybrid: an esports portal in structure, dense, bold and driven by stats, with a fantasy layer drawn from Final Fantasy's feel, such as Cosmos and Chaos, crystals and engraved display type. Layout, fonts, components, colour, copy and the Admin pages all change. Pages hidden in the beta wait until they launch.
+
+The owner settled the direction in a grilling session on 2026-11-25. The decisions below replace the open questions this section used to hold. A spec breaks this work into tickets before anyone builds it.
 
 ### Hard rules
 
 - The site is a fan project. Use no official Dissidia or Final Fantasy logos, art or fonts. Keep the "a fan project" line in the footer.
 - Colours come from `frontend/src/theme/tokens.json` through CSS custom properties. CI fails when a `.tsx` file contains a hex colour.
-- The Classic interface and its unlocks keep working. Classic windows share the `da-card`, `da-btn` and `da-pill` classes with Rift, so a Rift change to those classes reaches Classic too.
-- Every world passes the colour contrast checks in `frontend/e2e/appearance.spec.ts`, at desktop and phone width.
+- The Classic interface and its unlocks keep working. Classic windows share the `da-card`, `da-btn` and `da-pill` classes with Rift, so scope new styles to Rift, and check Classic with screenshots after each change.
+- Rift's dark and light modes pass the colour contrast checks in `frontend/e2e/appearance.spec.ts`, at desktop and phone width.
 - The no-flash script in `frontend/index.html` still applies the cached appearance before first paint.
+- Motion turns off under `prefers-reduced-motion`.
 
 ### Where the current look lives
 
@@ -50,62 +53,102 @@ Rework the default Rift interface into a fantasy look that feels made for this c
 - Layouts: `frontend/src/layouts/RiftLayout.tsx`, `ClassicLayout.tsx` and `Shell.tsx`.
 - Shared components: `frontend/src/components/ui.tsx`.
 - Theme SVGs: `frontend/src/theme/assets/`, with crystal, cosmos, chaos and glove.
-- The original theme spec: `Spec Files/Dissidia Arena — Theme & Interface Tech Spec.md`. Quote the path, since it contains spaces and an em dash. The theme package's values win over the spec, and the spec's behaviour wins over the package.
+- The owner's reference images: `UI Designs/UI design ideas/`. Ideas one to four are esports and guild sites. The owner also pointed to the home screen of Dissidia Duellum for its emblem tile bar, player card, Season progress bar, slanted banner cards and frosted panels.
+- The original theme spec: `Spec Files/Dissidia Arena — Theme & Interface Tech Spec.md`. Quote the path, since it contains spaces and an em dash. This section wins over the spec wherever they disagree.
 
-### Font pairings to trial
+### Decisions
 
-Cinzel and Inter are two of the most common fonts on generated sites. These pairings are all on Google Fonts:
+**Scope and pace**
 
-| Pairing | Titles | Body text | Character |
-|---|---|---|---|
-| Storybook | Alegreya SC | Alegreya Sans | Calligraphic, like a printed fantasy novel. The most readable of the four. |
-| Old print | IM Fell English SC | Spectral | Antique and inked, with rough edges. The strongest atmosphere. |
-| Engraved | Cormorant SC, bold | Source Serif 4 | Keeps today's elegance without Cinzel. Serif throughout. |
-| Blackletter accent | Grenze Gotisch, for the brand and Chaos only | Grenze | Sharp and dark, and suits the Cosmos and Chaos split. Use it sparingly. |
+- Restyle everything in Rift: layout, fonts, components, colour, copy and the Admin pages.
+- There is no time box. Each piece merges when the owner has reviewed it.
+- Meta, Tournaments, Party, Friends, the Discord suggestions and the 3v3 queue option stay hidden in the beta, and are redesigned when they launch.
+- Classic only has to keep working in Stage 1. Its own restyle, with the sidebar, is separate work after Stage 1.
 
-### Open questions for the grilling session
+**Appearance**
 
-The owner answers these before anyone builds Stage 1:
+- Rift is dark by default. Light is the only other Rift appearance.
+- Worlds are removed. See `docs/adr/0001-remove-rift-worlds.md`. Classic's window themes are a separate setting and stay, with their unlocks.
 
-1. Which font pairing wins, after a side-by-side trial on Home and the match room?
-2. How deep does the redesign go? New fonts and polish only, or a restyle of the Rift layout itself?
-3. What does "fantasy" mean here? Name two or three reference sources, such as old fantasy print, a game's menu style or a book's typesetting.
-4. Do all six worlds get the full redesign, or does the default Dissidia world lead and the other five get a colour pass?
-5. Which pages ship in the beta and get redesigned, and which are hidden? See the page list in Stage 2.
-6. What is the time box? Two weeks is the suggestion.
-7. Does the Classic interface change at all, or only stay unbroken?
+**Fonts**
+
+Three roles replace today's four families:
+
+| Role | Use | Lead candidate |
+|---|---|---|
+| Display | The brand and big titles. This carries the fantasy feel. | Marcellus SC |
+| Heading | Section headings, numbers and stats. This carries the esports energy. | Saira Condensed |
+| Body | Everything else | Barlow |
+
+The owner picks the final set in the lab, from the lead candidate and two alternates. Alternates for display include bold Cormorant SC. Alternates for heading include Barlow Condensed and Chakra Petch. Cinzel and Inter are out.
+
+**Shell**
+
+- Desktop has a left sidebar instead of the top navigation bar. From top to bottom it holds:
+  - the game switcher, with an emblem for 012 and for NT;
+  - the player card, with avatar, name, ranked wins and a progress bar to the next unlock. Stage 3 adds the Season emblem;
+  - navigation: Hub, Queue, Ladder, Profile and Rewards;
+  - an Admin link, shown only to Admins;
+  - at the bottom, settings, the light and dark toggle, and the Discord feedback link.
+- Searching and an open match show in one place on every page: either a block pinned in the sidebar, or a floating card in the bottom-right corner with a timer and an action. The lab shows both, and the owner picks one.
+- Phones are designed for second. Queue, the match room, reporting, the dispute form and Admin cases are fully designed at phone width. Other pages only need to stack cleanly.
+- The phone navigation is a bottom bar of emblem tiles with condensed labels: Hub, Ladder, Queue, Profile and More, with Queue largest and in the centre. The emblems are original SVG crests. The lab tests it.
+
+**Pages**
+
+- Home has a large hero slot. In the beta it holds an abstract Cosmos and Chaos composition built from the theme's SVGs, with light rays and a split of light and dark. The slot is built so commissioned art can replace it later.
+- Home and Hub put frosted glass panels over that dimmed backdrop. Queue, the match room and the Admin pages use a plain dark background, so they stay readable.
+- Hub carries slanted banner cards built only from real data: joining the queue with the number of players searching, your open match, and the Season status, such as "Pre-season: wins still count". They replace the mock top list and recent matches. The lab tests the style.
+
+**Voice**
+
+- Anything a player clicks has a plain, punchy label, such as "Queue", "Report result" or "Dispute".
+- Flavour goes only where it can't cause a mistake: headings and empty states. For example: "No battles fought yet. The Rift is waiting."
+
+**Motion**
+
+- The site gets a signature match-found animation, such as a crystal shatter or a Cosmos and Chaos split, plus hover and press feedback. The lab explores options before any ship.
+
+**Admin**
+
+- There is one Admin panel with three tabs: Cases, Log, and Admins. Only the Master sees the Admins tab, which lists the Admins with a remove button and puts the search to appoint one above it. Permissions don't change. The Master keeps the sole power to appoint and remove Admins, reopen Settled matches and take over a Claim.
+- Admin pages use the same design system as player pages, at a denser setting, without the hero, glass panels or banner cards. They drop the Friends sidebar.
+- Cases is a dense table, with one row per Disputed match or Help request. Columns show a type badge (Dispute or Help, in different colours), the match, the players, the game, the age, such as "12 min ago", and the Claim (Unclaimed, or the Admin's name). Filter chips: All, Disputes, Help, Unclaimed and Mine.
+- A case page reads top to bottom in the order an Admin decides. First a summary strip shows the players, the game, the status and the Claim. Next comes the evidence: reported games, both statements and Screenshots. Match chat and dispute records follow.
+- The Admin can see the evidence while writing a Ruling, or while closing or voiding a Help request. On desktop the form stays in view in a right-hand column while the evidence scrolls. On a phone a "Write ruling" bar pinned to the bottom opens a half-height panel, and the evidence scrolls above it. The text typed so far is saved as a draft on the device, so scrolling, closing the panel or reloading never loses it.
+- The Admin log shows one compact row per action: the time, the actor's avatar, an action badge coloured by kind (such as Ruling, Claim, Void or appoint), and a link to the target. Filters by action and by Admin.
+
+### How the work runs
+
+1. **Lab, round 1.** A dev-only `/lab` route on its own branch, which never merges. It uses the real components with fixed sample data, so `npm run dev` shows it with no backend or Discord sign-in. It holds:
+   - the font sets, switchable, on a Home mock and a match room mock;
+   - the dark shell with the sidebar and game switcher;
+   - both places for searching and open match status;
+   - two or three styles of Hub banner card;
+   - the phone bottom bar;
+   - two or three match-found animations, with hover and press feedback;
+   - Home's hero with glass panels.
+2. **Lab, round 2.** The Admin panel, built on the font set and shell chosen in round 1.
+3. **Build.** One parent issue with several pull requests, each leaving the site working. A likely order: the foundation (fonts, tokens, dark and light modes, removing worlds, the sidebar shell), then the match flow pages, then Home, Welcome, Hub and the remaining pages, then the Admin panel. The spec sets the final split.
+4. **Review.** Each pull request opens as a draft with before and after screenshots at desktop and phone width, and the commands to run the branch locally. The owner tests it and leaves feedback in the pull request or the chat. The pull request leaves draft only when the owner signs off.
+
+### Later, separate work
+
+- Restyle the Classic interface and give it the sidebar.
+- Rift's own cosmetic unlocks, such as player card frames, sidebar emblems and Profile banners, so Rift players have something on the unlock bar besides Classic items.
+- Commissioned art for Home's hero slot.
 
 ### Checklist
 
-Direction:
-
-- [ ] Open a GitHub issue for the redesign and branch off `main` as `feat/<short-slug>`.
-- [ ] Review Home, Hub, Queue, the match room, Admin cases and the Rift layout with the `unslop` skill, and list each generated-looking pattern with its file.
-- [ ] The owner agrees a fantasy direction with a short reference board.
-- [ ] The owner sets the time box.
-
-Fonts:
-
-- [ ] Render two or three pairings side by side on Home and the match room, in a light world and a dark world.
-- [ ] The owner picks one pairing.
-- [ ] Swap the families in `fonts.css` and `rift.fonts`, and confirm that every weight loads with no fallback font showing.
-
-Restyle:
-
-- [ ] Reduce the type scale to four sizes with clear title weight.
-- [ ] Rework spacing and layout on each page that ships in the beta.
-- [ ] Replace generic shapes with custom SVG dividers, frames and crystal motifs, built from the theme's assets.
-- [ ] Do a colour pass through the tokens in every world the owner chose.
-- [ ] Rewrite button labels, empty states and headings in the site's own voice.
-- [ ] Add at most one purposeful motion, such as the match-found reveal, and turn it off under `prefers-reduced-motion`.
-
-Sign-off:
-
+- [ ] Write the Stage 1 spec and break it into tickets.
+- [ ] Lab, round 1: the owner picks the font set, the place for match status, the banner card style, the motion and the bottom bar.
+- [ ] Lab, round 2: the owner approves the Admin panel.
+- [ ] Remove worlds from the frontend, the API and the database.
+- [ ] Build and merge every Stage 1 pull request, each signed off by the owner.
 - [ ] The Classic interface and every unlock still render correctly.
 - [ ] Lint, build and the Playwright suite with axe pass. Tests change only where the layout changed on purpose.
-- [ ] The owner signs off on before and after screenshots of each redesigned page.
 
-Stage 1 is complete when every box above is ticked and the redesign PR is merged.
+Stage 1 is complete when every box above is ticked.
 
 ## Stage 2: pre-season beta
 
@@ -121,7 +164,7 @@ Every number a player sees comes from the database, or the page says the feature
 - [ ] The Hub drops the mock top list and the mock recent matches.
 - [ ] Add API endpoints for a player's public profile and their settled matches. No issue exists for these yet.
 - [ ] Profile and Match details read from those endpoints.
-- [ ] Meta, Tournaments, Party, Friends, the Discord suggestions, the sidebar friends list and the 3v3 queue option are hidden or marked as coming later, as the owner decides.
+- [ ] Meta, Tournaments, Party, Friends, the Discord suggestions, the sidebar friends list and the 3v3 queue option are hidden. The owner decided this on 2026-11-25.
 - [ ] Placeholder copy such as "Ratings are coming soon" says what is true in the beta.
 
 ### Hosting
@@ -214,7 +257,7 @@ The owner may adjust these targets.
 
 ## Owner decisions still open
 
-Stage 1 has its own questions above. These cover the rest of the beta:
+The owner settled Stage 1's questions on 2026-11-25. These cover the rest of the beta:
 
 1. Does the beta open for both games, or for 012 first? `HANDOFF.md` names the 012 website as the focus.
 2. Is the beta closed or open? Anyone with Discord can sign in today. A closed beta needs an allowlist, which needs its own issue.
@@ -225,7 +268,7 @@ Stage 1 has its own questions above. These cover the rest of the beta:
 
 | Risk | Effect | Mitigation |
 |---|---|---|
-| The redesign keeps growing | Stage 1 blocks deployment, so the beta slips | Keep the time box, and redesign only the pages that ship |
+| The redesign keeps growing | Stage 1 blocks deployment, so the beta slips | Settle choices in the lab before building, merge in small pull requests, and leave hidden pages until they launch |
 | Season 1 ends before #16 merges | The first Season never ends | Start Season 1 only after #16 merges, or merge it within the first month |
 | The bot stops | Pairing, accept timeouts, auto-confirm and the Screenshot purge all stop with it | Restart policy, an uptime alert, and `flask matchmaker` as a fallback |
 | Only the owner rules on disputes | Rulings slow down, and the owner rules on their own matches | Appoint Admins in Stage 2 |
