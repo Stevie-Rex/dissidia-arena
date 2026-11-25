@@ -506,7 +506,7 @@ function Hub({ style, game, onQueue, onMatch }: { style: BannerStyle; game: LabG
       <div className="lab-compare lab-compare--two">
         {(['blade', 'blade2'] as const).map((s) => (
           <div key={s}>
-            <p className="lab-compare__label">{s === 'blade' ? 'Blade' : 'Blade v2'}</p>
+            <p className="lab-compare__label">{s === 'blade' ? 'Blade (round 1)' : 'Blade v2 (picked)'}</p>
             <div className="lab-banners">
               {banners.map((b) => (
                 <Banner key={b.tone} style={s} {...b} />
@@ -856,7 +856,7 @@ export default function Lab() {
   const [mode, setMode] = useState<Mode>('dark')
   const [statusSpot, setStatusSpot] = useState<StatusSpot>('floating')
   const [status, setStatus] = useState<Status>('searching')
-  const [banner, setBanner] = useState<BannerStyle>('blade')
+  const [banner, setBanner] = useState<BannerStyle>('blade2')
   const [anim, setAnim] = useState<Anim>('shatter')
   const [page, setPage] = useState<Page>('home')
   const [screen, setScreen] = useState<Screen>('desktop')
@@ -997,8 +997,8 @@ export default function Lab() {
           value={banner}
           onChange={setBanner}
           options={[
-            { value: 'blade', label: 'Blade · Picked' },
-            { value: 'blade2', label: 'Blade v2' },
+            { value: 'blade2', label: 'Blade v2 · Picked' },
+            { value: 'blade', label: 'Blade' },
             { value: 'ribbon', label: 'Ribbon' },
             { value: 'shard', label: 'Shard' },
           ]}
