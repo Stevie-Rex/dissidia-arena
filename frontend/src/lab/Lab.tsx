@@ -1,26 +1,30 @@
 /*
- * Lab, round 1 (#40). A dev-only page for choosing the Rift redesign by eye. Fixed sample data, no API,
- * no sign-in. This branch never merges.
+ * Lab (#40), design pass 2. A dev-only page for choosing the Rift redesign by eye. Fixed sample data, no API,
+ * no sign-in. This branch never merges. Decisions so far are recorded on #40.
  */
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode, type SyntheticEvent } from 'react'
 
 import { Avatar } from '../components/ui'
 import { cx } from '../lib/format'
+import { FacetBackdrop, FramedCrest, GameEmblem, HeroComposition, MoonGlyph, SoundGlyph, SunGlyph, type Frame } from './crests'
 import {
-  AdminCrest,
-  FeedbackCrest,
-  GameEmblem,
-  HeroComposition,
-  HubCrest,
-  LadderCrest,
-  MoonGlyph,
-  MoreCrest,
-  ProfileCrest,
-  QueueCrest,
-  SettingsCrest,
-  SunGlyph,
-} from './crests'
+  GiCrenulatedShield,
+  GiCrossedSwords,
+  GiFloatingCrystal,
+  GiGears,
+  GiHamburgerMenu,
+  GiLaurels,
+  GiQuillInk,
+  GiStoneTower,
+  GiTrophy,
+  GiVisoredHelm,
+  GiWingedSword,
+  PhGearFill,
+} from './icons'
+import { hinted } from './hints'
+import { HelpStrip, MenuBars, PickerList, TabTitle, type MenuItem, type PickerSpec } from './menus'
 import { GAMES, MATCH, OPPONENT, PLAYER, nextUnlock, type LabGame } from './sample'
+import { loadMuted, playMatchFound, saveMuted, unlockAudio } from './sound'
 import './lab.css'
 
 type FontSet = 'a' | 'b' | 'c'
@@ -28,23 +32,26 @@ type Mode = 'dark' | 'light'
 /** Where match status shows. (Not "placement": that is a glossary term for a player's first matches.) */
 type StatusSpot = 'sidebar' | 'floating'
 type Status = 'none' | 'searching' | 'ready'
-type BannerStyle = 'blade' | 'shard' | 'ribbon'
+type BannerStyle = 'blade' | 'blade2' | 'shard' | 'ribbon'
 type Anim = 'shatter' | 'split' | 'sigil'
-type Page = 'home' | 'hub' | 'match'
+type Page = 'home' | 'hub' | 'match' | 'menus' | 'crests'
 type Screen = 'desktop' | 'phone'
 
 const FONT_SETS: { value: FontSet; label: string; detail: string }[] = [
-  { value: 'a', label: 'A · Lead', detail: 'Marcellus SC · Saira Condensed · Barlow' },
+  { value: 'c', label: 'C · Picked', detail: 'Marcellus SC · Chakra Petch · Barlow' },
+  { value: 'a', label: 'A', detail: 'Marcellus SC · Saira Condensed · Barlow' },
   { value: 'b', label: 'B', detail: 'Cormorant SC bold · Barlow Condensed · Barlow' },
-  { value: 'c', label: 'C', detail: 'Marcellus SC · Chakra Petch · Barlow' },
 ]
+
+const DEFAULT_HINT = 'Point at or focus an item to see what it does.'
+const ACCEPT_SECONDS = 60
 
 /* ---------- small pieces ---------- */
 
 const gameInfo = (game: LabGame) => GAMES.find((g) => g.id === game)!
 
 /** Which nav entry a lab page lights up in the sidebar and the bottom bar. */
-const navKey = (page: Page) => (page === 'hub' ? 'hub' : page === 'match' ? 'queue' : '')
+const NAV_KEY: Record<Page, string> = { home: '', hub: 'hub', match: 'queue', menus: 'more', crests: '' }
 
 function Choice<T extends string>({
   label,
@@ -62,13 +69,7 @@ function Choice<T extends string>({
       <span className="lab-choice__label">{label}</span>
       <div className="lab-choice__opts">
         {options.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            title={o.title}
-            aria-pressed={value === o.value}
-            onClick={() => onChange(o.value)}
-          >
+          <button key={o.value} type="button" title={o.title} aria-pressed={value === o.value} onClick={() => onChange(o.value)}>
             {o.label}
           </button>
         ))}
@@ -80,16 +81,18 @@ function Choice<T extends string>({
 function Button({
   children,
   variant = 'primary',
+  size = 'md',
   onClick,
   className,
 }: {
   children: ReactNode
   variant?: 'primary' | 'ghost' | 'chaos'
+  size?: 'md' | 'lg'
   onClick?: () => void
   className?: string
 }) {
   return (
-    <button type="button" className={cx('lab-btn', `lab-btn--${variant}`, className)} onClick={onClick}>
+    <button type="button" className={cx('lab-btn', `lab-btn--${variant}`, size === 'lg' && 'lab-btn--lg', className)} onClick={onClick}>
       <span>{children}</span>
     </button>
   )
@@ -105,10 +108,8 @@ function useElapsed() {
   return secs
 }
 
-function clock(secs: number) {
-  const m = Math.floor(secs / 60)
-  const s = secs % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+function formatMinSec(secs: number) {
+  return `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`
 }
 
 /* ---------- match status (sidebar block or floating card) ---------- */
@@ -117,52 +118,76 @@ function StatusContent({
   status,
   game,
   onCancel,
-  onOpen,
+  onAccept,
 }: {
   status: Exclude<Status, 'none'>
   game: LabGame
   onCancel: () => void
-  onOpen: () => void
+  onAccept: () => void
 }) {
   const secs = useElapsed()
   if (status === 'searching')
     return (
       <>
         <div className="lab-status__head">
-          <span className="lab-status__pulse" aria-hidden />
+          <span className="lab-status__dot" aria-hidden />
           <span className="lab-status__title">Searching</span>
-          <span className="lab-status__time">{clock(secs)}</span>
+          <span className="lab-status__time">{formatMinSec(secs)}</span>
         </div>
         <p className="lab-status__text">
           {game} · 1v1 Bo3 · {PLAYER.region}
         </p>
-        <Button variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
+        <div className="lab-status__actions">
+          <Button variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
       </>
     )
-  const left = Math.max(0, 60 - secs)
+  const left = Math.max(0, ACCEPT_SECONDS - secs)
   return (
     <>
       <div className="lab-status__head">
-        <span className="lab-status__pulse lab-status__pulse--ready" aria-hidden />
-        <span className="lab-status__title">Match ready</span>
-        <span className="lab-status__time">{clock(left)}</span>
+        <GiCrossedSwords size={22} />
+        <span className="lab-status__title">Match found</span>
+        <span className="lab-status__time">{formatMinSec(left)}</span>
       </div>
-      <p className="lab-status__text">vs {OPPONENT.name}</p>
-      <Button onClick={onOpen}>Accept</Button>
+      <p className="lab-status__vs">vs {OPPONENT.name}</p>
+      <p className="lab-status__text">
+        {game} · 1v1 Bo3 · {PLAYER.region}
+      </p>
+      <div
+        className="lab-status__drain"
+        role="progressbar"
+        aria-label="Time left to accept"
+        aria-valuemin={0}
+        aria-valuemax={ACCEPT_SECONDS}
+        aria-valuenow={left}
+      >
+        <span style={{ width: `${(left / ACCEPT_SECONDS) * 100}%` }} />
+      </div>
+      <div className="lab-status__actions">
+        <Button size="lg" onClick={onAccept}>
+          Accept
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          Decline
+        </Button>
+      </div>
     </>
   )
 }
 
 /* ---------- sidebar ---------- */
 
-const NAV: { key: string; label: string; icon: ReactNode; page?: Page }[] = [
-  { key: 'hub', label: 'Hub', icon: <HubCrest size={20} />, page: 'hub' },
-  { key: 'queue', label: 'Queue', icon: <QueueCrest size={20} />, page: 'match' },
-  { key: 'ladder', label: 'Ladder', icon: <LadderCrest size={20} /> },
-  { key: 'profile', label: 'Profile', icon: <ProfileCrest size={20} /> },
-  { key: 'rewards', label: 'Rewards', icon: <MoreCrest size={20} /> },
+type NavEntry = { key: string; label: string; icon: ReactNode; page?: Page; hint: string }
+
+const NAV: NavEntry[] = [
+  { key: 'hub', label: 'Hub', icon: <GiStoneTower size={20} />, page: 'hub', hint: 'Your game at a glance: the queue, your open match and the Season.' },
+  { key: 'queue', label: 'Queue', icon: <GiCrossedSwords size={20} />, page: 'match', hint: 'Find a ranked 1v1 Bo3 opponent.' },
+  { key: 'ladder', label: 'Ladder', icon: <GiLaurels size={20} />, hint: 'Where every player stands this Season.' },
+  { key: 'profile', label: 'Profile', icon: <GiVisoredHelm size={20} />, hint: 'Your matches, your record and your card.' },
+  { key: 'rewards', label: 'Rewards', icon: <GiTrophy size={20} />, hint: 'The unlocks your ranked wins earn.' },
 ]
 
 function PlayerCard() {
@@ -201,6 +226,17 @@ function PlayerCard() {
   )
 }
 
+function NavButton({ entry, active, onGo }: { entry: NavEntry; active: boolean; onGo: (p: Page) => void }) {
+  const h = hinted(`nav-${entry.key}`, entry.hint)
+  return (
+    <button type="button" aria-current={active ? 'page' : undefined} onClick={() => entry.page && onGo(entry.page)} {...h.props}>
+      {entry.icon}
+      <span>{entry.label}</span>
+      {h.node}
+    </button>
+  )
+}
+
 function Sidebar({
   page,
   setPage,
@@ -208,6 +244,8 @@ function Sidebar({
   setGame,
   mode,
   setMode,
+  muted,
+  setMuted,
   admin,
   statusSlot,
 }: {
@@ -217,10 +255,13 @@ function Sidebar({
   setGame: (g: LabGame) => void
   mode: Mode
   setMode: (m: Mode) => void
+  muted: boolean
+  setMuted: (m: boolean) => void
   admin: boolean
   statusSlot: ReactNode
 }) {
-  const active = navKey(page)
+  const active = NAV_KEY[page]
+  const adminHint = hinted('nav-admin', 'Cases, the Admin log and Admins.')
   return (
     <aside className="lab-sidebar" aria-label="Sidebar">
       <button type="button" className="lab-brand" onClick={() => setPage('home')}>
@@ -240,21 +281,14 @@ function Sidebar({
 
       <nav className="lab-nav" aria-label="Main">
         {NAV.map((n) => (
-          <button
-            key={n.key}
-            type="button"
-            aria-current={active === n.key ? 'page' : undefined}
-            onClick={() => n.page && setPage(n.page)}
-          >
-            {n.icon}
-            <span>{n.label}</span>
-          </button>
+          <NavButton key={n.key} entry={n} active={active === n.key} onGo={setPage} />
         ))}
         {admin && (
-          <button type="button" className="lab-nav__admin">
-            <AdminCrest size={20} />
+          <button type="button" className="lab-nav__admin" {...adminHint.props}>
+            <GiCrenulatedShield size={20} />
             <span>Admin</span>
             <span className="lab-nav__badge">3</span>
+            {adminHint.node}
           </button>
         )}
       </nav>
@@ -262,8 +296,8 @@ function Sidebar({
       {statusSlot}
 
       <div className="lab-sidebar__foot">
-        <button type="button" className="lab-foot-btn">
-          <SettingsCrest />
+        <button type="button" className="lab-foot-btn" aria-current={page === 'menus' ? 'page' : undefined} onClick={() => setPage('menus')}>
+          <GiGears size={18} />
           <span>Settings</span>
         </button>
         <button
@@ -275,34 +309,56 @@ function Sidebar({
           {mode === 'dark' ? <SunGlyph /> : <MoonGlyph />}
           <span>{mode === 'dark' ? 'Light mode' : 'Dark mode'}</span>
         </button>
+        <button type="button" className="lab-foot-btn" aria-pressed={!muted} onClick={() => setMuted(!muted)}>
+          <SoundGlyph muted={muted} />
+          <span>{muted ? 'Sound off' : 'Sound on'}</span>
+        </button>
         <a className="lab-foot-btn" href="#feedback" onClick={(e) => e.preventDefault()}>
-          <FeedbackCrest />
+          <GiQuillInk size={18} />
           <span>Feedback on Discord</span>
         </a>
         <p className="lab-sidebar__fan">Dissidia Arena — a fan project</p>
+        <Credits />
       </div>
     </aside>
   )
 }
 
-/* ---------- phone bottom bar ---------- */
+/** CC BY 3.0 needs a credit. The build stage turns this into a /credits page and a CREDITS.md. */
+function Credits() {
+  return (
+    <p className="lab-credits">
+      Icons by Lorc and Delapouite from{' '}
+      <a href="https://game-icons.net" target="_blank" rel="noreferrer">
+        game-icons.net
+      </a>
+      ,{' '}
+      <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">
+        CC BY 3.0
+      </a>
+      .
+    </p>
+  )
+}
+
+/* ---------- phone bottom bar: five equal tiles ---------- */
 
 function BottomBar({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
-  const tiles: { key: string; label: string; icon: ReactNode; page?: Page; big?: boolean }[] = [
-    { key: 'hub', label: 'Hub', icon: <HubCrest size={24} />, page: 'hub' },
-    { key: 'ladder', label: 'Ladder', icon: <LadderCrest size={24} /> },
-    { key: 'queue', label: 'Queue', icon: <QueueCrest size={34} />, page: 'match', big: true },
-    { key: 'profile', label: 'Profile', icon: <ProfileCrest size={24} /> },
-    { key: 'more', label: 'More', icon: <MoreCrest size={24} /> },
+  const tiles: { key: string; label: string; icon: ReactNode; page?: Page }[] = [
+    { key: 'hub', label: 'Hub', icon: <GiStoneTower size={24} />, page: 'hub' },
+    { key: 'ladder', label: 'Ladder', icon: <GiLaurels size={24} /> },
+    { key: 'queue', label: 'Queue', icon: <GiCrossedSwords size={24} />, page: 'match' },
+    { key: 'profile', label: 'Profile', icon: <GiVisoredHelm size={24} /> },
+    { key: 'more', label: 'More', icon: <GiHamburgerMenu size={24} />, page: 'menus' },
   ]
-  const active = navKey(page)
+  const active = NAV_KEY[page]
   return (
     <nav className="lab-bottombar" aria-label="Phone navigation">
       {tiles.map((t) => (
         <button
           key={t.key}
           type="button"
-          className={cx('lab-tile', t.big && 'lab-tile--big')}
+          className="lab-tile"
           aria-current={active === t.key ? 'page' : undefined}
           onClick={() => t.page && setPage(t.page)}
         >
@@ -316,15 +372,7 @@ function BottomBar({ page, setPage }: { page: Page; setPage: (p: Page) => void }
 
 /* ---------- Hub banner cards ---------- */
 
-function Banner({
-  style,
-  tone,
-  kicker,
-  big,
-  text,
-  action,
-  onAction,
-}: {
+type BannerProps = {
   style: BannerStyle
   tone: 'queue' | 'match' | 'season'
   kicker: string
@@ -332,7 +380,9 @@ function Banner({
   text: string
   action?: string
   onAction?: () => void
-}) {
+}
+
+function Banner({ style, tone, kicker, big, text, action, onAction }: BannerProps) {
   return (
     <article className={cx('lab-banner', `lab-banner--${style}`, `lab-banner--${tone}`)}>
       <div className="lab-banner__inner">
@@ -353,37 +403,32 @@ function Banner({
   )
 }
 
-function HubBanners({ style, game, onQueue, onMatch }: { style: BannerStyle; game: LabGame; onQueue: () => void; onMatch: () => void }) {
-  const searching = gameInfo(game).searching
-  return (
-    <div className="lab-banners">
-      <Banner
-        style={style}
-        tone="queue"
-        kicker={`${game} · 1v1 Bo3 · ${PLAYER.region}`}
-        big={String(searching)}
-        text="players searching now"
-        action="Queue"
-        onAction={onQueue}
-      />
-      <Banner
-        style={style}
-        tone="match"
-        kicker={`Open match #${MATCH.id}`}
-        big="1–1"
-        text={`vs ${OPPONENT.name} · Game 3 next`}
-        action="Go to match"
-        onAction={onMatch}
-      />
-      <Banner style={style} tone="season" kicker="Season status" text="Pre-season: wins still count before Season 1" />
-    </div>
-  )
+/** The three Hub banners, from sample data. */
+function hubBanners(game: LabGame, onQueue: () => void, onMatch: () => void): Omit<BannerProps, 'style'>[] {
+  return [
+    {
+      tone: 'queue',
+      kicker: `${game} · 1v1 Bo3 · ${PLAYER.region}`,
+      big: String(gameInfo(game).searching),
+      text: 'players searching now',
+      action: 'Queue',
+      onAction: onQueue,
+    },
+    {
+      tone: 'match',
+      kicker: `Open match #${MATCH.id}`,
+      big: '1–1',
+      text: `vs ${OPPONENT.name} · Game 3 next`,
+      action: 'Go to match',
+      onAction: onMatch,
+    },
+    { tone: 'season', kicker: 'Season status', text: 'Pre-season: wins still count before Season 1' },
+  ]
 }
 
 /* ---------- pages ---------- */
 
 function Home({ game, onQueue, onMatch }: { game: LabGame; onQueue: () => void; onMatch: () => void }) {
-  const searching = gameInfo(game).searching
   return (
     <div className="lab-home">
       <section className="lab-hero" aria-label="Hero">
@@ -402,7 +447,7 @@ function Home({ game, onQueue, onMatch }: { game: LabGame; onQueue: () => void; 
       <div className="lab-glass-row">
         <div className="lab-glass">
           <span className="lab-glass__label">Searching now · {game}</span>
-          <strong className="lab-stat">{searching}</strong>
+          <strong className="lab-stat">{gameInfo(game).searching}</strong>
           <Button onClick={onQueue}>Queue</Button>
         </div>
         <div className="lab-glass lab-glass--chaos">
@@ -420,7 +465,7 @@ function Home({ game, onQueue, onMatch }: { game: LabGame; onQueue: () => void; 
       </div>
 
       <section className="lab-section">
-        <h2 className="lab-h2">Recent battles</h2>
+        <TabTitle>Recent battles</TabTitle>
         <div className="lab-glass lab-empty">
           <p className="lab-empty__title">No battles fought yet. The Rift is waiting.</p>
           <Button onClick={onQueue}>Queue</Button>
@@ -428,7 +473,7 @@ function Home({ game, onQueue, onMatch }: { game: LabGame; onQueue: () => void; 
       </section>
 
       <section className="lab-section">
-        <h2 className="lab-h2">Type specimen</h2>
+        <TabTitle>Type specimen</TabTitle>
         <div className="lab-glass lab-specimen">
           <p className="lab-display lab-specimen__display">Cosmos &amp; Chaos</p>
           <p className="lab-h2">Ranked wins 23 · Bo3 · 2–1</p>
@@ -444,25 +489,38 @@ function Home({ game, onQueue, onMatch }: { game: LabGame; onQueue: () => void; 
 }
 
 function Hub({ style, game, onQueue, onMatch }: { style: BannerStyle; game: LabGame; onQueue: () => void; onMatch: () => void }) {
+  const banners = hubBanners(game, onQueue, onMatch)
   return (
-    <div className="lab-page lab-page--glass">
+    <div className="lab-page">
       <p className="lab-kicker">{gameInfo(game).name}</p>
       <h1 className="lab-h1">Hub</h1>
-      <HubBanners style={style} game={game} onQueue={onQueue} onMatch={onMatch} />
+      <div className="lab-banners">
+        {banners.map((b) => (
+          <Banner key={b.tone} style={style} {...b} />
+        ))}
+      </div>
 
-      <h2 className="lab-h2 lab-compare-head">All three styles side by side</h2>
-      <div className="lab-compare">
-        {(['blade', 'shard', 'ribbon'] as const).map((s) => (
+      <h2 className="lab-h2 lab-compare-head">Blade and Blade v2 side by side</h2>
+      <p className="lab-note">Blade v2 adds a silver bevelled edge, a slanted title tab, and selection blue on hover and focus.</p>
+      <div className="lab-compare lab-compare--two">
+        {(['blade', 'blade2'] as const).map((s) => (
           <div key={s}>
-            <p className="lab-compare__label">{s}</p>
-            <Banner
-              style={s}
-              tone="queue"
-              kicker={`${game} · 1v1 Bo3 · ${PLAYER.region}`}
-              big="14"
-              text="players searching now"
-              action="Queue"
-            />
+            <p className="lab-compare__label">{s === 'blade' ? 'Blade' : 'Blade v2'}</p>
+            <div className="lab-banners">
+              {banners.map((b) => (
+                <Banner key={b.tone} style={s} {...b} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="lab-h2 lab-compare-head">The other styles</h2>
+      <div className="lab-compare">
+        {(['ribbon', 'shard'] as const).map((s) => (
+          <div key={s}>
+            <p className="lab-compare__label">{s === 'ribbon' ? 'Ribbon (more variants later)' : 'Shard (rejected in round 1)'}</p>
+            <Banner style={s} {...banners[0]} />
           </div>
         ))}
       </div>
@@ -502,8 +560,8 @@ function MatchRoom({ game, onFound }: { game: LabGame; onFound: () => void }) {
       </section>
 
       <div className="lab-match__grid">
-        <section className="lab-panel" aria-label="Games">
-          <h2 className="lab-h2">Games</h2>
+        <section className="lab-panel lab-panel--tabbed" aria-label="Games">
+          <TabTitle>Games</TabTitle>
           <ol className="lab-games">
             {MATCH.games.map((g) => (
               <li key={g.n}>
@@ -528,8 +586,8 @@ function MatchRoom({ game, onFound }: { game: LabGame; onFound: () => void }) {
           </div>
         </section>
 
-        <section className="lab-panel" aria-label="Match chat">
-          <h2 className="lab-h2">Match chat</h2>
+        <section className="lab-panel lab-panel--tabbed" aria-label="Match chat">
+          <TabTitle>Match chat</TabTitle>
           <ul className="lab-chat">
             {MATCH.chat.map((m, i) => (
               <li key={i} className={m.from === 'you' ? 'is-you' : 'is-them'}>
@@ -562,18 +620,174 @@ function MatchRoom({ game, onFound }: { game: LabGame; onFound: () => void }) {
   )
 }
 
+const MORE_MENU: MenuItem[] = [
+  { key: 'rewards', label: 'Rewards', icon: <GiTrophy size={20} />, hint: 'The unlocks your ranked wins earn.' },
+  { key: 'profile', label: 'Profile', icon: <GiVisoredHelm size={20} />, hint: 'Your matches, your record and your card.' },
+  {
+    key: 'settings',
+    label: 'Settings',
+    icon: <GiGears size={20} />,
+    hint: 'Appearance, sound and your region.',
+    children: [
+      { key: 'appearance', label: 'Appearance', hint: 'Dark or light, and Classic if you have unlocked it.' },
+      { key: 'sound', label: 'Sound', hint: 'Turn the match-found sound on or off.' },
+      { key: 'region', label: 'Region', hint: 'Where you queue. It decides who you meet.' },
+    ],
+  },
+  {
+    key: 'admin',
+    label: 'Admin',
+    icon: <GiCrenulatedShield size={20} />,
+    hint: 'Only Admins see this.',
+    children: [
+      { key: 'cases', label: 'Cases', hint: 'Disputed matches and Help requests waiting for an Admin.' },
+      { key: 'log', label: 'Admin log', hint: 'Every Admin action, newest first.' },
+      { key: 'admins', label: 'Admins', hint: 'Appoint and remove Admins. Only the Master sees this.' },
+    ],
+  },
+  { key: 'feedback', label: 'Feedback', icon: <GiQuillInk size={20} />, hint: 'Tell us what to fix, on Discord.' },
+]
+
+const PICKERS: PickerSpec[] = [
+  { key: 'version', label: 'Version', options: ['Dissidia 012', 'Dissidia NT'], hint: 'The game you queue for.' },
+  { key: 'season', label: 'Season', options: ['Pre-season', 'Season 1'], hint: 'Which Season the Ladder shows.' },
+  { key: 'region', label: 'Region', options: ['EU', 'NA East', 'NA West', 'Asia', 'Oceania'], hint: 'Where you queue.' },
+  { key: 'filter', label: 'Cases', options: ['All', 'Disputes', 'Help', 'Unclaimed', 'Mine'], hint: 'Which cases the Admin list shows.' },
+  { key: 'sound', label: 'Sound', options: ['On', 'Off'], hint: 'The sound when a match is found.' },
+]
+
+function Menus({ muted, setMuted }: { muted: boolean; setMuted: (m: boolean) => void }) {
+  const [values, setValues] = useState<Record<string, number>>({})
+  const merged = { ...values, sound: muted ? 1 : 0 }
+  return (
+    <div className="lab-page">
+      <p className="lab-kicker">Dissidia 012 patterns, dark theme</p>
+      <h1 className="lab-h1">More</h1>
+      <p className="lab-note">
+        Selection blue and the crystal-shard cursor are a prototype, shown on the bars and pickers only. The help strip
+        at the bottom is desktop only.
+      </p>
+      <div className="lab-menus__grid">
+        <section className="lab-panel lab-panel--tabbed" aria-label="More menu">
+          <TabTitle>Menu</TabTitle>
+          <MenuBars label="More" items={MORE_MENU} />
+        </section>
+        <section className="lab-panel lab-panel--tabbed" aria-label="Settings">
+          <TabTitle>Settings</TabTitle>
+          <PickerList
+            specs={PICKERS}
+            values={merged}
+            onChange={(key, i) => (key === 'sound' ? setMuted(i === 1) : setValues((v) => ({ ...v, [key]: i })))}
+          />
+        </section>
+      </div>
+    </div>
+  )
+}
+
+const FRAMES: { frame: Frame; label: string }[] = [
+  { frame: 'none', label: 'No frame' },
+  { frame: 'diamond', label: 'Bevelled diamond' },
+  { frame: 'hexagon', label: 'Hexagon' },
+  { frame: 'shield', label: 'Heraldic shield' },
+]
+
+const GLYPHS: { label: string; icon: (size: number) => ReactNode }[] = [
+  { label: 'Hub · stone-tower', icon: (s) => <GiStoneTower size={s} /> },
+  { label: 'Ladder · laurels', icon: (s) => <GiLaurels size={s} /> },
+  { label: 'Queue · crossed-swords', icon: (s) => <GiCrossedSwords size={s} /> },
+  { label: 'Profile · visored-helm', icon: (s) => <GiVisoredHelm size={s} /> },
+  { label: 'More · hamburger-menu', icon: (s) => <GiHamburgerMenu size={s} /> },
+  { label: 'Rewards · trophy', icon: (s) => <GiTrophy size={s} /> },
+  { label: 'Admin · crenulated-shield', icon: (s) => <GiCrenulatedShield size={s} /> },
+  { label: 'Settings · gears', icon: (s) => <GiGears size={s} /> },
+  { label: 'Settings · Phosphor gear-fill', icon: (s) => <PhGearFill size={s} /> },
+  { label: 'Feedback · quill-ink', icon: (s) => <GiQuillInk size={s} /> },
+  { label: '012 · floating-crystal', icon: (s) => <GiFloatingCrystal size={s} /> },
+  { label: 'NT · winged-sword', icon: (s) => <GiWingedSword size={s} /> },
+]
+
+function Crests() {
+  return (
+    <div className="lab-page">
+      <p className="lab-kicker">Icons and emblems</p>
+      <h1 className="lab-h1">Crests</h1>
+
+      <section className="lab-panel lab-panel--tabbed" aria-label="Framed crests">
+        <TabTitle>Framed crests</TabTitle>
+        <p className="lab-note">Pick one frame for the game emblems, or keep them unframed.</p>
+        <div className="lab-crest-grid">
+          {FRAMES.map((f) => (
+            <figure key={f.frame} className="lab-crest-cell">
+              <div className="lab-crest-row">
+                {(['012', 'NT'] as const).map((g) => (
+                  <span key={g} className="lab-crest-pair">
+                    <FramedCrest frame={f.frame} game={g} size={96} />
+                    <FramedCrest frame={f.frame} game={g} size={48} />
+                  </span>
+                ))}
+              </div>
+              <figcaption>{f.label}</figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+
+      <section className="lab-panel lab-panel--tabbed mt-8" aria-label="Glyphs">
+        <TabTitle>Glyphs at 20 and 28px</TabTitle>
+        <ul className="lab-glyphs">
+          {GLYPHS.map((g) => (
+            <li key={g.label}>
+              <span className="lab-glyphs__icons">
+                {g.icon(20)}
+                {g.icon(28)}
+                {g.icon(48)}
+              </span>
+              <span className="lab-glyphs__label">{g.label}</span>
+            </li>
+          ))}
+        </ul>
+        <Credits />
+        <p className="lab-note">Phosphor gear-fill is MIT licensed and needs no on-page credit.</p>
+      </section>
+    </div>
+  )
+}
+
 /* ---------- match found ---------- */
 
-function MatchFound({ anim, game, onClose }: { anim: Anim; game: LabGame; onClose: () => void }) {
-  const shards = Array.from({ length: 10 }, (_, i) => i)
+/** Shards of the crystal: angle, distance, size and spin, fixed so every replay matches. */
+const SHARDS = Array.from({ length: 14 }, (_, i) => ({
+  a: i * (360 / 14) + (i % 2 ? 9 : -6),
+  d: 180 + ((i * 47) % 130),
+  s: 0.55 + ((i * 29) % 50) / 100,
+  r: (i % 2 ? 1 : -1) * (90 + ((i * 61) % 180)),
+}))
+
+function MatchFound({ anim, game, onAccept, onDecline }: { anim: Anim; game: LabGame; onAccept: () => void; onDecline: () => void }) {
   return (
     <div className={cx('lab-found', `lab-found--${anim}`)} role="dialog" aria-modal aria-label="Match found">
       <div className="lab-found__fx" aria-hidden>
         {anim === 'shatter' && (
           <>
-            <span className="lab-found__crystal" />
-            {shards.map((i) => (
-              <span key={i} className="lab-found__shard" style={{ ['--i' as string]: i }} />
+            <span className="lab-found__glow" />
+            <span className="lab-found__crystal">
+              <span className="lab-found__crack" />
+            </span>
+            <span className="lab-found__ring" />
+            {SHARDS.map((s, i) => (
+              <span
+                key={i}
+                className="lab-found__shard"
+                style={
+                  {
+                    '--a': `${s.a}deg`,
+                    '--d': `${s.d}px`,
+                    '--s': s.s,
+                    '--r': `${s.r}deg`,
+                  } as CSSProperties
+                }
+              />
             ))}
           </>
         )}
@@ -586,9 +800,9 @@ function MatchFound({ anim, game, onClose }: { anim: Anim; game: LabGame; onClos
         )}
         {anim === 'sigil' && (
           <>
-            <span className="lab-found__ring" style={{ ['--i' as string]: 0 }} />
-            <span className="lab-found__ring" style={{ ['--i' as string]: 1 }} />
-            <span className="lab-found__ring" style={{ ['--i' as string]: 2 }} />
+            <span className="lab-found__sring" style={{ ['--i' as string]: 0 }} />
+            <span className="lab-found__sring" style={{ ['--i' as string]: 1 }} />
+            <span className="lab-found__sring" style={{ ['--i' as string]: 2 }} />
             <svg className="lab-found__sigil" viewBox="0 0 200 200">
               <circle cx="100" cy="100" r="80" />
               <path d="M100 20 L169 140 L31 140 Z M100 180 L31 60 L169 60 Z" />
@@ -603,10 +817,14 @@ function MatchFound({ anim, game, onClose }: { anim: Anim; game: LabGame; onClos
           <span className="lab-found__vs">vs</span>
           <span className="lab-found__them">{OPPONENT.name}</span>
         </p>
-        <p className="lab-found__meta">{game} · 1v1 Bo3 · {PLAYER.region}</p>
+        <p className="lab-found__meta">
+          {game} · 1v1 Bo3 · {PLAYER.region}
+        </p>
         <div className="lab-actions lab-actions--center">
-          <Button onClick={onClose}>Accept</Button>
-          <Button variant="ghost" onClick={onClose}>
+          <Button size="lg" onClick={onAccept}>
+            Accept
+          </Button>
+          <Button variant="ghost" onClick={onDecline}>
             Decline
           </Button>
         </div>
@@ -618,9 +836,9 @@ function MatchFound({ anim, game, onClose }: { anim: Anim; game: LabGame; onClos
 /* ---------- the lab ---------- */
 
 export default function Lab() {
-  const [fontSet, setFontSet] = useState<FontSet>('a')
+  const [fontSet, setFontSet] = useState<FontSet>('c')
   const [mode, setMode] = useState<Mode>('dark')
-  const [statusSpot, setStatusSpot] = useState<StatusSpot>('sidebar')
+  const [statusSpot, setStatusSpot] = useState<StatusSpot>('floating')
   const [status, setStatus] = useState<Status>('searching')
   const [banner, setBanner] = useState<BannerStyle>('blade')
   const [anim, setAnim] = useState<Anim>('shatter')
@@ -629,7 +847,10 @@ export default function Lab() {
   const [game, setGame] = useState<LabGame>('012')
   const [admin, setAdmin] = useState(true)
   const [still, setStill] = useState(false)
-  const [found, setFound] = useState(0)
+  const [muted, setMutedState] = useState(loadMuted)
+  /** Bumped to replay the match-found overlay; 0 means it is closed. */
+  const [foundRun, setFoundRun] = useState(0)
+  const [hint, setHint] = useState(DEFAULT_HINT)
 
   useEffect(() => {
     const prev = document.title
@@ -639,38 +860,57 @@ export default function Lab() {
     }
   }, [])
 
-  const playFound = () => setFound((n) => n + 1)
-  const statusProps =
-    status === 'none'
-      ? null
-      : {
-          status,
-          game,
-          onCancel: () => setStatus('none'),
-          onOpen: () => {
-            setStatus('none')
-            setPage('match')
-          },
-        }
+  const setMuted = (m: boolean) => {
+    setMutedState(m)
+    saveMuted(m)
+    if (!m) unlockAudio()
+  }
 
-  const content =
-    page === 'home' ? (
-      <Home game={game} onQueue={() => setStatus('searching')} onMatch={() => setPage('match')} />
-    ) : page === 'hub' ? (
-      <Hub style={banner} game={game} onQueue={() => setStatus('searching')} onMatch={() => setPage('match')} />
-    ) : (
-      <MatchRoom game={game} onFound={playFound} />
-    )
+  /** A match is found: the overlay plays, the status turns to Match found, and the sound plays. */
+  const findMatch = () => {
+    setFoundRun((n) => n + 1)
+    setStatus('ready')
+    playMatchFound(muted)
+  }
+  const queue = () => {
+    unlockAudio()
+    setStatus('searching')
+  }
+  const accept = () => {
+    setFoundRun(0)
+    setStatus('none')
+    setPage('match')
+  }
+  const decline = () => {
+    setFoundRun(0)
+    setStatus('none')
+  }
+  const changeStatus = (s: Status) => {
+    setStatus(s)
+    if (s === 'ready') playMatchFound(muted)
+  }
+
+  const readHint = (e: SyntheticEvent) => {
+    const el = (e.target as HTMLElement).closest?.('[data-hint]')
+    if (el) setHint(el.getAttribute('data-hint') ?? DEFAULT_HINT)
+  }
+
+  const statusProps =
+    status === 'none' ? null : { status, game, onCancel: () => setStatus('none'), onAccept: accept }
+
+  const content = {
+    home: <Home game={game} onQueue={queue} onMatch={() => setPage('match')} />,
+    hub: <Hub style={banner} game={game} onQueue={queue} onMatch={() => setPage('match')} />,
+    match: <MatchRoom game={game} onFound={findMatch} />,
+    menus: <Menus muted={muted} setMuted={setMuted} />,
+    crests: <Crests />,
+  }[page]
+  const backdrop = page !== 'match'
 
   return (
-    <div
-      className={cx('lab', still && 'lab--still')}
-      data-fontset={fontSet}
-      data-mode={mode}
-      data-screen={screen}
-    >
+    <div className={cx('lab', still && 'lab--still')} data-fontset={fontSet} data-mode={mode} data-screen={screen}>
       <header className="lab-toolbar" aria-label="Lab controls">
-        <strong className="lab-toolbar__title">Lab · round 1</strong>
+        <strong className="lab-toolbar__title">Lab · pass 2</strong>
         <Choice
           label="Page"
           value={page}
@@ -679,6 +919,8 @@ export default function Lab() {
             { value: 'home', label: 'Home' },
             { value: 'hub', label: 'Hub' },
             { value: 'match', label: 'Match room' },
+            { value: 'menus', label: 'More menu' },
+            { value: 'crests', label: 'Crests' },
           ]}
         />
         <Choice
@@ -708,11 +950,11 @@ export default function Lab() {
         <Choice
           label="Status"
           value={status}
-          onChange={setStatus}
+          onChange={changeStatus}
           options={[
             { value: 'none', label: 'None' },
             { value: 'searching', label: 'Searching' },
-            { value: 'ready', label: 'Match ready' },
+            { value: 'ready', label: 'Match found' },
           ]}
         />
         <Choice
@@ -720,8 +962,8 @@ export default function Lab() {
           value={statusSpot}
           onChange={setStatusSpot}
           options={[
+            { value: 'floating', label: 'Floating card · Picked' },
             { value: 'sidebar', label: 'Sidebar' },
-            { value: 'floating', label: 'Floating card' },
           ]}
         />
         <Choice
@@ -729,9 +971,10 @@ export default function Lab() {
           value={banner}
           onChange={setBanner}
           options={[
-            { value: 'blade', label: 'Blade' },
-            { value: 'shard', label: 'Shard' },
+            { value: 'blade', label: 'Blade · Picked' },
+            { value: 'blade2', label: 'Blade v2' },
             { value: 'ribbon', label: 'Ribbon' },
+            { value: 'shard', label: 'Shard' },
           ]}
         />
         <Choice
@@ -739,10 +982,10 @@ export default function Lab() {
           value={anim}
           onChange={(a) => {
             setAnim(a)
-            playFound()
+            findMatch()
           }}
           options={[
-            { value: 'shatter', label: 'Crystal shatter' },
+            { value: 'shatter', label: 'Crystal shatter · Picked' },
             { value: 'split', label: 'Cosmos/Chaos split' },
             { value: 'sigil', label: 'Sigil rings' },
           ]}
@@ -750,8 +993,11 @@ export default function Lab() {
         <div className="lab-choice">
           <span className="lab-choice__label">Other</span>
           <div className="lab-choice__opts">
-            <button type="button" onClick={playFound}>
-              ▶ Play
+            <button type="button" onClick={findMatch}>
+              ▶ Find a match
+            </button>
+            <button type="button" aria-pressed={!muted} onClick={() => setMuted(!muted)}>
+              Sound
             </button>
             <button type="button" aria-pressed={admin} onClick={() => setAdmin(!admin)}>
               Admin
@@ -765,8 +1011,9 @@ export default function Lab() {
       </header>
 
       <div className="lab-stage-wrap">
-        <div className="lab-stage" data-status-spot={statusSpot}>
-          <div className="lab-shell">
+        <div className="lab-stage">
+          {backdrop && <FacetBackdrop />}
+          <div className="lab-shell" onMouseOver={readHint} onFocus={readHint}>
             <Sidebar
               page={page}
               setPage={setPage}
@@ -774,21 +1021,30 @@ export default function Lab() {
               setGame={setGame}
               mode={mode}
               setMode={setMode}
+              muted={muted}
+              setMuted={setMuted}
               admin={admin}
               statusSlot={
                 statusSpot === 'sidebar' && statusProps ? (
-                  <div className="lab-status lab-status--sidebar" role="status">
+                  <div className={cx('lab-status lab-status--sidebar', status === 'ready' && 'lab-status--alert')} role="status">
                     <StatusContent key={status} {...statusProps} />
                   </div>
                 ) : null
               }
             />
-            <main className={cx('lab-main', page === 'match' ? 'lab-main--plain' : 'lab-main--backdrop')}>{content}</main>
+            <div className="lab-column">
+              <main className={cx('lab-main', backdrop ? 'lab-main--backdrop' : 'lab-main--plain')}>{content}</main>
+              <HelpStrip text={hint} />
+            </div>
           </div>
 
           {statusProps && (
             <div
-              className={cx('lab-status lab-status--float', statusSpot === 'sidebar' && 'lab-status--phone-only')}
+              className={cx(
+                'lab-status lab-status--float',
+                status === 'ready' && 'lab-status--alert',
+                statusSpot === 'sidebar' && 'lab-status--phone-only',
+              )}
               role="status"
             >
               <StatusContent key={status} {...statusProps} />
@@ -797,7 +1053,7 @@ export default function Lab() {
 
           <BottomBar page={page} setPage={setPage} />
 
-          {found > 0 && <MatchFound key={found} anim={anim} game={game} onClose={() => setFound(0)} />}
+          {foundRun > 0 && <MatchFound key={foundRun} anim={anim} game={game} onAccept={accept} onDecline={decline} />}
         </div>
       </div>
     </div>

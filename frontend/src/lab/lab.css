@@ -1,4 +1,4 @@
-/* Lab, round 1 (#40). Dev-only; this file never merges. Candidate fonts for the three roles.
+/* Lab (#40), design pass 2. Dev-only; this file never merges. Candidate fonts for the three roles.
    display=block: no fallback face shows while a candidate loads.
    The palettes below are lab drafts; the chosen one moves into theme/tokens.json in the build stage. */
 @import url("https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Cormorant+SC:wght@700&family=Saira+Condensed:wght@500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=block");
@@ -34,6 +34,14 @@
   --hero-seam: #F3E3B6;
   --hero-crystal-fill: rgba(141, 190, 245, 0.18);
   --hero-dim: rgba(9, 11, 20, 0.55);
+
+  /* New in pass 2, from the Dissidia 012 menus: silver bevel edges, selection blue, a pale crystal wash. */
+  --silver-hi: #E6EBF4;
+  --silver-edge: #B4BDD0;
+  --silver-lo: #545E76;
+  --select: #2C57D6;
+  --select-ink: #FFFFFF;
+  --crystal-wash: #A9CBFF;
 
   /* The real components (Avatar and friends) read --ui-*, so point them at the lab palette. */
   --ui-page-bg: var(--bg);
@@ -80,6 +88,13 @@
   --hero-seam: #B8913C;
   --hero-crystal-fill: rgba(255, 255, 255, 0.55);
   --hero-dim: rgba(241, 238, 231, 0.2);
+
+  --silver-hi: #FFFFFF;
+  --silver-edge: #98A1B4;
+  --silver-lo: #6B7488;
+  --select: #2349B8;
+  --select-ink: #FFFFFF;
+  --crystal-wash: #6E9BDB;
 }
 
 /* ---------- font sets: display, heading, body ---------- */
@@ -153,7 +168,10 @@
   height: 100%;
   overflow: hidden;
   container: stage / inline-size;
-  background: var(--bg);
+  background:
+    radial-gradient(900px 500px at 10% 0, color-mix(in srgb, var(--cosmos-deep) 28%, transparent), transparent 70%),
+    radial-gradient(900px 500px at 100% 100%, color-mix(in srgb, var(--chaos) 10%, transparent), transparent 70%),
+    var(--bg);
 }
 .lab[data-screen="phone"] .lab-stage-wrap { padding: 16px; background: #2A2C33; }
 .lab[data-screen="phone"] .lab-stage {
@@ -163,7 +181,9 @@
   box-shadow: 0 0 0 8px #0E0F12, 0 20px 60px rgba(0, 0, 0, 0.6);
 }
 
-.lab-shell { display: flex; height: 100%; }
+.lab-shell { position: relative; z-index: 1; display: flex; height: 100%; }
+.lab-column { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lab-facets { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
 /* ---------- sidebar ---------- */
 .lab-sidebar {
@@ -298,6 +318,9 @@
 }
 .lab-foot-btn:hover { background: var(--raised); color: var(--ink) !important; }
 .lab-sidebar__fan { margin: 8px 12px 0; font-size: 12px; color: var(--muted); }
+.lab-credits { margin: 4px 12px 0; font-size: 11px; line-height: 1.4; color: var(--muted); }
+.lab-credits a { color: inherit; text-decoration: underline; }
+.lab-foot-btn[aria-current="page"] { color: var(--ink) !important; background: var(--raised); }
 
 /* ---------- match status ---------- */
 .lab-status {
@@ -313,38 +336,64 @@
 .lab-status__title { font-family: var(--f-head); font-weight: 700; font-size: 17px; text-transform: uppercase; letter-spacing: 0.06em; }
 .lab-status__time { margin-left: auto; font-family: var(--f-head); font-weight: 600; font-size: 18px; color: var(--gold); font-variant-numeric: tabular-nums; }
 .lab-status__text { margin: 0; color: var(--muted); font-size: 13px; }
-.lab-status__pulse {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--gold);
-  box-shadow: 0 0 0 0 var(--gold);
-  animation: lab-pulse 1.6s infinite;
-}
-.lab-status__pulse--ready { background: var(--win); animation-name: lab-pulse-win; }
-.lab-status .lab-btn { width: 100%; }
+.lab-status__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gold); }
+.lab-status__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lab-status--sidebar .lab-status__actions .lab-btn { flex: 1; }
+.lab-status__vs { margin: 0; font-family: var(--f-display); font-weight: var(--f-display-weight); font-size: 24px; line-height: 1.1; color: var(--chaos); }
+.lab-status__drain { height: 4px; background: var(--bg); overflow: hidden; }
+.lab-status__drain span { display: block; height: 100%; background: var(--gold); }
 
+/* The floating card: bigger than round 1, sitting above the help strip. */
 .lab-status--float {
   position: absolute;
-  right: 20px;
-  bottom: 20px;
-  width: 280px;
+  right: 24px;
+  bottom: 56px;
+  width: 340px;
+  padding: 16px 18px;
   z-index: 40;
+  border-top: 2px solid var(--silver-edge);
   box-shadow: var(--shadow);
   animation: lab-rise 0.3s ease-out backwards;
 }
-.lab-status--float .lab-btn { width: auto; align-self: flex-end; }
+.lab-status--float .lab-status__actions { justify-content: flex-end; }
+.lab-status--float .lab-status__title { font-size: 20px; }
+
+/* Match found: larger, louder, with a glow that pulses twice on arrival and then holds. */
+.lab-status--alert {
+  border: 2px solid var(--gold);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 22%, var(--surface)), var(--surface) 60%);
+  box-shadow: 0 0 0 1px var(--bg), 0 0 36px color-mix(in srgb, var(--gold) 45%, transparent), var(--shadow);
+}
+.lab-status--alert .lab-status__head svg { color: var(--gold); }
+.lab-status--alert.lab-status--float {
+  width: 400px;
+  padding: 20px 22px;
+  animation: lab-alert-in 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) backwards, lab-alert-glow 1.1s ease-in-out 0.4s 2;
+}
+.lab-status--alert .lab-status__title { font-size: 24px; color: var(--gold); }
+.lab-status--alert .lab-status__time { font-size: 22px; }
+.lab-status--alert .lab-status__actions .lab-btn--lg { flex: 1; }
 .lab-status--phone-only { display: none; }
 
 /* ---------- main area ---------- */
-.lab-main { position: relative; flex: 1; min-width: 0; overflow-y: auto; }
+.lab-main { position: relative; flex: 1; min-height: 0; min-width: 0; overflow-y: auto; }
 .lab-main--plain { background: var(--bg); }
-.lab-main--backdrop {
-  background:
-    radial-gradient(900px 500px at 10% 0, color-mix(in srgb, var(--cosmos-deep) 35%, transparent), transparent 70%),
-    radial-gradient(900px 500px at 100% 100%, color-mix(in srgb, var(--chaos) 14%, transparent), transparent 70%),
-    var(--bg);
+.lab-main--backdrop { background: transparent; }
+
+/* Desktop help strip: one line of hint text for the hovered or focused item. */
+.lab-helpstrip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 24px;
+  border-top: 1px solid var(--silver-edge);
+  background: linear-gradient(180deg, var(--raised), var(--surface));
+  font-size: 14px;
+  color: var(--ink);
 }
+.lab-helpstrip__text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lab-note { margin: 0 0 14px; font-size: 14px; color: var(--muted); max-width: 70ch; }
 
 .lab-kicker { margin: 0 0 4px; font-family: var(--f-head); font-weight: 600; font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); }
 .lab-display { margin: 0; font-family: var(--f-display); font-weight: var(--f-display-weight); font-size: clamp(40px, 6cqi, 76px); line-height: 1; letter-spacing: 0.02em; }
@@ -403,8 +452,7 @@
   background: linear-gradient(180deg, transparent 40%, var(--bg) 100%), linear-gradient(90deg, var(--hero-dim), transparent 60%);
   pointer-events: none;
 }
-.lab-hero__rays { animation: lab-rays 40s linear infinite; }
-.lab-hero__crystal { animation: lab-float 6s ease-in-out infinite; }
+.lab-hero__shimmer { animation: lab-shimmer 10s ease-in-out infinite; }
 .lab-hero__copy { position: absolute; z-index: 1; left: clamp(16px, 5cqi, 64px); bottom: 64px; max-width: 520px; }
 .lab-hero__copy .lab-display { color: var(--ink); text-shadow: 0 2px 24px var(--bg); }
 .lab-hero__lede { margin: 12px 0 18px; font-size: 17px; color: var(--ink); text-shadow: 0 1px 12px var(--bg); }
@@ -574,10 +622,10 @@
   z-index: 50;
   height: 72px;
   padding: 0 6px;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-around;
   background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, transparent), var(--bg));
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--silver-edge);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -598,29 +646,19 @@
 .lab-tile__emblem { display: flex; }
 .lab-tile__label { font-family: var(--f-head); font-weight: 600; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
 .lab-tile[aria-current="page"] { color: var(--gold) !important; }
-.lab-tile--big { flex: 1.3; height: 88px; margin-top: -24px; color: var(--gold-ink) !important; }
-.lab-tile--big .lab-tile__emblem {
-  display: grid;
-  place-items: center;
-  width: 62px;
-  height: 62px;
-  background: linear-gradient(160deg, var(--gold), color-mix(in srgb, var(--gold) 60%, var(--chaos)));
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-  box-shadow: 0 0 20px var(--gold);
-}
-.lab-tile--big .lab-tile__label { color: var(--gold); }
 
 /* ---------- phone width: the sidebar goes, the bottom bar comes ---------- */
 @container stage (max-width: 760px) {
   .lab-sidebar { display: none; }
   .lab-bottombar { display: flex; }
   .lab-main { padding-bottom: 80px; }
+  .lab-helpstrip { display: none; }
   .lab-status--phone-only { display: flex; }
   .lab-status--float {
     left: 10px;
     right: 10px;
     bottom: 84px;
-    width: auto;
+    width: auto !important;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
@@ -629,9 +667,11 @@
   .lab-status--float .lab-status__head { flex: 1; }
   .lab-status--float .lab-status__text { order: 3; width: 100%; }
   .lab-status--float .lab-btn { min-height: 38px; padding: 0 16px; }
+  .lab-status--float .lab-status__vs { order: 2; width: 100%; font-size: 20px; }
+  .lab-status--float .lab-status__actions { order: 4; width: 100%; }
+  .lab-status--float .lab-status__drain { order: 5; width: 100%; }
   .lab-glass-row { grid-template-columns: 1fr; margin-top: -30px; }
   .lab-hero__copy { bottom: 48px; }
-  .lab-hero__crystal { opacity: 0.25; }
   .lab-h1 { font-size: 32px; }
   .lab-banner__inner { flex-wrap: wrap; padding: 16px 18px; }
   .lab-banner__big { font-size: 38px; }
@@ -683,23 +723,50 @@
 .lab-found__vs { font-family: var(--f-head); font-weight: 700; font-size: 16px; letter-spacing: 0.3em; color: var(--muted); }
 .lab-found__meta { margin: 0; color: var(--muted); }
 
-/* 1. Crystal shatter: a crystal swells, bursts into shards, the card appears in the gap. */
+/* 1. Crystal shatter (picked), refined: a silver crystal swells in a soft glow, cracks, then bursts into
+   shards of different sizes with a ring of light. The card rises in the gap. The sound's chime lands on
+   the burst at about 0.6s. */
+.lab-found__glow {
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--crystal-wash) 40%, transparent), transparent 65%);
+  animation: lab-glow 1.3s ease-out forwards;
+}
 .lab-found__crystal {
-  width: 90px;
-  height: 160px;
-  background: linear-gradient(160deg, var(--cosmos), var(--gold));
+  position: relative;
+  width: 84px;
+  height: 150px;
+  background: linear-gradient(160deg, var(--silver-hi), var(--crystal-wash) 45%, var(--cosmos-deep));
   clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
-  animation: lab-crystal 0.7s ease-in forwards;
+  animation: lab-crystal 0.75s cubic-bezier(0.3, 0, 0.2, 1) forwards;
+}
+.lab-found__crack {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(115deg, transparent 46%, var(--silver-hi) 48%, transparent 50%),
+    linear-gradient(62deg, transparent 54%, var(--silver-hi) 56%, transparent 58%);
+  opacity: 0;
+  animation: lab-crack 0.18s ease-out 0.42s forwards;
+}
+.lab-found__ring {
+  width: 120px;
+  height: 120px;
+  border: 3px solid var(--silver-hi);
+  border-radius: 50%;
+  opacity: 0;
+  animation: lab-burst-ring 0.6s ease-out 0.62s forwards;
 }
 .lab-found__shard {
-  width: 34px;
-  height: 52px;
-  background: linear-gradient(160deg, var(--cosmos), var(--gold));
-  clip-path: polygon(50% 0, 100% 60%, 30% 100%);
+  width: 28px;
+  height: 46px;
+  background: linear-gradient(160deg, var(--silver-hi), var(--crystal-wash) 50%, var(--cosmos-deep));
+  clip-path: polygon(50% 0, 100% 55%, 40% 100%, 0 40%);
   opacity: 0;
-  animation: lab-shard 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) 0.6s forwards;
+  animation: lab-shard 0.95s cubic-bezier(0.15, 0.7, 0.3, 1) 0.62s forwards;
 }
-.lab-found--shatter .lab-found__card { animation: lab-card-pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) 0.65s backwards; }
+.lab-found--shatter .lab-found__card { animation: lab-card-rise 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) 0.7s backwards; }
 
 /* 2. Cosmos and Chaos split: a light half and a dark half slam together on a diagonal and flash. */
 .lab-found__half { width: 100%; height: 100%; }
@@ -723,7 +790,7 @@
 .lab-found--split .lab-found__card { animation: lab-card-slam 0.4s ease-out 0.55s backwards; }
 
 /* 3. Sigil rings: rings ripple out from a turning sigil, the names slam in. */
-.lab-found__ring {
+.lab-found__sring {
   width: 200px;
   height: 200px;
   border: 2px solid var(--gold);
@@ -744,24 +811,167 @@
 .lab-found--sigil .lab-found__you { animation: lab-slam-left 0.4s cubic-bezier(0.2, 1.3, 0.4, 1) 0.6s backwards; }
 .lab-found--sigil .lab-found__them { animation: lab-slam-right 0.4s cubic-bezier(0.2, 1.3, 0.4, 1) 0.75s backwards; }
 
+/* ---------- Dissidia 012 patterns ---------- */
+
+/* Panel title tab: slanted and bevelled, in the display face slanted with CSS. */
+.lab-tabtitle { margin: 0 0 14px; font-family: var(--f-display); font-weight: var(--f-display-weight); font-size: 22px; line-height: 1; letter-spacing: 0.02em; }
+.lab-tabtitle span {
+  display: inline-block;
+  padding: 8px 36px 8px 16px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--silver-edge) 22%, var(--raised)), var(--raised));
+  border-top: 1px solid var(--silver-hi);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--silver-lo) 70%, transparent);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 20px) 100%, 0 100%);
+  transform: skewX(-10deg);
+  transform-origin: bottom left;
+}
+.lab-panel--tabbed { border-top-left-radius: 0; }
+.lab-panel--tabbed > .lab-tabtitle:first-child { margin: -19px 0 16px -19px; }
+
+/* Stacked bars with a silver top edge; sub-items indent under their parent. */
+.lab-bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lab-bars--sub { margin: 6px 0 0 34px; gap: 4px; }
+.lab-bar-item, .lab-picker {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--silver-edge) 14%, var(--raised)), var(--surface));
+  border-top: 1px solid var(--silver-edge);
+  box-shadow: inset 0 -1px 0 var(--bg);
+}
+.lab-bar-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 28px 0 6px;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  color: var(--ink) !important;
+  font-family: var(--f-head) !important;
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  text-align: left;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+}
+.lab-bar-item--sub { min-height: 38px; font-size: 15px; }
+.lab-bar-item__cursor { width: 26px; flex: none; display: flex; justify-content: center; }
+.lab-bar-item__icon { display: flex; color: var(--gold); }
+.lab-bar-item:focus-visible, .lab-picker__value:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--silver-hi); }
+
+/* The selected row: solid selection blue, light text, the crystal-shard cursor. */
+.lab-bar-item.is-selected, .lab-picker.is-selected {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--silver-hi) 22%, var(--select)), var(--select));
+  border-top-color: var(--silver-hi);
+  color: var(--select-ink) !important;
+}
+.is-selected .lab-bar-item__icon, .lab-picker.is-selected .lab-picker__label,
+.lab-picker.is-selected .lab-picker__arrow, .lab-picker.is-selected .lab-picker__count { color: var(--select-ink) !important; }
+.lab-shard-cursor { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)); }
+
+/* ◀ value ▶ pickers */
+.lab-pickers { display: flex; flex-direction: column; gap: 6px; }
+.lab-picker {
+  display: grid;
+  grid-template-columns: 26px minmax(70px, 28%) 32px 1fr 32px 52px;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px 0 6px;
+  font-family: var(--f-head);
+  font-size: 16px;
+}
+.lab-picker__label { font-weight: 700; letter-spacing: 0.04em; color: var(--gold); }
+.lab-picker__arrow { min-height: 44px; border: 0; background: none; color: var(--cosmos) !important; font-size: 13px; }
+.lab-picker__value { text-align: center; font-weight: 600; padding: 6px 0; }
+.lab-picker__count { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lab-menus__grid { display: grid; grid-template-columns: 1fr 1.25fr; gap: 24px; align-items: start; }
+
+/* Blade v2: the Blade shape with a silver bevelled edge, a slanted title tab, selection blue on hover and focus. */
+.lab-banner--blade2 { margin-top: 26px; }
+.lab-banner--blade2 .lab-banner__inner {
+  transform: skewX(-12deg);
+  margin: 0 14px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--silver-edge) 12%, var(--surface)), var(--surface));
+  border-top: 2px solid var(--silver-edge);
+  border-left: 6px solid var(--accent);
+  box-shadow: inset 0 1px 0 var(--silver-hi), inset 0 -2px 0 var(--bg), var(--shadow);
+  transition: background 0.15s;
+}
+.lab-banner--blade2 .lab-banner__inner > * { transform: skewX(12deg); }
+.lab-banner--blade2 .lab-banner__body { position: relative; }
+.lab-banner--blade2 .lab-banner__kicker {
+  position: absolute;
+  top: -46px;
+  left: -14px;
+  padding: 5px 28px 5px 12px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--silver-edge) 25%, var(--raised)), var(--raised));
+  border-top: 1px solid var(--silver-hi);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+  white-space: nowrap;
+}
+.lab-banner--blade2:hover .lab-banner__inner,
+.lab-banner--blade2:focus-within .lab-banner__inner {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--silver-hi) 20%, var(--select)), var(--select));
+  border-top-color: var(--silver-hi);
+  color: var(--select-ink);
+}
+.lab-compare--two { grid-template-columns: 1fr 1fr; gap: 24px; }
+
+/* Crests */
+.lab-crest { position: relative; display: inline-grid; place-items: center; flex: none; color: var(--gold); }
+.lab-crest > svg { position: absolute; inset: 0; }
+.lab-crest__emblem { position: relative; display: flex; }
+.lab-crest-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.lab-crest-cell { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.lab-crest-cell figcaption { font-family: var(--f-head); font-weight: 600; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.lab-crest-row { display: flex; flex-direction: column; gap: 14px; }
+.lab-crest-pair { display: flex; align-items: flex-end; gap: 10px; }
+.lab-glyphs { list-style: none; margin: 0 0 14px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px 20px; }
+.lab-glyphs li { display: flex; align-items: center; gap: 12px; }
+.lab-glyphs__icons { display: flex; align-items: center; gap: 10px; color: var(--ink); }
+.lab-glyphs__label { font-size: 13px; color: var(--muted); }
+
+/* Phone width for the pass 2 patterns (after their base rules, so these win). */
+@container stage (max-width: 760px) {
+  .lab-menus__grid, .lab-compare--two { grid-template-columns: 1fr; }
+  .lab-crest-grid { grid-template-columns: 1fr 1fr; }
+  .lab-banner--blade2 .lab-banner__inner { transform: skewX(-6deg); margin: 0 8px; }
+  .lab-banner--blade2 .lab-banner__inner > * { transform: skewX(6deg); }
+  .lab-picker { grid-template-columns: 22px 1fr 28px minmax(0, 1.3fr) 28px 40px; padding-right: 6px; }
+  .lab-picker__value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
 /* ---------- keyframes ---------- */
-@keyframes lab-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 70%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
-@keyframes lab-pulse-win { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--win) 70%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
+@keyframes lab-alert-in { from { opacity: 0; transform: translateX(40px) scale(0.96); } }
+@keyframes lab-alert-glow {
+  50% { box-shadow: 0 0 0 1px var(--bg), 0 0 70px color-mix(in srgb, var(--gold) 75%, transparent), var(--shadow); }
+}
+@keyframes lab-shimmer {
+  0% { transform: skewX(-18deg) translateX(0); opacity: 0; }
+  10% { opacity: 1; }
+  55% { opacity: 1; }
+  65%, 100% { transform: skewX(-18deg) translateX(1000px); opacity: 0; }
+}
 @keyframes lab-rise { from { opacity: 0; transform: translateY(16px); } }
 @keyframes lab-fade { from { opacity: 0; } }
-@keyframes lab-rays { to { transform: rotate(360deg); } }
-@keyframes lab-float { 50% { transform: translate(600px, 248px); } }
+@keyframes lab-glow {
+  0% { opacity: 0; transform: scale(0.5); }
+  45% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.3); }
+}
 @keyframes lab-crystal {
-  0% { transform: scale(0.2); opacity: 0; }
-  60% { transform: scale(1.1); opacity: 1; }
-  85% { transform: scale(0.95); opacity: 1; filter: brightness(2); }
-  100% { transform: scale(1.4); opacity: 0; filter: brightness(3); }
+  0% { transform: scale(0.3); opacity: 0; }
+  55% { transform: scale(1); opacity: 1; }
+  80% { transform: scale(1.04); opacity: 1; filter: brightness(1.6); }
+  100% { transform: scale(1.25); opacity: 0; filter: brightness(2.5); }
 }
+@keyframes lab-crack { to { opacity: 1; } }
+@keyframes lab-burst-ring { 0% { opacity: 0.9; transform: scale(0.4); } 100% { opacity: 0; transform: scale(3.4); } }
 @keyframes lab-shard {
-  0% { opacity: 1; transform: rotate(calc(var(--i) * 36deg)) translateY(0) scale(0.6); }
-  100% { opacity: 0; transform: rotate(calc(var(--i) * 36deg + 40deg)) translateY(-280px) scale(1); }
+  0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(calc(var(--s) * 0.6)) rotate(0deg); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--d) * -1)) scale(var(--s)) rotate(var(--r)); }
 }
-@keyframes lab-card-pop { from { opacity: 0; transform: scale(0.6); } }
+@keyframes lab-card-rise { from { opacity: 0; transform: translateY(12px) scale(0.92); } }
 @keyframes lab-from-left { from { transform: translateX(-100%); } }
 @keyframes lab-from-right { from { transform: translateX(100%); } }
 @keyframes lab-flash { 0% { opacity: 1; } 100% { opacity: 0; } }
