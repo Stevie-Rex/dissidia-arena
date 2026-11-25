@@ -1,5 +1,7 @@
-/* Lab, round 1 (#40). Dev-only; this file never merges. Candidate fonts for the three roles. */
-@import url("https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Cormorant+SC:wght@700&family=Saira+Condensed:wght@500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap");
+/* Lab, round 1 (#40). Dev-only; this file never merges. Candidate fonts for the three roles.
+   display=block: no fallback face shows while a candidate loads.
+   The palettes below are lab drafts; the chosen one moves into theme/tokens.json in the build stage. */
+@import url("https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Cormorant+SC:wght@700&family=Saira+Condensed:wght@500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=block");
 
 /* ---------- palettes: one dark, one light ---------- */
 .lab {

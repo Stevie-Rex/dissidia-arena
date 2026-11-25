@@ -136,8 +136,9 @@ export function GameEmblem({ game, size = 26 }: { game: '012' | 'NT'; size?: num
 
 /**
  * Home's hero slot: an abstract Cosmos and Chaos composition. Light rays and a warm sun on the Cosmos side,
- * a cracked dark field on the Chaos side, a crystal on the seam. Swapping commissioned art in replaces this
- * one component.
+ * a cracked dark field on the Chaos side, a crystal on the seam. The motifs are the theme's own SVGs
+ * (theme/assets/cosmos.svg sun, chaos.svg cracked diamond, crystal.svg faceted hexagon), drawn inline so they
+ * take the palette's colours. Swapping commissioned art in replaces this one component.
  */
 export function HeroComposition() {
   const rays = Array.from({ length: 14 }, (_, i) => -64 + i * 9)

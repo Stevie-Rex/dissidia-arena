@@ -25,7 +25,8 @@ import './lab.css'
 
 type FontSet = 'a' | 'b' | 'c'
 type Mode = 'dark' | 'light'
-type Placement = 'sidebar' | 'floating'
+/** Where match status shows. (Not "placement": that is a glossary term for a player's first matches.) */
+type StatusSpot = 'sidebar' | 'floating'
 type Status = 'none' | 'searching' | 'ready'
 type BannerStyle = 'blade' | 'shard' | 'ribbon'
 type Anim = 'shatter' | 'split' | 'sigil'
@@ -39,6 +40,11 @@ const FONT_SETS: { value: FontSet; label: string; detail: string }[] = [
 ]
 
 /* ---------- small pieces ---------- */
+
+const gameInfo = (game: LabGame) => GAMES.find((g) => g.id === game)!
+
+/** Which nav entry a lab page lights up in the sidebar and the bottom bar. */
+const navKey = (page: Page) => (page === 'hub' ? 'hub' : page === 'match' ? 'queue' : '')
 
 function Choice<T extends string>({
   label,
@@ -214,7 +220,7 @@ function Sidebar({
   admin: boolean
   statusSlot: ReactNode
 }) {
-  const active = page === 'hub' ? 'hub' : page === 'match' ? 'queue' : ''
+  const active = navKey(page)
   return (
     <aside className="lab-sidebar" aria-label="Sidebar">
       <button type="button" className="lab-brand" onClick={() => setPage('home')}>
@@ -289,7 +295,7 @@ function BottomBar({ page, setPage }: { page: Page; setPage: (p: Page) => void }
     { key: 'profile', label: 'Profile', icon: <ProfileCrest size={24} /> },
     { key: 'more', label: 'More', icon: <MoreCrest size={24} /> },
   ]
-  const active = page === 'hub' ? 'hub' : page === 'match' ? 'queue' : ''
+  const active = navKey(page)
   return (
     <nav className="lab-bottombar" aria-label="Phone navigation">
       {tiles.map((t) => (
@@ -348,7 +354,7 @@ function Banner({
 }
 
 function HubBanners({ style, game, onQueue, onMatch }: { style: BannerStyle; game: LabGame; onQueue: () => void; onMatch: () => void }) {
-  const searching = GAMES.find((g) => g.id === game)!.searching
+  const searching = gameInfo(game).searching
   return (
     <div className="lab-banners">
       <Banner
@@ -365,7 +371,7 @@ function HubBanners({ style, game, onQueue, onMatch }: { style: BannerStyle; gam
         tone="match"
         kicker={`Open match #${MATCH.id}`}
         big="1–1"
-        text={`vs ${OPPONENT.name}. Game 3 decides it.`}
+        text={`vs ${OPPONENT.name} · Game 3 next`}
         action="Go to match"
         onAction={onMatch}
       />
@@ -377,7 +383,7 @@ function HubBanners({ style, game, onQueue, onMatch }: { style: BannerStyle; gam
 /* ---------- pages ---------- */
 
 function Home({ game, onQueue, onMatch }: { game: LabGame; onQueue: () => void; onMatch: () => void }) {
-  const searching = GAMES.find((g) => g.id === game)!.searching
+  const searching = gameInfo(game).searching
   return (
     <div className="lab-home">
       <section className="lab-hero" aria-label="Hero">
@@ -440,7 +446,7 @@ function Home({ game, onQueue, onMatch }: { game: LabGame; onQueue: () => void; 
 function Hub({ style, game, onQueue, onMatch }: { style: BannerStyle; game: LabGame; onQueue: () => void; onMatch: () => void }) {
   return (
     <div className="lab-page lab-page--glass">
-      <p className="lab-kicker">{GAMES.find((g) => g.id === game)!.name}</p>
+      <p className="lab-kicker">{gameInfo(game).name}</p>
       <h1 className="lab-h1">Hub</h1>
       <HubBanners style={style} game={game} onQueue={onQueue} onMatch={onMatch} />
 
@@ -464,12 +470,12 @@ function Hub({ style, game, onQueue, onMatch }: { style: BannerStyle; game: LabG
   )
 }
 
-function MatchRoom({ onFound }: { onFound: () => void }) {
+function MatchRoom({ game, onFound }: { game: LabGame; onFound: () => void }) {
   const [draft, setDraft] = useState('')
   return (
     <div className="lab-page lab-match">
       <p className="lab-kicker">
-        Match #{MATCH.id} · 012 · Bo{MATCH.bestOf}
+        Match #{MATCH.id} · {game} · Bo{MATCH.bestOf}
       </p>
       <h1 className="lab-h1">Match room</h1>
 
@@ -558,7 +564,7 @@ function MatchRoom({ onFound }: { onFound: () => void }) {
 
 /* ---------- match found ---------- */
 
-function MatchFound({ anim, onClose }: { anim: Anim; onClose: () => void }) {
+function MatchFound({ anim, game, onClose }: { anim: Anim; game: LabGame; onClose: () => void }) {
   const shards = Array.from({ length: 10 }, (_, i) => i)
   return (
     <div className={cx('lab-found', `lab-found--${anim}`)} role="dialog" aria-modal aria-label="Match found">
@@ -597,7 +603,7 @@ function MatchFound({ anim, onClose }: { anim: Anim; onClose: () => void }) {
           <span className="lab-found__vs">vs</span>
           <span className="lab-found__them">{OPPONENT.name}</span>
         </p>
-        <p className="lab-found__meta">012 · 1v1 Bo3 · {PLAYER.region}</p>
+        <p className="lab-found__meta">{game} · 1v1 Bo3 · {PLAYER.region}</p>
         <div className="lab-actions lab-actions--center">
           <Button onClick={onClose}>Accept</Button>
           <Button variant="ghost" onClick={onClose}>
@@ -614,7 +620,7 @@ function MatchFound({ anim, onClose }: { anim: Anim; onClose: () => void }) {
 export default function Lab() {
   const [fontSet, setFontSet] = useState<FontSet>('a')
   const [mode, setMode] = useState<Mode>('dark')
-  const [placement, setPlacement] = useState<Placement>('sidebar')
+  const [statusSpot, setStatusSpot] = useState<StatusSpot>('sidebar')
   const [status, setStatus] = useState<Status>('searching')
   const [banner, setBanner] = useState<BannerStyle>('blade')
   const [anim, setAnim] = useState<Anim>('shatter')
@@ -653,7 +659,7 @@ export default function Lab() {
     ) : page === 'hub' ? (
       <Hub style={banner} game={game} onQueue={() => setStatus('searching')} onMatch={() => setPage('match')} />
     ) : (
-      <MatchRoom onFound={playFound} />
+      <MatchRoom game={game} onFound={playFound} />
     )
 
   return (
@@ -711,8 +717,8 @@ export default function Lab() {
         />
         <Choice
           label="Status in"
-          value={placement}
-          onChange={setPlacement}
+          value={statusSpot}
+          onChange={setStatusSpot}
           options={[
             { value: 'sidebar', label: 'Sidebar' },
             { value: 'floating', label: 'Floating card' },
@@ -759,7 +765,7 @@ export default function Lab() {
       </header>
 
       <div className="lab-stage-wrap">
-        <div className="lab-stage" data-placement={placement}>
+        <div className="lab-stage" data-status-spot={statusSpot}>
           <div className="lab-shell">
             <Sidebar
               page={page}
@@ -770,7 +776,7 @@ export default function Lab() {
               setMode={setMode}
               admin={admin}
               statusSlot={
-                placement === 'sidebar' && statusProps ? (
+                statusSpot === 'sidebar' && statusProps ? (
                   <div className="lab-status lab-status--sidebar" role="status">
                     <StatusContent key={status} {...statusProps} />
                   </div>
@@ -782,7 +788,7 @@ export default function Lab() {
 
           {statusProps && (
             <div
-              className={cx('lab-status lab-status--float', placement === 'sidebar' && 'lab-status--phone-only')}
+              className={cx('lab-status lab-status--float', statusSpot === 'sidebar' && 'lab-status--phone-only')}
               role="status"
             >
               <StatusContent key={status} {...statusProps} />
@@ -791,7 +797,7 @@ export default function Lab() {
 
           <BottomBar page={page} setPage={setPage} />
 
-          {found > 0 && <MatchFound key={found} anim={anim} onClose={() => setFound(0)} />}
+          {found > 0 && <MatchFound key={found} anim={anim} game={game} onClose={() => setFound(0)} />}
         </div>
       </div>
     </div>
