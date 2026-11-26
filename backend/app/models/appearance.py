@@ -13,7 +13,6 @@ class UserPreferences(db.Model):
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     interface: Mapped[str] = mapped_column(String(10), default="rift", nullable=False)
-    world: Mapped[str] = mapped_column(String(20), default="dissidia", nullable=False)
     window_theme: Mapped[str] = mapped_column(String(20), default="classic", nullable=False)
     menu_font: Mapped[str] = mapped_column(String(10), default="auto", nullable=False)
     cursor_style: Mapped[str] = mapped_column(String(10), default="glove", nullable=False)
@@ -27,7 +26,6 @@ class UserPreferences(db.Model):
     def to_dict(self) -> dict:
         return {
             "interface": self.interface,
-            "world": self.world,
             "window_theme": self.window_theme,
             "menu_font": self.menu_font,
             "cursor": self.cursor_style,

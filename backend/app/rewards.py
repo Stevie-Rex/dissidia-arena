@@ -42,7 +42,6 @@ _REQUIRES: dict[tuple[str, str], str] = {
 
 ALLOWED = {
     "interface": {"rift", "classic"},
-    "world": {"dissidia", "crystal", "magitek", "mako", "gaia", "ivalice"},
     "window_theme": {"classic", "crystal", "magitek", "midgar", "garden", "gaia", "spira", "ivalice", "custom"},
     "menu_font": {"auto", "bit16", "bit8", "story", "modern"},
     "cursor": {"glove", "arrow"},
@@ -50,7 +49,6 @@ ALLOWED = {
 
 DEFAULTS = {
     "interface": "rift",
-    "world": "dissidia",
     "window_theme": "classic",
     "menu_font": "auto",
     "cursor": "glove",

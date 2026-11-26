@@ -26,7 +26,7 @@ def patch(client, body):
 
 def test_requires_auth(client):
     assert client.get("/api/me/appearance").status_code == 401
-    assert client.patch("/api/me/appearance", json={"world": "mako"}).status_code == 401
+    assert client.patch("/api/me/appearance", json={"cursor": "arrow"}).status_code == 401
 
 
 def test_rewards_catalogue_is_public(client):
@@ -39,7 +39,7 @@ def test_new_player_gets_defaults(player):
     _, c, _ = player
     body = c.get("/api/me/appearance").get_json()
     assert body["preferences"] == {
-        "interface": "rift", "world": "dissidia", "window_theme": "classic",
+        "interface": "rift", "window_theme": "classic",
         "menu_font": "auto", "cursor": "glove", "window_rgb": [6, 10, 26],
     }
     assert body["ranked_wins"] == 0 and body["unlocks"] == []
@@ -56,8 +56,8 @@ def test_new_player_gets_defaults(player):
 
 def test_free_choices_save_and_persist(player, make_player):
     user, c, _ = player
-    body = patch(c, {"world": "mako", "cursor": "arrow", "menu_font": "story"}).get_json()
-    assert body["preferences"]["world"] == "mako"
+    body = patch(c, {"cursor": "arrow", "menu_font": "story"}).get_json()
+    assert body["preferences"]["menu_font"] == "story"
     assert body["preferences"]["cursor"] == "arrow"
     # A fresh session for the same user (another device) sees the same choices.
     other = c.application.test_client()
@@ -109,8 +109,8 @@ def test_each_skin_is_locked_until_its_goal(player, wins, body, reward):
 def test_locked_value_in_a_batch_changes_nothing(player):
     _, c, with_wins = player
     with_wins(10)
-    assert patch(c, {"world": "gaia", "window_theme": "spira"}).status_code == 403
-    assert c.get("/api/me/appearance").get_json()["preferences"]["world"] == "dissidia"
+    assert patch(c, {"cursor": "arrow", "window_theme": "spira"}).status_code == 403
+    assert c.get("/api/me/appearance").get_json()["preferences"]["cursor"] == "glove"
 
 
 def test_lock_is_by_unlock_not_by_win_count(player):
@@ -134,7 +134,6 @@ def test_custom_rgb_round_trip(player):
     "body",
     [
         {},
-        {"world": "midgar"},  # a window name, not a world
         {"interface": "nocturne"},
         {"cursor": None},
         {"window_rgb": [0, 0, 32]},
@@ -156,10 +155,19 @@ def test_bad_values_are_400(player, body):
 
 def test_bad_value_wins_over_locked_value(player):
     _, c, _ = player
-    assert patch(c, {"interface": "classic", "world": "nope"}).status_code == 400
+    assert patch(c, {"interface": "classic", "cursor": "nope"}).status_code == 400
 
 
 def test_requires_json(player):
     _, c, _ = player
-    res = c.patch("/api/me/appearance", data="world=mako", content_type="application/x-www-form-urlencoded")
+    res = c.patch("/api/me/appearance", data="cursor=arrow", content_type="application/x-www-form-urlencoded")
     assert res.status_code == 415
+
+
+def test_world_is_no_longer_a_preference(player):
+    """Rift worlds were removed (ADR 0001): the API neither returns nor accepts one."""
+    _, c, _ = player
+    assert "world" not in c.get("/api/me/appearance").get_json()["preferences"]
+    res = patch(c, {"world": "dissidia"})
+    assert res.status_code == 400
+    assert res.get_json()["error"] == "unknown_field"
