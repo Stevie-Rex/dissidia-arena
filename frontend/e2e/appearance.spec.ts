@@ -118,7 +118,8 @@ test.describe('Chaos mode and Cosmos mode', () => {
   })
 
   test('the saved mode paints before the app loads, with no flash of the other mode', async ({ page }) => {
-    await mockApi(page, { wins: 0, getDelayMs: 3000, prefs: { rift_mode: 'cosmos' } })
+    // The appearance request doesn't answer until the check is done, so only the cached mode can have painted.
+    await mockApi(page, { wins: 0, getDelayMs: 60_000, prefs: { rift_mode: 'cosmos' } })
     await page.addInitScript(() => {
       localStorage.setItem(
         'da-appearance',
@@ -129,9 +130,10 @@ test.describe('Chaos mode and Cosmos mode', () => {
       )
     })
     await page.goto('/', { waitUntil: 'commit' })
-    await page.waitForSelector('html[data-rift-mode="cosmos"]', { timeout: 2000 })
-    // The first ground the styles paint is Cosmos steel, while the 3s appearance request is still pending.
-    await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor !== 'rgba(0, 0, 0, 0)', null, { timeout: 2500 })
+    await page.waitForSelector('html[data-rift-mode="cosmos"]')
+    // The first ground the styles paint is Cosmos steel, while the appearance request is still pending. The waits
+    // used to be 2-2.5s against a 3s request, which a busy machine (styles arrive through Vite's JS) could miss.
+    await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor !== 'rgba(0, 0, 0, 0)')
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(184, 191, 202)')
   })
 
@@ -256,6 +258,10 @@ test.describe('Classic command menu', () => {
 })
 
 test.describe('Look and accessibility', () => {
+  // These check still pixels. Home's shimmer sweeps under the panels' backdrop blur, so Chromium re-blurs every frame
+  // (about 20 fps on one core); with every worker on Home at once that starved the suite into timeouts.
+  test.beforeEach(({ page }) => page.emulateMedia({ reducedMotion: 'reduce' }))
+
   for (const mode of ['chaos', 'cosmos'] as const) {
     for (const [label, size] of SIZES) {
       test(`Rift home in ${MODE_NAME[mode]} passes colour contrast at ${label} width`, async ({ page }) => {
