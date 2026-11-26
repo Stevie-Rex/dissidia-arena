@@ -1,0 +1,169 @@
+.lab-admin-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.lab-main:has(.lab-admin-panel) { overflow: hidden; padding-bottom: 0; }
+.lab-column:has(.lab-admin-panel) .lab-helpstrip { display: none; }
+.lab-admin-panel h1, .lab-admin-panel h2, .lab-admin-panel h3, .lab-admin-panel p { margin: 0; }
+.lab-admin-panel h2 { font: 600 1.35rem/1.15 var(--f-head); }
+.lab-admin-panel h3 { font-weight: 700; }
+.lab-admin-panel button, .lab-admin-panel input, .lab-admin-panel select, .lab-admin-panel textarea {
+  min-width: 0;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 0.45rem 0.7rem;
+  font: inherit;
+}
+.lab-admin-panel button:not(:disabled), .lab-admin-panel summary { cursor: pointer; }
+.lab-admin-panel button:disabled, .lab-admin-panel fieldset:disabled { opacity: 0.65; }
+.lab-admin-panel :is(button, summary, input, select, textarea, a):focus-visible {
+  outline: 2px solid var(--cosmos);
+  outline-offset: 2px;
+}
+.lab-admin-panel button:not(:disabled):hover { border-color: var(--cosmos); }
+.lab-admin-panel .lab-admin-primary, .lab-admin-panel button[aria-pressed="true"] {
+  color: var(--select-ink);
+  background: var(--select);
+  border-color: var(--select);
+  font-weight: 700;
+}
+.lab-admin-panel label { display: grid; gap: 4px; font-weight: 600; }
+.lab-admin-panel :is(input, select, textarea) { width: 100%; }
+.lab-admin-muted, .lab-admin-panel time { color: var(--muted); }
+.lab-admin-header, .lab-admin-back, .lab-admin-list, .lab-admin-case-scroll { padding-inline: clamp(16px, 3cqw, 44px); }
+.lab-admin-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding-block: 22px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+}
+.lab-admin-header nav, .lab-admin-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.lab-admin-header nav button { min-width: 68px; font-family: var(--f-head); font-weight: 600; }
+.lab-admin-header nav button[aria-current="page"] { border-color: var(--cosmos); color: var(--cosmos); background: var(--raised); }
+.lab-admin-list, .lab-admin-case-scroll { flex: 1; min-height: 0; overflow: auto; padding-block: 14px 24px; }
+.lab-admin-filters label { margin-bottom: 4px; }
+.lab-admin-filters { align-items: end; margin-bottom: 12px; }
+.lab-admin-filters > div { flex: 0 1 12rem; }
+.lab-admin-panel table { width: 100%; border-collapse: collapse; text-align: left; }
+.lab-admin-cases, .lab-admin-log, .lab-admin-section, .lab-admin-form, .lab-admin-summary {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.lab-admin-panel th, .lab-admin-panel td { padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.lab-admin-panel thead th, .lab-admin-summary .lab-admin-muted {
+  color: var(--muted);
+  font: 600 0.9rem/1.2 var(--f-head);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lab-admin-panel thead { background: var(--raised); }
+.lab-admin-badge {
+  --badge: var(--cosmos);
+  display: inline-block;
+  width: max-content;
+  padding: 1px 7px;
+  border: 1px solid color-mix(in srgb, var(--badge) 55%, var(--surface));
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--badge) 10%, var(--surface));
+  color: var(--badge);
+  font: 600 0.9rem/1.25 var(--f-head);
+}
+.lab-admin-badge[data-action="Dispute"], .lab-admin-badge[data-action="Void"], .lab-admin-badge[data-action="Remove"] { --badge: var(--chaos); }
+.lab-admin-badge[data-action="Ruling"] { --badge: var(--gold); }
+.lab-admin-badge[data-action="Close"], .lab-admin-badge[data-action="Appoint"] { --badge: var(--win); }
+.lab-admin-panel .lab-admin-link { display: inline; padding: 0; color: var(--cosmos); background: none; border: 0; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.lab-admin-back { padding-block: 10px 0; }
+.lab-admin-workspace { display: flex; flex: 1; min-height: 0; position: relative; flex-direction: column; }
+.lab-admin-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 12px 22px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.lab-admin-summary strong { display: block; }
+.lab-admin-summary h2 { margin-top: 3px; }
+.lab-admin-case-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 32%); align-items: start; gap: 14px; }
+.lab-admin-evidence, .lab-admin-roster { display: grid; gap: 12px; min-width: 0; }
+.lab-admin-roster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lab-admin-section { min-width: 0; padding: 12px; }
+.lab-admin-section > h2 { margin-bottom: 9px; }
+.lab-admin-statements { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.lab-admin-statements > div { padding: 8px 10px; border-left: 2px solid var(--line-strong); background: var(--bg-2); }
+.lab-admin-screenshot figure { margin: 8px 0 0; color: var(--muted); }
+.lab-admin-capture { display: grid; place-content: center; justify-items: center; max-width: 320px; min-height: 135px; color: var(--ink); background: var(--raised); }
+.lab-admin-capture strong { font: 1.7rem var(--f-display, var(--f-head)); }
+.lab-admin-history, .lab-admin-log, .lab-admin-roster ul { list-style: none; padding: 0; margin: 0; }
+.lab-admin-history li, .lab-admin-log li, .lab-admin-roster li {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.lab-admin-panel li:last-child { border-bottom: 0; }
+.lab-admin-history li { grid-template-columns: 3rem minmax(5rem, 21%) minmax(0, 1fr); align-items: start; }
+.lab-admin-log li { grid-template-columns: 3.2rem minmax(6.3rem, 1fr) minmax(3.8rem, 0.55fr) minmax(0, 1.2fr); }
+.lab-admin-log .lab-admin-link { justify-self: start; text-align: left; }
+.lab-admin-person { display: flex; align-items: center; gap: 6px; }
+.lab-admin-roster li { display: flex; justify-content: space-between; }
+.lab-admin-empty { color: var(--muted); padding: 18px 0; }
+.lab-admin-form { position: sticky; top: 0; padding: 12px; max-height: 100%; }
+.lab-admin-form-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.lab-admin-form fieldset { display: grid; gap: 10px; min-width: 0; }
+.lab-admin-form textarea { resize: vertical; }
+.lab-admin-form .lab-admin-muted { margin-top: 8px; }
+.lab-admin-log-player { display: flex; gap: 12px; align-items: center; margin-top: 10px; padding: 10px; background: var(--surface); border: 1px solid var(--line); }
+.lab-admin-phone-claim, .lab-admin-drawer-toggle, .lab-admin-panel .lab-admin-drawer-dismiss { display: none; }
+
+.lab-column .lab-status--admin-dock { display: none; }
+
+@container stage (max-width: 760px) {
+  .lab-column:has(.lab-admin-panel) { padding-bottom: 78px; }
+  .lab-stage .lab-status--admin-float { display: none; }
+  .lab-column .lab-status--admin-dock { display: flex; margin: 4px 8px; padding: 8px; flex: none; }
+  .lab-admin-header { align-items: start; padding-block: 10px 8px; gap: 6px 16px; }
+  .lab-admin-header .lab-h1 { font-size: 1.65rem; }
+  .lab-admin-header nav button { min-width: 58px; }
+  .lab-admin-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .lab-admin-summary > :first-child { grid-column: 1 / -1; }
+  .lab-admin-summary button { grid-column: 1 / -1; justify-self: start; }
+  .lab-admin-case-grid, .lab-admin-roster, .lab-admin-statements { grid-template-columns: minmax(0, 1fr); }
+  .lab-admin-filters > div { flex: 1 1 120px; }
+  .lab-admin-panel .lab-admin-cases { display: block; border: 0; background: transparent; }
+  .lab-admin-cases thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .lab-admin-cases tbody { display: grid; gap: 8px; }
+  .lab-admin-cases tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
+  .lab-admin-cases td { padding: 0; border: 0; }
+  .lab-admin-cases td:nth-child(3) { grid-area: 2 / 1 / 2 / -1; font-weight: 600; }
+  .lab-admin-cases td:nth-child(4), .lab-admin-cases td:nth-child(6) { text-align: right; }
+  .lab-admin-cases td:nth-child(6) { grid-column: 2 / -1; }
+  .lab-admin-phone-claim { display: inline; color: var(--muted); }
+  .lab-admin-log li { gap: 5px; font-size: 0.875rem; padding-inline: 7px; grid-template-columns: 2.5rem minmax(5.3rem, 1fr) 3.5rem minmax(0, 0.8fr); }
+  .lab-admin-form { display: none; }
+  .lab-admin-workspace[data-drawer="true"] .lab-admin-form {
+    display: block;
+    position: absolute;
+    inset: 50% 0 0;
+    overflow: auto;
+    padding-inline: 16px;
+    border-top-color: var(--cosmos);
+    border-radius: 0;
+  }
+  .lab-admin-workspace[data-drawer="true"] .lab-admin-case-scroll { flex: 0 0 50%; }
+  .lab-admin-panel .lab-admin-drawer-dismiss { display: block; }
+  .lab-admin-panel .lab-admin-drawer-toggle { display: block; margin: 4px 16px 8px; min-height: 42px; flex: none; }
+}

@@ -25,6 +25,8 @@ import { HelpStrip, MenuBars, PickerList, TabTitle, type MenuItem, type PickerSp
 import { GAMES, MATCH, OPPONENT, PLAYER, nextUnlock, type LabGame } from './sample'
 import { loadMuted, playMatchFound, saveMuted, unlockAudio } from './sound'
 import { LIGHT_VARIANTS, LightBackdrop, LightHero, LightSwitcher, SteelFacets, readLightVariant, type LightVariant } from './LightVariants'
+import { AdminPanel } from './AdminPanel'
+
 import './lab.css'
 import './lab-light.css'
 
@@ -35,7 +37,7 @@ type StatusSpot = 'sidebar' | 'floating'
 type Status = 'none' | 'searching' | 'ready'
 type BannerStyle = 'blade' | 'blade2' | 'shard' | 'ribbon'
 type Anim = 'shatter' | 'split' | 'sigil'
-type Page = 'home' | 'hub' | 'match' | 'menus' | 'crests' | 'light'
+type Page = 'home' | 'hub' | 'match' | 'menus' | 'crests' | 'light' | 'admin'
 type Screen = 'desktop' | 'phone'
 /** Pass 4: the font for the match score. */
 type ScoreFont = 'chakra' | 'cinzel' | 'marcellus' | 'teko' | 'oxanium'
@@ -116,7 +118,7 @@ const ACCEPT_SECONDS = 60
 const gameInfo = (game: LabGame) => GAMES.find((g) => g.id === game)!
 
 /** Which nav entry a lab page lights up in the sidebar and the bottom bar. */
-const NAV_KEY: Record<Page, string> = { home: '', hub: 'hub', match: 'queue', menus: 'more', crests: '', light: '' }
+const NAV_KEY: Record<Page, string> = { home: '', hub: 'hub', match: 'queue', menus: 'more', crests: '', light: '', admin: 'admin' }
 
 function Choice<T extends string>({
   label,
@@ -275,13 +277,7 @@ const NAV: NavEntry[] = [
 const ADMIN_NAV: MenuItem = {
   key: 'admin',
   label: 'Admin',
-  hint: 'Cases, the Admin log and Admins. Only Admins see this.',
-  badge: '3',
-  children: [
-    { key: 'cases', label: 'Cases', hint: 'Disputed matches and Help requests waiting for an Admin.' },
-    { key: 'log', label: 'Admin log', hint: 'Every Admin action, newest first.' },
-    { key: 'admins', label: 'Admins', hint: 'Appoint and remove Admins. Only the Master sees this.' },
-  ],
+  hint: 'Cases and the Admin log. Only the Master can manage Admins.',
 }
 
 /** The next-unlock bar. `--p` (0 to 100) drives the colour shift and the sweep. */
@@ -357,7 +353,7 @@ function Sidebar({
   const items: MenuItem[] = NAV.map((n) => ({ key: n.key, label: n.label, hint: n.hint, icon: crest(frame, 30, 20, n.glyph) }))
   if (admin) items.push({ ...ADMIN_NAV, icon: crest(frame, 30, 20, (s) => <GiCrenulatedShield size={s} />) })
   const pick = (key: string) => {
-    const target = NAV.find((n) => n.key === key)?.page
+    const target = key === 'admin' ? 'admin' : NAV.find((n) => n.key === key)?.page
     if (target) setPage(target)
   }
   return (
@@ -437,7 +433,7 @@ function BottomBar({ page, setPage, frame, inert }: { page: Page; setPage: (p: P
     { key: 'profile', label: 'Profile', glyph: (s) => <GiVisoredHelm size={s} /> },
     { key: 'more', label: 'More', glyph: (s) => <GiHamburgerMenu size={s} />, page: 'menus' },
   ]
-  const active = NAV_KEY[page]
+  const active = page === 'admin' ? 'more' : NAV_KEY[page]
   return (
     <nav className="lab-bottombar" aria-label="Phone navigation" inert={inert}>
       {tiles.map((t) => (
@@ -773,17 +769,7 @@ const MORE_MENU: MenuItem[] = [
       { key: 'region', label: 'Region', hint: 'Where you queue. It decides who you meet.' },
     ],
   },
-  {
-    key: 'admin',
-    label: 'Admin',
-    icon: <GiCrenulatedShield size={20} />,
-    hint: 'Only Admins see this.',
-    children: [
-      { key: 'cases', label: 'Cases', hint: 'Disputed matches and Help requests waiting for an Admin.' },
-      { key: 'log', label: 'Admin log', hint: 'Every Admin action, newest first.' },
-      { key: 'admins', label: 'Admins', hint: 'Appoint and remove Admins. Only the Master sees this.' },
-    ],
-  },
+  { ...ADMIN_NAV, icon: <GiCrenulatedShield size={20} /> },
   { key: 'feedback', label: 'Feedback', icon: <GiQuillInk size={20} />, hint: 'Tell us what to fix, on Discord.' },
 ]
 
@@ -795,7 +781,7 @@ const PICKERS: PickerSpec[] = [
   { key: 'sound', label: 'Sound', options: ['On', 'Off'], hint: 'The sound when a match is found.' },
 ]
 
-function Menus({ muted, setMuted }: { muted: boolean; setMuted: (m: boolean) => void }) {
+function Menus({ muted, setMuted, admin, onAdmin }: { muted: boolean; setMuted: (m: boolean) => void; admin: boolean; onAdmin: () => void }) {
   const [values, setValues] = useState<Record<string, number>>({})
   const merged = { ...values, sound: muted ? 1 : 0 }
   return (
@@ -809,7 +795,7 @@ function Menus({ muted, setMuted }: { muted: boolean; setMuted: (m: boolean) => 
       <div className="lab-menus__grid">
         <section className="lab-panel lab-panel--tabbed" aria-label="More menu">
           <TabTitle>Menu</TabTitle>
-          <MenuBars label="More" items={MORE_MENU} />
+          <MenuBars label="More" items={MORE_MENU.filter((item) => admin || item.key !== 'admin')} onPick={(key) => { if (key === 'admin') onAdmin() }} />
         </section>
         <section className="lab-panel lab-panel--tabbed" aria-label="Settings">
           <TabTitle>Settings</TabTitle>
@@ -1092,13 +1078,29 @@ export default function Lab() {
   const [lightVariant, setLightVariant] = useState<LightVariant>(() => readLightVariant() ?? 'a')
   const [mode, setMode] = useState<Mode>(() => (readLightVariant() ? 'light' : 'dark'))
   const [statusSpot, setStatusSpot] = useState<StatusSpot>('floating')
-  const [status, setStatus] = useState<Status>('searching')
+  const [status, setStatus] = useState<Status>(() => new URLSearchParams(location.search).get('page') === 'admin' ? 'none' : 'searching')
   const [banner, setBanner] = useState<BannerStyle>('blade2')
   const [anim, setAnim] = useState<Anim>('shatter')
-  const [page, setPage] = useState<Page>('home')
+  const [page, setPageState] = useState<Page>(() => new URLSearchParams(location.search).get('page') === 'admin' ? 'admin' : 'home')
+  const [adminCase, setAdminCase] = useState(() => new URLSearchParams(location.search).get('case'))
+  function updateAdminUrl(id: string | null, active = true) {
+    const url = new URL(location.href)
+    if (active) url.searchParams.set('page', 'admin')
+    else url.searchParams.delete('page')
+    if (id) url.searchParams.set('case', id)
+    else url.searchParams.delete('case')
+    history.replaceState(null, '', url)
+    setAdminCase(id)
+  }
+  function setPage(next: Page) {
+    if (next === page) return
+    if (next === 'admin' || page === 'admin') updateAdminUrl(null, next === 'admin')
+    setPageState(next)
+  }
   const [screen, setScreen] = useState<Screen>('desktop')
   const [game, setGame] = useState<LabGame>('012')
   const [admin, setAdmin] = useState(true)
+  const [master, setMaster] = useState(false)
   const [still, setStill] = useState(false)
   const [frame, setFrame] = useState<Frame>('diamond')
   const [scoreFont, setScoreFont] = useState<ScoreFont>('marcellus')
@@ -1185,11 +1187,12 @@ export default function Lab() {
     ),
     hub: <Hub style={banner} unlockBar={unlockBar} game={game} onQueue={queue} onMatch={() => setPage('match')} />,
     match: <MatchRoom game={game} scoreFont={scoreFont} onFound={findMatch} />,
-    menus: <Menus muted={muted} setMuted={setMuted} />,
+    menus: <Menus muted={muted} setMuted={setMuted} admin={admin} onAdmin={() => setPage('admin')} />,
+    admin: <AdminPanel master={master} initialCase={adminCase} onCaseChange={updateAdminUrl} />,
     crests: <Crests />,
     light: <LightTests lightFrame={lightFrame} btnSet={btnSet} />,
   }[page]
-  const backdrop = page !== 'match'
+  const backdrop = page !== 'match' && page !== 'admin'
   /** The pass 6 switches only mean something in Cosmos mode, direction C. */
   const cosmosC = mode === 'light' && lightVariant === 'c'
   const stageBackdrop =
@@ -1198,7 +1201,7 @@ export default function Lab() {
   return (
     <div className={cx('lab', still && 'lab--still', clean && 'lab--clean')} data-fontset={fontSet} data-mode={mode} data-screen={screen} data-lightframe={lightFrame} data-btnset={btnSet} data-light={mode === 'light' && lightVariant !== 'p5' ? lightVariant : undefined} data-accent={cosmosAccent} data-plates={cosmosPlates}>
       <header className="lab-toolbar" aria-label="Lab controls">
-        <strong className="lab-toolbar__title">Lab · Cosmos mode pass 6 (#58)</strong>
+        <strong className="lab-toolbar__title">Lab · Admin panel (#51)</strong>
         <button type="button" className="lab-toolbar__hide" onClick={() => setClean(true)} title="Hide the lab controls (H)">
           Hide controls · H
         </button>
@@ -1216,6 +1219,7 @@ export default function Lab() {
             { value: 'menus', label: 'More menu' },
             { value: 'crests', label: 'Crests' },
             { value: 'light', label: 'Light tests' },
+            ...(admin ? [{ value: 'admin' as const, label: 'Admin panel' }] : []),
           ]}
         />
         <Choice
@@ -1364,7 +1368,7 @@ export default function Lab() {
             { value: 'sigil', label: 'Sigil rings' },
           ]}
         />
-        <div className="lab-choice">
+        <div className="lab-choice" role="group" aria-label="Other">
           <span className="lab-choice__label">Other</span>
           <div className="lab-choice__opts">
             <button type="button" onClick={findMatch}>
@@ -1373,9 +1377,10 @@ export default function Lab() {
             <button type="button" aria-pressed={!muted} onClick={() => setMuted(!muted)}>
               Sound
             </button>
-            <button type="button" aria-pressed={admin} onClick={() => setAdmin(!admin)}>
+            <button type="button" aria-pressed={admin} onClick={() => { if (admin && page === 'admin') setPage('home'); setAdmin(!admin) }}>
               Admin
             </button>
+            {admin && <button type="button" aria-pressed={master} onClick={() => setMaster(!master)}>Master</button>}
             <button type="button" aria-pressed={still} onClick={() => setStill(!still)} title="Simulates prefers-reduced-motion">
               Reduced motion
             </button>
@@ -1416,6 +1421,11 @@ export default function Lab() {
             />
             <div className="lab-column">
               <main className={cx('lab-main', backdrop ? 'lab-main--backdrop' : 'lab-main--plain')}>{content}</main>
+              {page === 'admin' && statusProps && (
+                <div className={cx('lab-status lab-status--admin-dock', status === 'ready' && 'lab-status--alert')} role="status">
+                  <StatusContent key={status} {...statusProps} />
+                </div>
+              )}
               <HelpStrip text={hint} />
             </div>
           </div>
@@ -1426,6 +1436,7 @@ export default function Lab() {
                 'lab-status lab-status--float',
                 status === 'ready' && 'lab-status--alert',
                 statusSpot === 'sidebar' && 'lab-status--phone-only',
+                page === 'admin' && 'lab-status--admin-float',
               )}
               role="status"
               inert={foundRun > 0}
