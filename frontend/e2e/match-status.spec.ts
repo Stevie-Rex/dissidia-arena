@@ -52,7 +52,7 @@ test.describe('Match status card', () => {
   test('a search started from Queue shows on other pages, and Cancel there leaves the queue', async ({ page }) => {
     const { sent } = await withQueue(page, { queue: null, match: null })
     await page.goto('/queue')
-    await page.getByRole('main').getByRole('button', { name: /Find match/ }).click()
+    await page.getByRole('main').getByRole('button', { name: 'Queue', exact: true }).click()
     await expect.poll(() => sent).toContain('POST /api/queue')
 
     for (const path of ['/rewards', '/012']) {

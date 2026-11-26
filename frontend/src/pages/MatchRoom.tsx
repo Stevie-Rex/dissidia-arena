@@ -1,15 +1,16 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { CHARACTERS, GAMES, HELPERS, STAGES, type GameId } from '../data/mock'
+import { useAppearance } from '../state/Appearance'
 import { useApp } from '../state/AppState'
 import type { GameDetails, Match, RulingOutcome, Side } from '../lib/api'
 import { Avatar, Btn, Card, Pill, Select, SideGlyph, Sub } from '../components/ui'
 import VictoryReward from '../components/appearance/VictoryReward'
 import { PendingMatchRoom } from '../components/rift/MatchStatus'
-import { useAppearance } from '../state/Appearance'
 import AskAdmin from '../components/AskAdmin'
 import { ScreenshotList, ScreenshotUpload } from '../components/Screenshots'
 import { FIELD, cx } from '../lib/format'
+import './match-flow.css'
 
 const RULING_NOTES: Record<RulingOutcome, string> = {
   uphold: 'An Admin upheld the reported result.',
@@ -25,31 +26,34 @@ export default function MatchRoom() {
     abandonMatch, closeMatch, startQueue,
   } = useApp()
   const { ui } = useAppearance()
+  const rift = ui === 'rift'
   const navigate = useNavigate()
   const [text, setText] = useState('')
   const [copied, setCopied] = useState(false)
   const [disputing, setDisputing] = useState(false)
-  const chatEnd = useRef<HTMLDivElement>(null)
+  const transcript = useRef<HTMLDivElement>(null)
 
   // ?match=<id> (links from DMs and the dispute notice) shows that match. If it isn't your current
   // match, such as an old Disputed one, it's loaded separately so queue polling can't swap it out.
   const [params] = useSearchParams()
   const linkedId = Number(params.get('match')) || null
-  const showViewed = linkedId !== null && linkedId !== current?.id && !(ui === 'rift' && linkedId === pending?.id)
+  const showViewed = linkedId !== null && linkedId !== current?.id && !(rift && linkedId === pending?.id)
   const live = showViewed ? (viewed?.id === linkedId ? viewed : null) : current
   useEffect(() => {
     if (showViewed) openMatch(linkedId)
   }, [showViewed, linkedId, openMatch])
 
   useEffect(() => {
-    chatEnd.current?.scrollIntoView({ block: 'nearest' })
-  }, [live?.messages.length])
+    const chat = transcript.current
+    if (chat) chat.scrollTop = chat.scrollHeight
+  }, [live?.id, live?.messages.length])
 
-  if (ui === 'rift' && pending && !showViewed) return <PendingMatchRoom />
+  if (rift && pending && !showViewed) return <PendingMatchRoom />
 
   if (!live)
     return (
-      <div className="flex flex-col items-center gap-3 py-10">
+      <div className={cx('flex flex-col items-center gap-3 py-10', rift && 'rift-match')}>
+        {rift && <h1>Match room</h1>}
         <Sub>{linkedId ? 'Loading match…' : 'No active match.'}</Sub>
         <Link to="/queue" className="text-gold-note hover:text-crystal-soft">
           Go to queue →
@@ -71,16 +75,17 @@ export default function MatchRoom() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={cx('flex flex-col gap-4', rift && 'rift-match')}>
+      {rift && <h1>Match room</h1>}
       <VictoryReward match={live} />
-      <ScoreBar match={live} />
-      <div className="grid gap-4 md:grid-cols-[260px_1fr]">
-        <div className="flex flex-col gap-3">
+      <ScoreBar match={live} rift={rift} />
+      <div className={rift ? 'match-columns' : 'grid gap-4 md:grid-cols-[260px_1fr]'}>
+        <div className="flex min-w-0 flex-col gap-3">
           <Card>
-            <Sub>host</Sub>
+            {rift ? <h2>Host</h2> : <Sub>host</Sub>}
             <b>{live.host === 'you' ? 'You' : host.displayName}</b>
             <Sub>
-              {info.idLabel}: {hostId}
+              <span className="break-all">{info.idLabel}: {hostId}</span>
             </Sub>
             {host.gameId && (
               <Pill
@@ -102,12 +107,12 @@ export default function MatchRoom() {
           )}
 
           {live.status === 'active' && (
-            <ReportGame key={live.games.length} gameNo={live.games.length + 1} game={live.game} onReport={reportGame} />
+            <ReportGame key={live.games.length} gameNo={live.games.length + 1} game={live.game} onReport={reportGame} rift={rift} />
           )}
 
           {live.status === 'reported' && live.reportedBy === 'you' && (
             <Card tone="gold">
-              <Sub>waiting for confirmation</Sub>
+              {rift ? <h2>Waiting for confirmation</h2> : <Sub>waiting for confirmation</Sub>}
               <b>
                 You reported {scoreLine} · {live.winner === 'you' ? 'you win' : `${opp.displayName} wins`}
               </b>
@@ -118,7 +123,7 @@ export default function MatchRoom() {
 
           {live.status === 'reported' && live.reportedBy === 'opponent' && (
             <Card tone="gold">
-              <Sub>confirm result</Sub>
+              {rift ? <h2>Confirm result</h2> : <Sub>confirm result</Sub>}
               <b>
                 {opp.displayName} says: {scoreLine} · {live.winner === 'you' ? 'you win' : 'they win'}
               </b>
@@ -126,13 +131,18 @@ export default function MatchRoom() {
               {disputing ? (
                 <DisputeForm
                   match={live}
+                  rift={rift}
                   onSubmit={(games, reason) => disputeResult(games, reason)}
                   onCancel={() => setDisputing(false)}
                 />
               ) : (
                 <div className="flex gap-2">
                   <Btn onClick={confirmResult}>Confirm</Btn>
-                  <Pill onClick={() => setDisputing(true)}>Dispute</Pill>
+                  {rift ? (
+                    <Btn variant="chaos" onClick={() => setDisputing(true)}>Dispute</Btn>
+                  ) : (
+                    <Pill onClick={() => setDisputing(true)}>Dispute</Pill>
+                  )}
                 </div>
               )}
             </Card>
@@ -150,7 +160,7 @@ export default function MatchRoom() {
 
           {!canChat && <Finished match={live} onDone={() => done(`/${live.game}`)} onAgain={() => done('/queue', true)} />}
 
-          {live.games.length > 0 && <GameList match={live} />}
+          {live.games.length > 0 && <GameList match={live} rift={rift} />}
 
           {/* keyed so the form starts empty (and closed) on another match */}
           <AskAdmin key={live.id} match={live} onAsk={(message) => askAdmin(live.id, message)} />
@@ -171,8 +181,11 @@ export default function MatchRoom() {
           )}
         </div>
 
-        <Card className="min-h-[420px]">
-          <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
+        <Card className={rift ? 'min-w-0' : 'min-h-[420px]'}>
+          {rift && <h2>Match chat</h2>}
+          <div ref={transcript} className={cx('flex flex-1 flex-col gap-2 overflow-y-auto', rift && 'match-transcript')}
+            role={rift ? 'log' : undefined} aria-label={rift ? 'Match chat' : undefined}>
+            {rift && live.messages.length === 0 && <Sub>No messages yet.</Sub>}
             {live.messages.map((m) =>
               m.from === 'system' ? (
                 <div key={m.id} className="text-center text-xs text-muted">
@@ -187,7 +200,7 @@ export default function MatchRoom() {
                   />
                   <div
                     className={cx(
-                      'max-w-[70%] rounded-lg border-[1.5px] px-2.5 py-1.5 text-sm',
+                      'max-w-[70%] min-w-0 wrap-anywhere rounded-lg border-[1.5px] px-2.5 py-1.5 text-sm',
                       m.from === 'you' ? 'border-crystal-line bg-crystal-bg' : 'border-chaos-line bg-chaos-bg',
                     )}
                   >
@@ -196,7 +209,6 @@ export default function MatchRoom() {
                 </div>
               ),
             )}
-            <div ref={chatEnd} />
           </div>
           {canChat && (
             <>
@@ -208,8 +220,10 @@ export default function MatchRoom() {
                 ))}
               </div>
               <form
+                className={rift ? 'flex flex-wrap gap-2' : undefined}
                 onSubmit={(e) => {
                   e.preventDefault()
+                  if (!text.trim()) return
                   sendChat(text)
                   setText('')
                 }}
@@ -218,9 +232,11 @@ export default function MatchRoom() {
                   value={text}
                   maxLength={500}
                   onChange={(e) => setText(e.target.value)}
-                  placeholder={`message ${opp.displayName}…`}
-                  className={FIELD}
+                  aria-label={`Message ${opp.displayName}`}
+                  placeholder={`Message ${opp.displayName}…`}
+                  className={cx(FIELD, rift && 'min-h-11 min-w-0 flex-[1_1_10rem] text-base')}
                 />
+                {rift && <Btn type="submit" disabled={!text.trim()}>Send</Btn>}
               </form>
             </>
           )}
@@ -231,7 +247,7 @@ export default function MatchRoom() {
 }
 
 /** Both sides with a glyph and name (you are Cosmos, your opponent Chaos), score as filled pips toward the win. */
-function ScoreBar({ match }: { match: Match }) {
+function ScoreBar({ match, rift }: { match: Match; rift: boolean }) {
   const info = GAMES[match.game]
   const side = (who: Side) => {
     const p = match[who]
@@ -249,13 +265,34 @@ function ScoreBar({ match }: { match: Match }) {
           <span className="truncate font-semibold">{cosmos ? `${p.displayName} (you)` : p.displayName}</span>
           <span role="img" aria-label={`${won} of ${match.winsNeeded} games won`} className="flex gap-1">
             {Array.from({ length: match.winsNeeded }, (_, i) => (
-              <span key={i} className={cx('h-2 w-6 rounded-sm border border-[var(--side)]', i < won && 'bg-[var(--side)]')} />
+              <span key={i} className={cx('score-pip h-2 w-6 rounded-sm border border-[var(--side)]', i < won && 'bg-[var(--side)]')} />
             ))}
           </span>
         </div>
       </div>
     )
   }
+  const format = (
+    <Sub>
+      {info.short} {match.mode} · Bo{match.bestOf} · {match.platform}
+      {match.status === 'active' && ` · game ${match.games.length + 1}`}
+    </Sub>
+  )
+
+  if (rift) {
+    return (
+      <Card className="match-score" role="region" aria-label="Score">
+        {side('you')}
+        <span role="img" aria-label={`Score ${match.score.you} to ${match.score.opponent}`}
+          className="font-display text-3xl tabular-nums sm:text-5xl">
+          {match.score.you}–{match.score.opponent}
+        </span>
+        {side('opponent')}
+        <div className="match-format">{format}</div>
+      </Card>
+    )
+  }
+
   return (
     <Card className="flex-row flex-wrap items-center gap-4 px-5 py-4">
       {side('you')}
@@ -263,10 +300,7 @@ function ScoreBar({ match }: { match: Match }) {
         <span className="font-display text-3xl font-bold tabular-nums">
           {match.score.you}–{match.score.opponent}
         </span>
-        <Sub>
-          {info.short} {match.mode} · Bo{match.bestOf} · {match.platform}
-          {match.status === 'active' && ` · game ${match.games.length + 1}`}
-        </Sub>
+        {format}
       </div>
       {side('opponent')}
     </Card>
@@ -310,12 +344,12 @@ function Finished({ match, onDone, onAgain }: { match: Match; onDone: () => void
   )
 }
 
-function GameList({ match }: { match: Match }) {
-  return (
-    <div className="flex flex-col gap-0.5 text-xs">
+function GameList({ match, rift }: { match: Match; rift: boolean }) {
+  const games = (
+    <div className={rift ? 'flex flex-col gap-2 text-sm' : 'flex flex-col gap-0.5 text-xs'}>
       {match.games.map((g) => (
-        <div key={g.n} className="flex gap-2">
-          <span className="text-muted">G{g.n}</span>
+        <div key={g.n} className="flex flex-wrap gap-x-2">
+          <span className="text-muted">{rift ? `Game ${g.n}` : `G${g.n}`}</span>
           <span className={g.winner === 'you' ? 'text-crystal-soft' : 'text-chaos-soft'}>
             {g.winner === 'you' ? 'you' : match.opponent.displayName}
           </span>
@@ -324,13 +358,21 @@ function GameList({ match }: { match: Match }) {
       ))}
     </div>
   )
+  return rift ? (
+    <Card role="region" aria-label="Games">
+      <h2>Games</h2>
+      {games}
+    </Card>
+  ) : games
 }
 
 function ReportGame({
   gameNo,
   game,
   onReport,
+  rift,
 }: {
+  rift: boolean
   gameNo: number
   game: GameId
   onReport: (w: Side, details: GameDetails) => void
@@ -340,14 +382,58 @@ function ReportGame({
   const [stage, setStage] = useState(STAGES[game][0])
   const opts = (xs: string[]) => xs.map((x) => ({ value: x, label: x }))
   const details = { character, helper, stage }
+  const [winner, setWinner] = useState<Side | null>(null)
+  const [missingWinner, setMissingWinner] = useState(false)
+  const winnerId = useId()
+  const fields = [
+    { label: 'Your character', value: character, onChange: setChar, options: opts(CHARACTERS[game]) },
+    { label: GAMES[game].helperLabel, value: helper, onChange: setHelper, options: opts(HELPERS[game]) },
+    { label: 'Stage', value: stage, onChange: setStage, options: opts(STAGES[game]) },
+  ]
+
+  if (rift) {
+    return (
+      <Card>
+        <h2>Report game {gameNo}</h2>
+        <form aria-label={`Report game ${gameNo}`} className="flex flex-col gap-3" onSubmit={(e) => {
+          e.preventDefault()
+          if (winner === null) return setMissingWinner(true)
+          onReport(winner, details)
+        }}>
+          <fieldset>
+            <legend className="mb-1">Game {gameNo} winner?</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {(['you', 'opponent'] as const).map((side) => (
+                <label key={side} className="match-option text-sm">
+                  <input type="radio" name={winnerId} checked={winner === side} onChange={() => {
+                    setWinner(side)
+                    setMissingWinner(false)
+                  }} />
+                  {side === 'you' ? 'I won' : 'Opponent won'}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {missingWinner && <span role="alert" className="text-sm text-chaos-soft">Pick who won game {gameNo}.</span>}
+          <div className="match-details">
+            {fields.map((field) => (
+              <label key={field.label} className="flex min-w-0 flex-col gap-1 text-sm">
+                {field.label}
+                <Select {...field} />
+              </label>
+            ))}
+          </div>
+          <Btn type="submit" className="sm:self-start">Report result</Btn>
+        </form>
+      </Card>
+    )
+  }
   return (
     <Card tone="gold">
       <Sub>report per game</Sub>
       <b>Game {gameNo} winner?</b>
       <div className="flex flex-wrap gap-1.5">
-        <Select label="Your character" value={character} onChange={setChar} options={opts(CHARACTERS[game])} />
-        <Select label={GAMES[game].helperLabel} value={helper} onChange={setHelper} options={opts(HELPERS[game])} />
-        <Select label="Stage" value={stage} onChange={setStage} options={opts(STAGES[game])} />
+        {fields.map((field) => <Select key={field.label} {...field} />)}
       </div>
       <div className="flex gap-2">
         <Btn onClick={() => onReport('you', details)}>Me</Btn>
@@ -406,10 +492,12 @@ function Countdown({ deadline, running, done }: { deadline: string | null; runni
 /** Which games you dispute, and why. Both are required. */
 function DisputeForm({
   match,
+  rift,
   onSubmit,
   onCancel,
 }: {
   match: Match
+  rift: boolean
   onSubmit: (games: number[], reason: string) => void
   onCancel: () => void
 }) {
@@ -436,7 +524,7 @@ function DisputeForm({
       <fieldset className="flex flex-col gap-1">
         <legend className="mb-1 text-xs text-muted">Which games do you dispute?</legend>
         {match.games.map((g) => (
-          <label key={g.n} className="flex items-center gap-2 text-sm">
+          <label key={g.n} className="match-option flex items-center gap-2 text-sm">
             <input type="checkbox" checked={games.includes(g.n)} onChange={() => toggle(g.n)} />
             Game {g.n} · reported as {g.winner === 'you' ? 'your win' : `${match.opponent.displayName}'s win`}
           </label>
@@ -460,7 +548,7 @@ function DisputeForm({
         </span>
       )}
       <div className="flex gap-2">
-        <Btn type="submit">Submit dispute</Btn>
+        <Btn type="submit" variant={rift ? 'chaos' : 'primary'}>Submit dispute</Btn>
         <Pill onClick={onCancel}>Cancel</Pill>
       </div>
     </form>
