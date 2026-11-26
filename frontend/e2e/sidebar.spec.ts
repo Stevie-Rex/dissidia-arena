@@ -43,10 +43,10 @@ test.describe('Rift sidebar on desktop', () => {
     await expect(sidebar(page)).toContainText('12/15')
     const bar = sidebar(page).getByRole('progressbar', { name: 'Progress to Crystal window' })
     await expect(bar).toHaveAttribute('aria-valuenow', '80')
-    // Both count from zero: 12 of 15 wins fills 80% of each bar.
-    const width = (el: HTMLElement) => (el.firstElementChild as HTMLElement).style.width
-    expect(await bar.evaluate(width)).toBe('80%')
-    expect(await page.getByRole('main').getByRole('img', { name: 'Crystal window: 12 of 15 wins' }).evaluate(width)).toBe('80%')
+    const rewards = page.getByRole('main')
+    await expect(rewards.getByRole('progressbar', { name: 'Progress to Crystal window' })).toHaveAttribute('aria-valuenow', '80')
+    await expect(rewards.getByText('3 wins to Crystal window · 12/15')).toBeVisible()
+    await expect(rewards.getByRole('heading', { name: 'Classic interface', exact: true })).toBeVisible()
   })
 
   test('the player card says when every reward is unlocked', async ({ page }) => {

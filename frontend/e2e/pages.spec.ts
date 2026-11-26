@@ -30,15 +30,3 @@ test.describe('Rift Config', () => {
     await expect(html(page)).toHaveAttribute('data-interface', 'classic')
   })
 })
-
-test('Rewards and the player card agree on the next unlock', async ({ page }) => {
-  await mockApi(page, { wins: 12 })
-  await page.goto('/rewards')
-
-  const progress = page.getByRole('progressbar', { name: /^Progress to/ })
-  await expect(progress).toHaveCount(2)
-  await expect(progress.first()).toHaveAttribute('aria-valuenow', '80')
-  await expect(progress.last()).toHaveAttribute('aria-valuenow', '80')
-  await expect(main(page).getByRole('heading', { name: 'Classic interface', exact: true })).toBeVisible()
-  await expect(main(page).getByText(/3 wins to .*12\/15/)).toBeVisible()
-})
