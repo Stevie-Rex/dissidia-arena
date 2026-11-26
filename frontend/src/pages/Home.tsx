@@ -68,7 +68,7 @@ function RiftHome() {
           <section className="rift-landing-glass" aria-labelledby="rift-search-title">
             <h2 id="rift-search-title" className="rift-landing-label">Searching now · {GAMES[game].short}</h2>
             <strong className="rift-home__stat">{searching[game]}</strong>
-            <Btn onClick={queue}>Queue</Btn>
+            <Btn main onClick={queue}>Queue</Btn>
           </section>
           {match && (
             <section className="rift-landing-glass" aria-labelledby="rift-match-title">

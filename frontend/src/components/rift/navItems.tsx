@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
 import type { GameId } from '../../data/mock'
 import { isAdmin, type Role } from '../../lib/api'
+import type { NavKey } from './nav'
 import { GiCrenulatedShield, GiCrossedSwords, GiLaurels, GiStoneTower, GiTrophy, GiVisoredHelm } from './icons'
 
 type Glyph = (size: number) => ReactNode
-export type NavItem = { key: string; label: string; to: string; hint: string; glyph?: Glyph; children?: NavItem[] }
+export type NavItem = { key: NavKey; label: string; to: string; hint: string; glyph?: Glyph; children?: NavItem[] }
 
 export function navItems(game: GameId, role: Role | undefined) {
   const items: NavItem[] = [
@@ -24,7 +25,7 @@ export function navItems(game: GameId, role: Role | undefined) {
       children: [
         { key: 'cases', label: 'Cases', to: '/admin', hint: 'Disputed matches and Help requests waiting for an Admin.' },
         { key: 'log', label: 'Admin log', to: '/admin/log', hint: 'Every Admin action, newest first.' },
-        ...(role === 'master' ? [{ key: 'admins', label: 'Admins', to: '/master', hint: 'Appoint and remove Admins. Only the Master sees this.' }] : []),
+        ...(role === 'master' ? [{ key: 'admins' as const, label: 'Admins', to: '/master', hint: 'Appoint and remove Admins. Only the Master sees this.' }] : []),
       ],
     })
   return items

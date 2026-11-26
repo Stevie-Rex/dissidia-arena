@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 import type { Match, QueueEntry, Side } from '../src/lib/api'
-import { mockApi } from './mock'
+import { mockApi, modeName } from './mock'
 
 // The Rift match flow at phone width: queue, accept, report, confirm and dispute with a Screenshot.
 // Seen from the signed-in tester (id 1) against Rival (id 2). The mock server below plays the backend's rules.
@@ -155,7 +155,7 @@ test.describe('responding to a result at phone width', () => {
   })
 
   for (const mode of ['chaos', 'cosmos'] as const) {
-    test(`queue and dispute with a Screenshot in ${mode} mode`, async ({ page }) => {
+    test(`queue and dispute with a Screenshot in ${modeName(mode)}`, async ({ page }) => {
       await server(page, { mode })
       await page.goto('/queue')
       await expect(page.getByRole('main').getByRole('button', { name: 'Queue', exact: true })).toBeVisible()

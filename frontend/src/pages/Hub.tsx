@@ -198,7 +198,7 @@ function ClassicHub() {
         <Sub>{RULES[game]}</Sub>
       </Card>
 
-      <div className="fixed inset-x-3 bottom-[max(4rem,calc(var(--rift-phone-bar)+1rem))] z-20 md:hidden">
+      <div className="fixed inset-x-3 bottom-[max(4rem,calc(var(--rift-phone-bar-h)+1rem))] z-20 md:hidden">
         <Btn size="lg" className="w-full bg-ink" onClick={findMatch}>
           Find match
         </Btn>

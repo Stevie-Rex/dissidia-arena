@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { Role } from '../src/lib/api'
-import { mockApi } from './mock'
+import { mockApi, modeName } from './mock'
 
 const sidebar = (page: Page) => page.getByRole('complementary', { name: 'Sidebar' })
 const nav = (page: Page) => sidebar(page).getByRole('navigation', { name: 'Main' })
@@ -76,6 +76,12 @@ test.describe('Rift sidebar on desktop', () => {
     await expect(sidebar(page).getByRole('link', { name: 'game-icons.net' })).toBeVisible()
   })
 
+  test('the foot links to Discord for feedback', async ({ page }) => {
+    await mockApi(page, { wins: 12 })
+    await page.goto('/012')
+    await expect(sidebar(page).getByRole('link', { name: 'Feedback on Discord' })).toHaveAttribute('href', process.env.VITE_DISCORD_FEEDBACK_URL!)
+  })
+
   test('the help strip shows what the hovered item does', async ({ page }) => {
     await mockApi(page, { wins: 12 })
     await page.goto('/012')
@@ -86,7 +92,7 @@ test.describe('Rift sidebar on desktop', () => {
 
   for (const width of [1280, 1440]) {
     for (const mode of ['chaos', 'cosmos'] as const) {
-      test(`nothing wraps or scrolls sideways at ${width}px in ${mode} mode`, async ({ page }) => {
+      test(`nothing wraps or scrolls sideways at ${width}px in ${modeName(mode)}`, async ({ page }) => {
         await page.setViewportSize({ width, height: 800 })
         await mockApi(page, { wins: 12, role: 'master' as Role, prefs: { rift_mode: mode } })
         for (const url of ['/', '/012', '/queue', '/012/ladder', '/players/me', '/rewards', '/config', '/admin']) {
@@ -116,8 +122,8 @@ test.describe('Rift sidebar on desktop', () => {
   }
 })
 
-test.describe('Rift on phones keeps the old navigation until the bottom bar', () => {
-  test('no sidebar, the header and tab bar instead', async ({ page }) => {
+test.describe('Rift on phones', () => {
+  test('no sidebar or help strip: the compact header and the bottom bar instead', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await mockApi(page, { wins: 12 })
     await page.goto('/012')
@@ -128,6 +134,19 @@ test.describe('Rift on phones keeps the old navigation until the bottom bar', ()
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
   })
 })
+
+for (const width of [375, 1280]) {
+  test(`the Rift footer says it's a fan project and links only beta pages at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await mockApi(page, { wins: 12 })
+    await page.goto('/012')
+    const footer = page.getByRole('contentinfo')
+    await expect(footer.getByText('Dissidia Arena — a fan project')).toBeVisible()
+    const links = footer.getByRole('navigation', { name: 'Site links' })
+    await expect(links.getByRole('link', { name: 'Credits' })).toBeVisible()
+    for (const name of ['Tournaments', 'Party', 'Friends', 'Discord bot', 'Meta']) await expect(links.getByRole('link', { name })).toHaveCount(0)
+  })
+}
 
 test('Classic has no sidebar', async ({ page }) => {
   await mockApi(page, { wins: 60, prefs: { interface: 'classic' } })

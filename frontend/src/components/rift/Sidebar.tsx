@@ -5,17 +5,18 @@
 import { useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 
-import { GAMES, type GameId } from '../../data/mock'
 import { cx } from '../../lib/format'
+import { discordFeedbackUrl } from '../../lib/links'
 import { useApp } from '../../state/AppState'
 import { useAppearance } from '../../state/Appearance'
-import { usePickGame } from '../../usePickGame'
 import InterfaceSwitcher from '../appearance/InterfaceSwitcher'
 import ModeToggle from '../appearance/ModeToggle'
+import { GameSwitcher } from '../Layout'
 import { Avatar, Btn } from '../ui'
-import { FramedIcon, GameCrest, ShardCursor } from './crests'
+import { FramedIcon, ShardCursor } from './crests'
 import { hinted } from './hints'
-import { currentNavKey } from './nav'
+import IconCredit from './IconCredit'
+import { currentNavKey, type NavKey } from './nav'
 import { navItems, type NavItem } from './navItems'
 import { GiGears } from './icons'
 
@@ -23,8 +24,8 @@ import { GiGears } from './icons'
  * The 012 menu bars as links. The selection (selection blue and the shard cursor) follows the pointer and keyboard
  * focus, and falls back to the current page when they leave. The current page also keeps its edge.
  */
-export function MenuBars({ label, items, current }: { label: string; items: NavItem[]; current?: string }) {
-  const [hover, setHover] = useState<string | null>(null)
+export function MenuBars({ label, items, current }: { label: string; items: NavItem[]; current?: NavKey }) {
+  const [hover, setHover] = useState<NavKey | null>(null)
   const sel = hover ?? current
   const bar = (item: NavItem, sub: boolean) => {
     const h = hinted(`${label}-${item.key}`, item.hint)
@@ -101,20 +102,11 @@ export function PlayerCard() {
   )
 }
 
-function Credits() {
-  return (
-    <p className="rift-sidebar__small">
-      Icons by Lorc and Delapouite from <a href="https://game-icons.net">game-icons.net</a>,{' '}
-      <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>.
-    </p>
-  )
-}
-
 export default function Sidebar({ className }: { className?: string }) {
   const { game, user } = useApp()
-  const pick = usePickGame()
   const { pathname } = useLocation()
   const current = currentNavKey(pathname)
+  const feedback = hinted('foot-feedback', 'Tell us what works and what breaks, in the Discord server.')
   const settings = hinted('foot-settings', 'Rift and Classic, Chaos mode and Cosmos mode, and your other settings.')
   return (
     <aside aria-label="Sidebar" className={cx('rift-sidebar', className)}>
@@ -122,14 +114,7 @@ export default function Sidebar({ className }: { className?: string }) {
         Dissidia Arena
       </Link>
 
-      <div className="rift-switch" role="group" aria-label="Game">
-        {(['012', 'nt'] as GameId[]).map((g) => (
-          <button key={g} type="button" aria-pressed={game === g} title={GAMES[g].name} className="da-pill da-pill--crest" onClick={() => pick(g)}>
-            <GameCrest game={g} size={30} />
-            {GAMES[g].short}
-          </button>
-        ))}
-      </div>
+      <GameSwitcher crests crestSize={30} className="rift-switch" />
 
       <PlayerCard />
 
@@ -142,9 +127,17 @@ export default function Sidebar({ className }: { className?: string }) {
           {settings.node}
         </NavLink>
         <ModeToggle wide className="rift-foot-btn" />
+        {discordFeedbackUrl && (
+          <a href={discordFeedbackUrl} className="rift-foot-btn" {...feedback.props}>
+            {/* No game-icons.net glyph fits, so a gap keeps the label in line with Settings and the mode toggle. */}
+            <span className="w-[18px] flex-none" aria-hidden />
+            <span>Feedback on Discord</span>
+            {feedback.node}
+          </a>
+        )}
         <InterfaceSwitcher className="rift-sidebar__interface" />
         <p className="rift-sidebar__small rift-sidebar__fan">Dissidia Arena — a fan project</p>
-        <Credits />
+        <IconCredit className="rift-sidebar__small" />
       </div>
     </aside>
   )

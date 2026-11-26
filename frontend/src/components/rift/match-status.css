@@ -22,7 +22,7 @@
     flex-direction: column;
     height: 100dvh;
     min-height: 0;
-    padding-bottom: calc(var(--rift-phone-bar, 44px) + 1rem);
+    padding-bottom: calc(var(--rift-phone-bar-h) + 1rem);
   }
 
   .rift-shell:has(> .rift-status) > .rift-column {

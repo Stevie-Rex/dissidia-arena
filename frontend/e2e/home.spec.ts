@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { mockApi } from './mock'
+import { mockApi, modeName } from './mock'
 
 const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 const player = (id: number, displayName: string) => ({ id, displayName, avatarUrl: '', region: 'EU', gameId: `id${id}`, accepted: true })
@@ -69,6 +69,15 @@ test.describe('Rift Home', () => {
     await expect(page).toHaveURL(/\/queue$/)
   })
 
+  test("in Cosmos mode the searching panel's Queue is the same blue key as the hero's", async ({ page }) => {
+    await mockApi(page, { wins: 3, prefs: { rift_mode: 'cosmos' } })
+    await page.goto('/')
+    const face = (button: ReturnType<Page['getByRole']>) => button.evaluate((el) => getComputedStyle(el).backgroundImage)
+    const heroKey = await face(hero(page).getByRole('button', { name: 'Queue' }))
+    const panelKey = page.getByRole('region', { name: /^Searching now/ }).getByRole('button', { name: 'Queue' })
+    await expect.poll(() => face(panelKey)).toBe(heroKey)
+  })
+
   test('recent battles: the empty state before your first ranked battle, then your record', async ({ page }) => {
     await mockApi(page, { wins: 0 })
     await page.goto('/')
@@ -88,7 +97,7 @@ test.describe('Rift Home', () => {
 
 
 for (const mode of ['chaos', 'cosmos'] as const) {
-  test(`Home and Welcome fit a phone in ${mode} mode`, async ({ page }) => {
+  test(`Home and Welcome fit a phone in ${modeName(mode)}`, async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await mockApi(page, { wins: 0, prefs: { rift_mode: mode }, onboarded: false })
 
@@ -100,5 +109,26 @@ for (const mode of ['chaos', 'cosmos'] as const) {
     }
     const result = await new AxeBuilder({ page }).analyze()
     expect(result.violations.map(({ id, nodes }) => ({ id, targets: nodes.map(({ target }) => target) }))).toEqual([])
+  })
+}
+
+for (const mode of ['chaos', 'cosmos'] as const) {
+  test(`on a short desktop the hero leaves the first row of panels in view in ${modeName(mode)}`, async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await mockApi(page, { wins: 3, prefs: { rift_mode: mode } })
+    await page.goto('/')
+    await expect(page.locator('html')).toHaveAttribute('data-rift-mode', mode)
+    const strip = (await page.locator('.rift-helpstrip').boundingBox())!
+    for (const name of [/^Searching now/, 'Pre-season']) {
+      const panel = page.getByRole('region', { name })
+      await expect(panel).toBeInViewport({ ratio: 1 })
+      const { y, height } = (await panel.boundingBox())!
+      expect(y + height, 'the panel clears the help strip').toBeLessThanOrEqual(strip.y)
+    }
+    const copy = (await hero(page).getByRole('heading', { level: 1 }).locator('..').boundingBox())!
+    const box = (await hero(page).boundingBox())!
+    const gap = box.y + box.height - (copy.y + copy.height)
+    expect(gap, 'copy sits about 44px above the bottom of the hero').toBeGreaterThanOrEqual(36)
+    expect(gap).toBeLessThanOrEqual(52)
   })
 }

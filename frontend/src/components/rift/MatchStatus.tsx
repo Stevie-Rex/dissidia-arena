@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { GAMES } from '../../data/mock'
 import { OPEN_STATUSES } from '../../lib/api'
-import { fmtTime } from '../../lib/format'
+import { fmtTime, queueSummary } from '../../lib/format'
 import { playMatchFound, unlockAudio } from '../../lib/sound'
 import { useApp } from '../../state/AppState'
 import { Btn, Card, Sub } from '../ui'
@@ -58,7 +57,7 @@ export default function MatchStatus() {
           <div className="min-w-0">
             <div className="font-heading font-bold" role="status">{title}</div>
             <div className="text-sm text-muted">
-              {GAMES[detail.game].short} · {detail.mode} Bo{detail.bestOf} · {detail.region}
+              {queueSummary(detail, detail.region)}
             </div>
             {entry && <div className="text-sm text-muted">{searching[entry.game]} in queue</div>}
             {match && <div className="truncate text-sm text-muted">vs {match.opponent.displayName}</div>}
@@ -87,7 +86,7 @@ export function PendingMatchRoom() {
     <Card className="mx-auto w-full max-w-md">
       <GameCrest game={pending.game} size={48} />
       <h1 className="m-0 font-display text-2xl">Match found</h1>
-      <Sub>{GAMES[pending.game].short} · {pending.mode} Bo{pending.bestOf} · {pending.platform}</Sub>
+      <Sub>{queueSummary(pending, pending.platform)}</Sub>
       <p className="m-0">vs {pending.opponent.displayName}</p>
       <p className="m-0 font-heading tabular-nums">Time left to accept · {fmtTime(acceptLeft)}</p>
       {pending.you.accepted ? (

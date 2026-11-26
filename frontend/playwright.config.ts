@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 // PW_PORT lets parallel worktrees run the suite side by side without sharing a dev server.
 const port = Number(process.env.PW_PORT ?? 5174)
+// The Discord feedback link only shows when this is set, so the suite sets it. Workers inherit it, so tests can read it.
+process.env.VITE_DISCORD_FEEDBACK_URL ??= 'https://discord.gg/arena-feedback-e2e'
 
 // Browser checks for the Rift / Classic interfaces. Every /api call is mocked in the tests,
 // so this needs only the Vite dev server, not Flask or MariaDB.
@@ -18,6 +20,7 @@ export default defineConfig({
   webServer: {
     command: `npm run dev -- --port ${port} --strictPort`,
     url: `http://localhost:${port}`,
+    env: { VITE_DISCORD_FEEDBACK_URL: process.env.VITE_DISCORD_FEEDBACK_URL },
     reuseExistingServer: true,
     timeout: 60_000,
   },

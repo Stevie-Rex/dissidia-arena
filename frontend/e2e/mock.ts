@@ -97,3 +97,6 @@ export async function mockApi(
 }
 
 export const WINDOW_KEYS = Object.keys(tokens.classic.windows)
+
+/** "Chaos mode" or "Cosmos mode", as GLOSSARY.md writes them, for test titles. */
+export const modeName = (mode: string) => `${mode[0].toUpperCase()}${mode.slice(1)} mode`

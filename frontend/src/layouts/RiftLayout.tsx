@@ -3,6 +3,7 @@ import LockPanel from '../components/appearance/LockPanel'
 import { AuthErrorBanner, DisputeNotice, GameSwitcher, Overlays } from '../components/Layout'
 import BottomBar from '../components/rift/BottomBar'
 import HelpStrip from '../components/rift/HelpStrip'
+import IconCredit from '../components/rift/IconCredit'
 import MatchStatus from '../components/rift/MatchStatus'
 import { useHelpText } from '../components/rift/hints'
 import Sidebar from '../components/rift/Sidebar'
@@ -29,39 +30,17 @@ function RiftHeader() {
   )
 }
 
-/** Links that aren't in the sidebar or the phone bar. The fan-project line and the icon credit sit in the sidebar foot on desktop. */
+/** The fan-project line at every width, and links that aren't in the sidebar or the phone bar. The icon credit sits in the sidebar foot on desktop. */
 function RiftFooter() {
   return (
     <footer className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-line px-[clamp(20px,4vw,56px)] py-7 text-[13px] text-muted">
-      <span className="md:hidden">Dissidia Arena — a fan project</span>
+      <span>Dissidia Arena — a fan project</span>
       <nav aria-label="Site links" className="flex flex-wrap gap-4">
-        <Link to="/tournaments" className="hover:text-fg">
-          Tournaments
-        </Link>
-        <Link to="/party" className="hover:text-fg">
-          Party
-        </Link>
-        <Link to="/friends" className="hover:text-fg">
-          Friends
-        </Link>
-        <Link to="/discord" className="hover:text-fg">
-          Discord bot
-        </Link>
         <Link to="/credits" className="hover:text-fg">
           Credits
         </Link>
       </nav>
-      <p className="m-0 w-full text-xs md:hidden">
-        Icons by Lorc and Delapouite from{' '}
-        <a href="https://game-icons.net" className="underline underline-offset-2 hover:text-fg">
-          game-icons.net
-        </a>
-        ,{' '}
-        <a href="https://creativecommons.org/licenses/by/3.0/" className="underline underline-offset-2 hover:text-fg">
-          CC BY 3.0
-        </a>
-        .
-      </p>
+      <IconCredit className="m-0 w-full text-xs md:hidden" linkClassName="underline underline-offset-2 hover:text-fg" />
     </footer>
   )
 }

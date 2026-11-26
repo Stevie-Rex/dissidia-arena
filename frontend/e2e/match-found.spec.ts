@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { mockApi } from './mock'
+import { mockApi, modeName } from './mock'
 
 // The Match found dialog (#47): Crystal shatter once per found match, Accept usable at once, focus kept inside,
 // and nothing moving under reduced motion. The queue state comes from a faked /api/queue.
@@ -124,7 +124,7 @@ test('the match room is not covered by the dialog', async ({ page }) => {
 
 for (const mode of ['chaos', 'cosmos'] as const) {
   for (const width of [1440, 390]) {
-    test(`reduced motion in ${mode} mode at ${width}px: still, announced, and Accept works`, async ({ page }) => {
+    test(`reduced motion in ${modeName(mode)} at ${width}px: still, announced, and Accept works`, async ({ page }) => {
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.setViewportSize({ width, height: 844 })
       const { sent } = await found(page, mode)
@@ -145,7 +145,7 @@ for (const mode of ['chaos', 'cosmos'] as const) {
     })
   }
 
-  test(`the dialog passes axe in ${mode} mode`, async ({ page }) => {
+  test(`the dialog passes axe in ${modeName(mode)}`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await found(page, mode)
     await page.goto('/rewards')

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { mockApi } from './mock'
+import { mockApi, modeName } from './mock'
 
 const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 const player = (id: number, displayName: string) => ({ id, displayName, avatarUrl: '', region: 'EU', gameId: `id${id}`, accepted: true })
@@ -121,7 +121,7 @@ test.describe('Rift Hub', () => {
 })
 
 for (const mode of ['chaos', 'cosmos'] as const) {
-  test(`Hub fits a phone in ${mode} mode, with each action on its own row`, async ({ page }) => {
+  test(`Hub fits a phone in ${modeName(mode)}, with each action on its own row`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await mockApi(page, { wins: 3, prefs: { rift_mode: mode } })
     await queueState(page, { match: openMatch, searching: { '012': 7, nt: 2 } })
@@ -145,7 +145,7 @@ for (const mode of ['chaos', 'cosmos'] as const) {
     expect(result.violations.map(({ id, nodes }) => ({ id, targets: nodes.map(({ target }) => target) }))).toEqual([])
   })
 
-  test(`Hub passes axe at desktop width in ${mode} mode`, async ({ page }) => {
+  test(`Hub passes axe at desktop width in ${modeName(mode)}`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await mockApi(page, { wins: 3, prefs: { rift_mode: mode } })
     await queueState(page, { match: openMatch, searching: { '012': 7, nt: 2 } })

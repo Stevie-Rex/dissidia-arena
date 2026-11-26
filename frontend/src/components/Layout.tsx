@@ -5,17 +5,17 @@ import { useApp } from '../state/AppState'
 import { usePickGame } from '../usePickGame'
 import { GameCrest } from './rift/crests'
 import { Avatar, Btn, Card, DiscordButton, Gem, Modal, Pill, Sub } from './ui'
-import { cx, fmtTime } from '../lib/format'
+import { cx, fmtTime, queueSummary } from '../lib/format'
 
-/** The current-game toggle. `crests` (Rift) shows each game's emblem in a diamond crest. */
-export function GameSwitcher({ className, crests }: { className?: string; crests?: boolean }) {
+/** The current-game toggle. `crests` (Rift) shows each game's emblem in a diamond crest, `crestSize` px across. */
+export function GameSwitcher({ className, crests, crestSize = 26 }: { className?: string; crests?: boolean; crestSize?: number }) {
   const { game } = useApp()
   const pick = usePickGame()
   return (
-    <div className={cx('flex gap-1.5', className)}>
+    <div role="group" aria-label="Game" className={cx('flex gap-1.5', className)}>
       {(['012', 'nt'] as GameId[]).map((g) => (
-        <Pill key={g} active={game === g} onClick={() => pick(g)} className={crests ? 'da-pill--crest' : undefined}>
-          {crests && <GameCrest game={g} size={26} />}
+        <Pill key={g} active={game === g} title={GAMES[g].name} onClick={() => pick(g)} className={crests ? 'da-pill--crest' : undefined}>
+          {crests && <GameCrest game={g} size={crestSize} />}
           {GAMES[g].short}
         </Pill>
       ))}
@@ -102,21 +102,20 @@ export function FriendsSidebar() {
 export function QueueBar() {
   const { phase, elapsed, queue, cancelQueue, region, searching } = useApp()
   if (phase !== 'searching') return null
-  const info = GAMES[queue.game]
   return (
-    <div className="fixed inset-x-0 bottom-[max(3.5rem,calc(var(--rift-phone-bar)+1rem))] z-40 px-3 md:bottom-4">
+    <div className="fixed inset-x-0 bottom-[max(3.5rem,calc(var(--rift-phone-bar-h)+1rem))] z-40 px-3 md:bottom-4">
       <Card tone="gold" className="mx-auto max-w-md shadow-2xl">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 animate-pulse rounded-full bg-gold" />
           <b className="text-sm">
-            Searching · {info.short} {queue.mode} Bo{queue.bestOf}
+            Searching · {queueSummary(queue, region)}
           </b>
           <span className="flex-1" />
           <span className="font-heading text-sm tabular-nums">{fmtTime(elapsed)}</span>
         </div>
         <div className="flex items-center">
           <Sub>
-            {searching[queue.game]} in queue · {region}
+            {searching[queue.game]} in queue
           </Sub>
           <span className="flex-1" />
           <Pill onClick={cancelQueue}>Cancel</Pill>
@@ -135,7 +134,7 @@ export function MatchFound() {
     <Modal className="max-w-md border-chaos">
       <div className="flex flex-col items-center gap-4 text-center">
         <Sub>
-          Match found · {GAMES[pending.game].short} {pending.mode} Bo{pending.bestOf} · {pending.platform}
+          Match found · {queueSummary(pending, pending.platform)}
         </Sub>
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-center gap-1">
@@ -219,14 +218,14 @@ export function ChatDock() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-[max(4rem,calc(var(--rift-phone-bar)+1rem))] right-4 z-40 rounded-full border-[1.5px] border-muted bg-card px-3 py-1.5 text-sm shadow-lg md:bottom-4"
+        className="fixed bottom-[max(4rem,calc(var(--rift-phone-bar-h)+1rem))] right-4 z-40 rounded-full border-[1.5px] border-muted bg-card px-3 py-1.5 text-sm shadow-lg md:bottom-4"
       >
         💬 {opp}
       </button>
     )
   const last = live.messages.slice(-3)
   return (
-    <Card className="fixed bottom-[max(4rem,calc(var(--rift-phone-bar)+1rem))] right-4 z-40 w-64 border-muted shadow-2xl md:bottom-4">
+    <Card className="fixed bottom-[max(4rem,calc(var(--rift-phone-bar-h)+1rem))] right-4 z-40 w-64 border-muted shadow-2xl md:bottom-4">
       <div className="flex items-center gap-2">
         <Link to="/match/live" className="font-semibold hover:text-crystal-soft">
           {opp}

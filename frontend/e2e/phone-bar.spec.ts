@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { mockApi } from './mock'
+import { mockApi, modeName } from './mock'
 
 const PHONE = { width: 390, height: 844 }
 const bar = (page: Page) => page.getByRole('navigation', { name: 'Phone navigation' })
@@ -59,7 +59,7 @@ test.describe('Rift phone bottom bar', () => {
 })
 
 for (const rift_mode of ['chaos', 'cosmos']) {
-  test(`phone More exposes player and Admin destinations in ${rift_mode} mode`, async ({ page }) => {
+  test(`phone More exposes player and Admin destinations in ${modeName(rift_mode)}`, async ({ page }) => {
     await mockApi(page, { wins: 12, role: 'master', prefs: { rift_mode } })
     await page.goto('/012')
     await tile(page, 'More').click()

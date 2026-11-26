@@ -3,9 +3,10 @@ import { GiGears } from '../components/rift/icons'
 import { MenuBars, PlayerCard } from '../components/rift/Sidebar'
 import InterfaceSwitcher from '../components/appearance/InterfaceSwitcher'
 import ModeToggle from '../components/appearance/ModeToggle'
+import { discordFeedbackUrl } from '../lib/links'
 import { useApp } from '../state/AppState'
 
-const feedbackUrl = import.meta.env.VITE_DISCORD_FEEDBACK_URL
+const feedbackUrl = discordFeedbackUrl
 
 export default function More() {
   const { game, user } = useApp()

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
-import { GAMES } from '../../data/mock'
 import type { Match } from '../../lib/api'
-import { fmtTime } from '../../lib/format'
+import { fmtTime, queueSummary } from '../../lib/format'
 import { Btn } from '../ui'
 import { GameCrest } from './crests'
 import './match-found.css'
@@ -155,7 +154,7 @@ export default function MatchFoundDialog({
           <span className="rift-found__them">{match.opponent.displayName}</span>
         </p>
         <p id="rift-found-meta" className="rift-found__meta">
-          {GAMES[match.game].short} · {match.mode} Bo{match.bestOf} · {match.region}
+          {queueSummary(match, match.region)}
         </p>
         <p className="rift-found__time">Time left to accept · {fmtTime(acceptLeft)}</p>
         {waiting ? (

@@ -900,18 +900,18 @@ body,
 }
 
 /* ------------------------------------------------------------------ Rift phone bottom bar (#45)
-   Below md the sidebar and help strip hide and five equal emblem tiles take over. --rift-phone-bar is the bar's
+   Below md the sidebar and help strip hide and five equal emblem tiles take over. --rift-phone-bar-h is the bar's
    height with the safe area (0 elsewhere): pad the page with it, and float things above it. */
 :root {
-  --rift-phone-bar: 0px;
+  --rift-phone-bar-h: 0px;
 }
 @media (width < 48rem) {
   [data-interface='rift'] {
-    --rift-phone-bar: calc(78px + env(safe-area-inset-bottom, 0px));
+    --rift-phone-bar-h: calc(78px + env(safe-area-inset-bottom, 0px));
   }
 }
 .rift-column {
-  padding-bottom: var(--rift-phone-bar);
+  padding-bottom: var(--rift-phone-bar-h);
 }
 .rift-bottombar {
   position: fixed;
@@ -919,7 +919,7 @@ body,
   z-index: 30;
   display: none;
   align-items: center;
-  height: var(--rift-phone-bar);
+  height: var(--rift-phone-bar-h);
   padding: 0 6px env(safe-area-inset-bottom, 0px);
   background: linear-gradient(180deg, color-mix(in srgb, var(--rift-surface) 92%, transparent), var(--rift-bg));
   border-top: 1px solid var(--rift-silver-edge);

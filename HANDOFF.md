@@ -143,7 +143,7 @@ website: the "Match on" DM links to the match room.
   `src/components/appearance/*` (switcher, lock panel, preview banner, reward cards, Config window, victory
   card). `Card`/`Btn`/`Pill` in `ui.tsx` use `da-card`/`da-btn`/`da-pill`, styled per interface in `index.css`, so
   older pages become Classic windows without changes. Window swatches set `data-window` on the swatch itself.
-  Rift worlds were removed (ADR 0001); Rift has one palette. Decisions taken: you are always Cosmos; the Cycle of War gauge shows your ranked W/L until
+  Rift worlds were removed (ADR 0001); Rift has two modes, Chaos mode (dark, the default) and Cosmos mode (light), set by `data-rift-mode` on `<html>` and chosen in the sidebar foot, More or Config. Decisions taken: you are always Cosmos; the Cycle of War gauge shows your ranked W/L until
   seasons exist; Classic's Battle-HUD styling is the match room's score bar; nav maps to real pages.
 - **Mock data (`src/data/mock.ts`):** Ladder, Tournaments, Party, Meta, Profile, Hub, Discord pages. `mock.ts` also
   holds per-game UI settings (`GAMES`) and the `GameId`/`Region` types that real pages import, so don't delete it
