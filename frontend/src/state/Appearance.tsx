@@ -44,11 +44,11 @@ interface AppearanceState {
 
 const Ctx = createContext<AppearanceState | null>(null)
 
-/** Signed out: keep the free choices, lock everything else. */
+/** Signed out: keep the free choices (the cursor and the Rift mode), lock everything else. */
 function signedOut(a: Appearance): Appearance {
   const base = lockedAppearance()
   const p = a.preferences
-  return { ...base, preferences: { ...DEFAULT_PREFERENCES, world: p.world, cursor: p.cursor } }
+  return { ...base, preferences: { ...DEFAULT_PREFERENCES, cursor: p.cursor, rift_mode: p.rift_mode ?? DEFAULT_PREFERENCES.rift_mode } }
 }
 
 export function AppearanceProvider({ children }: { children: ReactNode }) {

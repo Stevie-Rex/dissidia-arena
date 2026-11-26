@@ -4,10 +4,26 @@ import { GAMES, REGIONS, ladder, type Region } from '../data/mock'
 import { useApp } from '../state/AppState'
 import { useGameParam } from '../useGameParam'
 import { Avatar, Card, Note, PageTitle, Pill, Select, Sub } from '../components/ui'
+import { Panel } from '../components/rift/menus'
+import { useAppearance } from '../state/Appearance'
 import { cx } from '../lib/format'
 
-/** 1g table with filters + pinned row, with 1h's region tabs, season strip and podium. */
 export default function Ladder() {
+  const game = useGameParam()
+  const { ui } = useAppearance()
+  if (ui === 'classic') return <ClassicLadder />
+  return (
+    <div className="flex flex-col gap-5">
+      <h1 className="m-0 text-4xl">{GAMES[game].short} Ladder</h1>
+      <Panel title="Pre-season">
+        <p className="m-0 text-muted">Ratings start with Season 1. Ranked wins already count towards unlocks.</p>
+        <Link to="/rewards" className="da-btn da-btn--ghost self-start">View rewards</Link>
+      </Panel>
+    </div>
+  )
+}
+
+function ClassicLadder() {
   const game = useGameParam()
   const info = GAMES[game]
   const { region: myRegion, signedIn } = useApp()

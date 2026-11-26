@@ -3,24 +3,24 @@
 @import "tailwindcss";
 
 /*
- * Theme bridge. The colours live in theme/css/dissidia-theme.css (--rift-* per world, --win-* per window).
+ * Theme bridge. The colours live in theme/css/dissidia-theme.css (--rift-* for Rift, --win-* per window).
  * The --ui-* layer below picks one set per interface, and the Tailwind names the components already use
  * (ink, card, line, fg, gold, crystal, chaos, ...) point at --ui-*. No hex values here or in components.
  */
 :root,
 [data-interface="rift"] {
-  --ui-page-bg: var(--rift-page-bg);
-  --ui-panel: var(--rift-card-bg);
-  --ui-card: var(--rift-card-bg);
-  --ui-raised: var(--rift-card-bg);
+  /* Chaos mode or Cosmos mode, whichever data-rift-mode picks in dissidia-theme.css */
+  --ui-page-bg: var(--rift-bg);
+  --ui-panel: var(--rift-surface);
+  --ui-card: var(--rift-surface);
+  --ui-raised: var(--rift-raised);
   --ui-line: var(--rift-line);
-  --ui-line-strong: var(--rift-line);
+  --ui-line-strong: var(--rift-line-strong);
   --ui-fg: var(--rift-ink);
   --ui-muted: var(--rift-muted);
-  --ui-gold: var(--rift-gold-text);
-  --ui-cosmos: var(--rift-cosmos-accent);
-  /* chaos-accent is tuned for the dark Chaos half; on light cards the deeper meter shade passes 4.5:1 */
-  --ui-chaos: var(--rift-meter-chaos);
+  --ui-gold: var(--rift-gold);
+  --ui-cosmos: var(--rift-cosmos);
+  --ui-chaos: var(--rift-chaos);
   --ui-font-body: var(--rift-font-body);
 }
 
@@ -50,9 +50,8 @@
 
 @theme inline {
   --font-sans: var(--ui-font-body);
-  --font-brand: var(--rift-font-brand);
+  --font-display: var(--rift-font-display);
   --font-heading: var(--rift-font-heading);
-  --font-lore: var(--rift-font-lore);
   --font-menu: var(--menu-family);
   --font-note: Kalam, cursive;
 
@@ -105,6 +104,21 @@ body,
   color: var(--ui-fg);
   -webkit-font-smoothing: antialiased;
 }
+/* Rift's ground. Chaos mode: two faint washes over the night. Cosmos mode: brushed steel. */
+:root[data-interface='rift'] body {
+  background:
+    radial-gradient(900px 500px at 10% 0, var(--rift-page-wash-cosmos), transparent 70%),
+    radial-gradient(900px 500px at 100% 100%, var(--rift-page-wash-chaos), transparent 70%),
+    var(--rift-bg);
+  background-attachment: fixed;
+}
+:root[data-interface='rift'][data-rift-mode='cosmos'] body {
+  background:
+    repeating-linear-gradient(180deg, var(--rift-stage-brush) 0 1px, transparent 1px 4px),
+    linear-gradient(160deg, var(--rift-stage-top), var(--rift-stage-mid) 60%, var(--rift-stage-bottom)),
+    var(--rift-bg);
+  background-attachment: fixed;
+}
 
 .placeholder-art {
   background: repeating-linear-gradient(
@@ -134,19 +148,42 @@ body,
     gap: 0.5rem;
     padding: 0.75rem;
   }
+  /* Chaos mode: a night panel with a silver top edge. */
   [data-interface='rift'] .da-card {
-    background: var(--rift-card-bg);
+    background: var(--rift-surface);
     border: 1px solid var(--rift-line);
+    border-top-color: var(--rift-silver-lo);
+    border-radius: 8px;
   }
   [data-interface='rift'] .da-card--cosmos {
-    background: var(--rift-cosmos-bg);
-    border-color: var(--rift-cosmos-line);
+    background: color-mix(in srgb, var(--rift-cosmos-deep) 22%, var(--rift-surface));
+    border-color: var(--rift-cosmos-deep);
   }
   [data-interface='rift'] .da-card--chaos {
-    background: var(--rift-card-bg);
-    border-color: var(--rift-meter-chaos);
+    border-color: color-mix(in srgb, var(--rift-chaos) 55%, var(--rift-surface));
   }
   [data-interface='rift'] .da-card--gold {
+    border-color: color-mix(in srgb, var(--rift-gold) 60%, var(--rift-surface));
+  }
+  /* Cosmos mode: a bevelled steel plate, lightly brushed, with a short shadow. */
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-card {
+    background:
+      repeating-linear-gradient(180deg, var(--rift-plate-brush) 0 1px, transparent 1px 3px),
+      linear-gradient(180deg, var(--rift-plate-top), var(--rift-plate-bottom));
+    background-color: var(--rift-surface);
+    border-color: var(--rift-plate-edge);
+    border-radius: 4px;
+    box-shadow: inset 1px 1px 0 var(--rift-silver-hi), inset -1px -1px 0 var(--rift-plate-bevel-lo), 0 1px 0 var(--rift-plate-ledge), var(--rift-shadow);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-card--cosmos {
+    border-color: var(--rift-cosmos);
+    border-left-width: 4px;
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-card--chaos {
+    border-color: var(--rift-chaos);
+    border-left-width: 4px;
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-card--gold {
     border-color: var(--rift-gold);
   }
   [data-interface='rift'] .da-card--dashed {
@@ -191,30 +228,120 @@ body,
     cursor: not-allowed;
     opacity: 0.55;
   }
+  /* Rift keys. Chaos mode: a slanted blade that lifts on hover and sinks when pressed. */
   [data-interface='rift'] .da-btn {
-    border: 1px solid var(--rift-cosmos-accent);
-    background: var(--rift-cosmos-accent);
-    color: var(--rift-cosmos-btn-ink);
+    --btn-bg: var(--rift-btn-primary-bg);
+    --btn-ink: var(--rift-btn-primary-ink);
+    --btn-edge: var(--rift-btn-primary-edge);
+    position: relative;
+    padding-inline: 1.375rem;
+    border: 1px solid var(--btn-edge);
+    background: var(--btn-bg);
+    color: var(--btn-ink);
     font-family: var(--rift-font-heading);
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-  }
-  [data-interface='rift'] .da-btn:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--rift-cosmos-accent) 85%, var(--rift-page-bg));
+    clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+    transition: transform 0.12s ease-out, filter 0.15s, box-shadow 0.15s, background-color 0.15s;
   }
   [data-interface='rift'] .da-btn--chaos {
-    border-color: var(--rift-chaos-bg);
-    background: var(--rift-chaos-bg);
-    color: var(--rift-chaos-ink);
+    --btn-bg: var(--rift-btn-chaos-bg);
+    --btn-ink: var(--rift-btn-chaos-ink);
+    --btn-edge: var(--rift-btn-chaos-edge);
   }
   [data-interface='rift'] .da-btn--ghost {
-    background: transparent;
-    border-color: var(--rift-ink);
-    color: var(--rift-ink);
+    --btn-bg: var(--rift-btn-ghost-bg);
+    --btn-ink: var(--rift-btn-ghost-ink);
+    --btn-edge: var(--rift-btn-ghost-edge);
+  }
+  [data-interface='rift'] .da-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    filter: brightness(1.08);
   }
   [data-interface='rift'] .da-btn--ghost:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--rift-ink) 6%, transparent);
+    background: var(--rift-btn-ghost-hover);
+  }
+  [data-interface='rift'] .da-btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.97);
+    filter: brightness(0.92);
+    transition-duration: 0.05s;
+  }
+  /* Chaos mode: a sheen runs across the key on hover. Not on ghost keys: over their gold hover fill it drops the
+     label below 4.5:1, and the fill already shows the hover. */
+  [data-interface='rift']:not([data-rift-mode='cosmos']) .da-btn:not(.da-btn--ghost)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 0.45s ease-out;
+  }
+  [data-interface='rift']:not([data-rift-mode='cosmos']) .da-btn:not(.da-btn--ghost):hover:not(:disabled)::after {
+    transform: translateX(120%);
+  }
+  /* The clip-path cuts anything drawn outside the key, so the focus ring sits inside it. */
+  [data-interface='rift'] .da-btn:focus-visible {
+    outline: 2px solid var(--btn-ink);
+    outline-offset: -5px;
+  }
+
+  /* Cosmos mode: physical keys with a lip under them; pressing sinks the key onto it. No slant. */
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn {
+    --btn-face: var(--rift-btn-primary-face);
+    --btn-lip: var(--rift-btn-primary-lip);
+    clip-path: none;
+    border-radius: 4px;
+    background: var(--btn-face);
+    background-color: var(--btn-bg);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 3px 0 var(--btn-lip), 0 5px 8px rgba(0, 0, 0, 0.25);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn--chaos {
+    --btn-face: var(--rift-btn-chaos-face);
+    --btn-lip: var(--rift-btn-chaos-lip);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn--ghost {
+    --btn-face: none;
+    --btn-lip: var(--rift-btn-ghost-lip);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 3px 0 var(--btn-lip);
+  }
+  /* The Cosmos blue key: the one action on a screen that gets the player into a game. */
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn--main {
+    --btn-bg: var(--rift-btn-main-bg);
+    --btn-ink: var(--rift-btn-main-ink);
+    --btn-edge: var(--rift-btn-main-lip);
+    --btn-lip: var(--rift-btn-main-lip);
+    background: var(--rift-btn-main-sheen), var(--rift-btn-main-gleam), var(--rift-btn-main-face);
+    background-color: var(--btn-bg);
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.5);
+    box-shadow: inset 0 1px 0 rgba(206, 222, 255, 0.75), inset 0 -2px 0 rgba(0, 0, 0, 0.3), 0 3px 0 var(--btn-lip), 0 5px 10px rgba(6, 18, 58, 0.45);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn:hover:not(:disabled) {
+    transform: none;
+    filter: brightness(1.05);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn--ghost:hover:not(:disabled) {
+    background: var(--rift-btn-ghost-hover);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn:active:not(:disabled) {
+    transform: translateY(3px);
+    filter: brightness(0.95);
+    box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.25), 0 0 0 var(--btn-lip);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn:focus-visible {
+    outline: 2px solid var(--rift-ink);
+    outline-offset: 5px;
+  }
+  /* Reduced motion: keys still brighten, darken and lose their lip when pressed, but never move. */
+  @media (prefers-reduced-motion: reduce) {
+    [data-interface='rift'] .da-btn:is(:hover, :active):not(:disabled),
+    [data-interface='rift'][data-rift-mode='cosmos'] .da-btn:is(:hover, :active):not(:disabled) {
+      transform: none;
+    }
+    [data-interface='rift'] .da-btn::after {
+      display: none;
+    }
   }
   [data-interface='classic'] .da-btn {
     border: 1px solid var(--win-border);
@@ -224,6 +351,7 @@ body,
     text-shadow: var(--win-shadow);
     font-family: var(--menu-family);
     font-weight: var(--menu-weight);
+    transition: color 150ms, background-color 150ms, border-color 150ms;
   }
   [data-interface='classic'] .da-btn:hover:not(:disabled) {
     background: var(--win-sel);
@@ -244,18 +372,49 @@ body,
     opacity: 0.55;
   }
   [data-interface='rift'] .da-pill {
-    border-color: var(--rift-line);
-    color: var(--rift-ink);
-    background: var(--rift-card-bg);
+    border-color: var(--rift-pill-edge);
+    color: var(--rift-pill-ink);
+    background: var(--rift-pill-bg);
+    font-family: var(--rift-font-heading);
+    font-weight: 600;
+    letter-spacing: 0.04em;
   }
   [data-interface='rift'] .da-pill:hover:not(:disabled) {
-    border-color: var(--rift-ink);
+    border-color: var(--rift-silver-edge);
   }
   [data-interface='rift'] .da-pill[aria-pressed='true'],
   [data-interface='rift'] .da-pill[aria-current='page'] {
-    background: var(--rift-ink);
-    border-color: var(--rift-ink);
-    color: var(--rift-page-bg);
+    background: var(--rift-pill-on-bg);
+    border-color: var(--rift-pill-on-edge);
+    color: var(--rift-pill-on-ink);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--rift-gold) 30%, transparent);
+  }
+  /* Cosmos mode: switch keys with a lip; the pressed one is a cobalt inlay sunk into the steel. */
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-pill {
+    background: var(--rift-pill-face);
+    background-color: var(--rift-pill-bg);
+    box-shadow: inset 0 1px 0 var(--rift-silver-hi), 0 2px 0 var(--rift-line-strong);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-pill[aria-pressed='true'],
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-pill[aria-current='page'] {
+    background: var(--rift-pill-on-face);
+    background-color: var(--rift-pill-on-bg);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45);
+    transform: translateY(2px);
+  }
+  /* A pill with a crest in front of its label (the Rift game switcher) */
+  [data-interface='rift'] .da-pill--crest {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 36px;
+    padding-left: 0.3rem;
+    font-size: 0.8125rem;
+  }
+  [data-interface='rift'] :is(.da-pill[aria-pressed='true'], .da-pill[aria-current='page']) .da-crest {
+    --rift-frame-top: var(--rift-frame-top-on);
+    --rift-frame-bottom: var(--rift-frame-bottom-on);
+    --rift-crest-ink: var(--rift-crest-ink-on);
   }
   [data-interface='classic'] .da-pill {
     border-color: var(--win-inner);
@@ -271,19 +430,19 @@ body,
     border-color: var(--win-border);
   }
 
-  /* Rift section eyebrow ("WORLDS", "REWARDS") and headings */
+  /* Rift section eyebrow ("APPEARANCE", "REWARDS") and headings */
   .da-eyebrow {
     margin: 0;
     font-family: var(--rift-font-heading);
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.18em;
-    color: var(--rift-gold-text);
+    color: var(--rift-gold);
     text-transform: uppercase;
   }
+  /* Flavour text: the body font, a touch heavier */
   .da-lore {
-    font-family: var(--rift-font-lore);
-    font-style: italic;
+    font-family: var(--rift-font-body);
     font-weight: 500;
   }
   /* Gold corner brackets on Rift cards */
@@ -298,29 +457,38 @@ body,
     height: 14px;
     pointer-events: none;
   }
+  .da-brackets {
+    --bracket: var(--rift-gold);
+  }
+  /* Classic keeps the brackets it had before Rift's modes */
+  [data-interface='classic'] .da-brackets {
+    --bracket: var(--classic-bracket);
+  }
   .da-brackets::before {
     top: 8px;
     left: 8px;
-    border-top: 1px solid var(--rift-gold);
-    border-left: 1px solid var(--rift-gold);
+    border-top: 1px solid var(--bracket);
+    border-left: 1px solid var(--bracket);
   }
   .da-brackets::after {
     bottom: 8px;
     right: 8px;
-    border-bottom: 1px solid var(--rift-gold);
-    border-right: 1px solid var(--rift-gold);
+    border-bottom: 1px solid var(--bracket);
+    border-right: 1px solid var(--bracket);
   }
   /* Thin progress bar (reward progress, lock panel) */
   .da-progress {
     flex: 1;
     height: 10px;
     padding: 2px;
-    border: 1px solid var(--rift-ink);
+    border: 1px solid var(--rift-line-strong);
+    background: var(--rift-bg);
   }
+  /* The next-unlock bar: one colour, Cosmos blue */
   .da-progress > span {
     display: block;
     height: 100%;
-    background: var(--rift-meter-cosmos);
+    background: var(--rift-cosmos);
   }
   [data-interface='classic'] .da-progress {
     border: 0;
@@ -344,11 +512,489 @@ body,
   outline-offset: -2px;
 }
 
-/* Rift headings use Cinzel; Classic keeps the menu font */
-[data-interface='rift'] h1,
+/* Rift's three font roles: Marcellus SC for the page title (it has one weight), Chakra Petch for the rest of the
+   headings, Barlow for body text. Classic keeps the menu font. */
+[data-interface='rift'] h1 {
+  font-family: var(--rift-font-display);
+  font-weight: 400;
+}
 [data-interface='rift'] h2,
 [data-interface='rift'] h3 {
   font-family: var(--rift-font-heading);
+}
+/* Marcellus SC has one weight: never let a bold utility fake a heavier one in Rift */
+[data-interface='rift'] .font-display {
+  font-weight: 400;
+}
+
+/* ------------------------------------------------------------------ Rift crests and the mode toggle */
+.da-crest {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--rift-crest-ink);
+}
+.da-crest > svg {
+  position: absolute;
+  inset: 0;
+}
+.da-crest__icon {
+  position: relative;
+  display: flex;
+}
+.da-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--rift-muted);
+  font-family: var(--rift-font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.da-mode-toggle:hover {
+  color: var(--rift-ink);
+  background: var(--rift-raised);
+}
+
+/* ------------------------------------------------------------------ Rift sidebar shell (#43)
+   Desktop: a 260px rail, then a column holding the page and the help strip. Ported from lab round 1 (the 012 menu
+   bars, selection blue with the shard cursor, the gold current edge; in Cosmos mode, steel rods with chamfered ends
+   and a cobalt inlay). Phones hide the rail and the strip until the bottom bar (#45). */
+.rift-shell {
+  display: flex;
+  min-height: 100vh;
+}
+.rift-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rift-sidebar {
+  position: sticky;
+  top: 0;
+  flex: none;
+  flex-direction: column;
+  gap: 16px;
+  width: 260px;
+  height: 100vh;
+  height: 100dvh;
+  padding: 18px 14px 14px;
+  overflow-y: auto;
+  background: var(--rift-rail-face);
+  background-color: var(--rift-bg);
+  border-right: 1px solid var(--rift-rail-edge);
+  box-shadow: inset -1px 0 0 var(--rift-rail-bevel);
+  color: var(--rift-ink);
+}
+.rift-brand {
+  padding: 0 4px;
+  font-family: var(--rift-font-display);
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  color: var(--rift-gold);
+  text-decoration: none;
+}
+[data-rift-mode='cosmos'] .rift-brand {
+  color: var(--rift-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 20px;
+}
+.rift-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+[data-interface='rift'] .rift-switch .da-pill--crest {
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 6px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+[data-interface='rift'][data-rift-mode='cosmos'] .rift-switch .da-pill--crest {
+  border-radius: 4px;
+}
+
+/* The player card */
+.rift-player {
+  min-height: 112px;
+  padding: 12px;
+  border: 1px solid var(--rift-line);
+  border-radius: 8px;
+  background: var(--rift-raised);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+[data-rift-mode='cosmos'] .rift-player {
+  clip-path: none;
+  border-color: var(--rift-plate-edge);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--rift-plate-top), var(--rift-plate-bottom));
+  box-shadow: inset 1px 1px 0 var(--rift-silver-hi), inset -1px -1px 0 var(--rift-plate-bevel-lo);
+}
+.rift-player__top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rift-player__name {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--rift-font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+.rift-player__wins,
+.rift-player__note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--rift-muted);
+}
+.rift-player__note {
+  margin-top: 4px;
+}
+.rift-player__wins strong {
+  font-family: var(--rift-font-heading);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--rift-ink);
+}
+.rift-player__unlock {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 10px 0 5px;
+  font-size: 12px;
+  color: var(--rift-muted);
+}
+.rift-player__count {
+  font-family: var(--rift-font-heading);
+  font-weight: 600;
+  color: var(--rift-gold);
+}
+/* The next-unlock bar: one colour, Cosmos blue */
+.rift-meter {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--rift-bg);
+  overflow: hidden;
+}
+.rift-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--rift-cosmos);
+  box-shadow: 0 0 10px var(--rift-cosmos);
+}
+[data-rift-mode='cosmos'] .rift-meter {
+  height: 8px;
+  border-radius: 2px;
+  background: var(--rift-well);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+[data-rift-mode='cosmos'] .rift-meter > span {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* The 012 menu bars */
+.rift-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rift-bars--sub {
+  margin: 4px 0 0 22px;
+}
+.rift-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 20px 0 2px;
+  background: var(--rift-rod-face);
+  border-top: 1px solid var(--rift-rod-edge);
+  box-shadow: inset 0 -1px 0 var(--rift-bg);
+  color: var(--rift-rod-ink);
+  font-family: var(--rift-font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+}
+.rift-bar--sub {
+  min-height: 34px;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
+.rift-bar__cursor {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  width: 20px;
+}
+.rift-bar__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rift-shard-cursor {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+}
+.rift-bar.is-current {
+  box-shadow: inset 3px 0 0 var(--rift-current-edge), inset 0 -1px 0 var(--rift-bg);
+}
+.rift-bar.is-selected {
+  background: var(--rift-select-face);
+  background-color: var(--rift-select);
+  border-top-color: var(--rift-select-edge);
+  color: var(--rift-select-ink);
+}
+/* The selected row's crest: the icon goes white on a blue frame (the pressed-pill rule doesn't reach links). */
+.rift-bar.is-selected .da-crest {
+  --rift-frame-top: var(--rift-frame-top-sel);
+  --rift-frame-bottom: var(--rift-frame-bottom-sel);
+  --rift-crest-ink: var(--rift-crest-ink-sel);
+}
+.rift-bar:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--rift-silver-hi);
+}
+[data-rift-mode='cosmos'] .rift-bar {
+  border-top: 0;
+  box-shadow: inset 0 0 0 1px var(--rift-rod-edge), inset 0 2px 0 rgba(255, 255, 255, 0.9);
+  clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px);
+}
+[data-rift-mode='cosmos'] .rift-bar.is-current:not(.is-selected) {
+  box-shadow: inset 0 0 0 1px var(--rift-rod-edge), inset 4px 0 0 var(--rift-current-edge), inset 0 2px 0 rgba(255, 255, 255, 0.9);
+}
+[data-rift-mode='cosmos'] .rift-bar.is-selected {
+  box-shadow: inset 0 0 0 1px var(--rift-select-edge), inset 0 3px 5px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(255, 255, 255, 0.35);
+}
+[data-rift-mode='cosmos'] .rift-bar:focus-visible {
+  outline: 2px solid var(--rift-ink);
+  outline-offset: -6px;
+}
+[data-rift-mode='cosmos'] .rift-bar.is-selected:focus-visible {
+  outline-color: var(--rift-select-ink);
+}
+
+/* The foot: Settings, the mode toggle, the interface switch, the fan line and the icon credit */
+.rift-sidebar__foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rift-line);
+}
+[data-rift-mode='cosmos'] .rift-sidebar__foot {
+  border-top-color: var(--rift-line-strong);
+  box-shadow: inset 0 1px 0 var(--rift-rail-bevel);
+}
+.rift-foot-btn.rift-foot-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--rift-muted);
+  font-family: var(--rift-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-decoration: none;
+}
+.rift-foot-btn.rift-foot-btn:hover {
+  background: var(--rift-raised);
+  color: var(--rift-ink);
+}
+[data-rift-mode='cosmos'] .rift-foot-btn.rift-foot-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+/* Current Settings: the same edge as the current menu bar (review fix 4) */
+.rift-foot-btn[aria-current='page'] {
+  background: var(--rift-raised);
+  box-shadow: inset 3px 0 0 var(--rift-current-edge);
+  color: var(--rift-ink);
+}
+.rift-sidebar__interface {
+  padding: 4px 12px;
+}
+.rift-sidebar__interface .da-switch__label {
+  display: none;
+}
+.rift-sidebar__small {
+  margin: 4px 12px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--rift-muted);
+}
+.rift-sidebar__small a {
+  color: inherit;
+  text-decoration: underline;
+}
+.rift-sidebar__fan {
+  margin-top: 8px;
+}
+
+/* The help strip: one line of hint text, stuck to the bottom of the window */
+.rift-helpstrip {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  flex: none;
+  align-items: center;
+  height: 50px;
+  padding: 0 28px;
+  border-top: 2px solid var(--rift-helpstrip-edge);
+  box-shadow: inset 0 1px 0 var(--rift-silver-hi);
+  background: var(--rift-helpstrip-face), var(--rift-helpstrip-bg);
+  color: var(--rift-helpstrip-ink);
+  font-size: 17px;
+  font-weight: 500;
+}
+.rift-helpstrip__text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+[data-rift-mode='cosmos'] .rift-helpstrip {
+  bottom: 10px;
+  height: 42px;
+  margin: 0 12px 10px;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.7);
+  font-family: var(--rift-font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+[data-rift-mode='cosmos'] .rift-helpstrip__text::before {
+  content: '▶';
+  margin-right: 12px;
+  font-size: 10px;
+  vertical-align: 2px;
+  color: var(--rift-helpstrip-mark);
+}
+
+/* ------------------------------------------------------------------ Rift phone bottom bar (#45)
+   Below md the sidebar and help strip hide and five equal emblem tiles take over. --rift-phone-bar-h is the bar's
+   height with the safe area (0 elsewhere): pad the page with it, and float things above it. */
+:root {
+  --rift-phone-bar-h: 0px;
+}
+@media (width < 48rem) {
+  [data-interface='rift'] {
+    --rift-phone-bar-h: calc(78px + env(safe-area-inset-bottom, 0px));
+  }
+}
+.rift-column {
+  padding-bottom: var(--rift-phone-bar-h);
+}
+.rift-bottombar {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 30;
+  display: none;
+  align-items: center;
+  height: var(--rift-phone-bar-h);
+  padding: 0 6px env(safe-area-inset-bottom, 0px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rift-surface) 92%, transparent), var(--rift-bg));
+  border-top: 1px solid var(--rift-silver-edge);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+@media (width < 48rem) {
+  .rift-bottombar {
+    display: flex;
+  }
+}
+.rift-tile {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 72px;
+  color: var(--rift-muted);
+  text-decoration: none;
+  transition: transform 0.1s, color 0.15s;
+}
+.rift-tile:active {
+  transform: scale(0.92);
+}
+.rift-tile__label {
+  font-family: var(--rift-font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* The current tile keeps a shape, not only a colour (review fix 4): the crest sits in its pressed seat, and a 3px
+   edge in the current-page colour runs under the label, like the sidebar's current bar. */
+.rift-tile[aria-current='page'] {
+  color: var(--rift-crest-ink);
+}
+.rift-tile[aria-current='page'] .da-crest {
+  --rift-frame-top: var(--rift-frame-top-on);
+  --rift-frame-bottom: var(--rift-frame-bottom-on);
+  --rift-crest-ink: var(--rift-crest-ink-on);
+}
+.rift-tile[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 32px;
+  height: 3px;
+  margin-left: -16px;
+  border-radius: 2px;
+  background: var(--rift-current-edge);
+}
+.rift-tile:focus-visible {
+  outline: 2px solid var(--rift-silver-hi);
+  outline-offset: -4px;
+}
+[data-rift-mode='cosmos'] .rift-bottombar {
+  background: var(--rift-phone-bar-face);
+  border-top-color: var(--rift-phone-bar-edge);
+  box-shadow: inset 0 1px 0 var(--rift-phone-bar-bevel);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+[data-rift-mode='cosmos'] .rift-tile:focus-visible {
+  outline-color: var(--rift-ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rift-tile:active {
+    transform: none;
+  }
 }
 
 /* ------------------------------------------------------------------ interface switcher */
@@ -366,7 +1012,7 @@ body,
   color: var(--rift-muted);
 }
 [data-interface='rift'] .da-switch__group {
-  border: 1px solid var(--rift-ink);
+  border: 1px solid var(--rift-line-strong);
 }
 [data-interface='rift'] .da-switch__btn {
   font-family: var(--rift-font-heading);
@@ -374,8 +1020,9 @@ body,
   color: var(--rift-ink);
 }
 [data-interface='rift'] .da-switch__btn[aria-pressed='true'] {
-  background: var(--rift-ink);
-  color: var(--rift-page-bg);
+  background: var(--rift-pill-on-bg);
+  box-shadow: inset 0 0 0 1px var(--rift-pill-on-edge);
+  color: var(--rift-pill-on-ink);
 }
 [data-interface='classic'] .da-switch__label {
   color: var(--win-muted);
@@ -433,7 +1080,119 @@ body,
 }
 
 /* Rift display fonts fall back to the menu font inside Classic */
-[data-interface='classic'] .font-brand,
+[data-interface='classic'] .font-display,
 [data-interface='classic'] .font-heading {
   font-family: var(--menu-family);
+}
+
+/* Rift page panels use the same plates and selection rods as the sidebar. */
+[data-interface='rift'] .rift-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--rift-line-strong);
+  background: var(--rift-surface);
+  box-shadow: inset 0 1px var(--rift-steel-hi, var(--rift-line)), var(--rift-shadow);
+}
+
+[data-interface='rift'] .rift-tabtitle {
+  align-self: flex-start;
+  margin: -1rem 0 0 -1rem;
+  padding: 0.45rem 2rem 0.45rem 1rem;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 1rem) 100%, 0 100%);
+  background: var(--rift-helpstrip-face, none) var(--rift-helpstrip-bg);
+  color: var(--rift-helpstrip-ink);
+  font: 1.15rem/1.3 var(--rift-font-display);
+  border-bottom: 1px solid var(--rift-silver-edge);
+}
+
+[data-interface='rift'] .rift-picker {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr) auto minmax(0, 1.8fr) auto auto;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.3rem;
+  padding-inline: 0.5rem;
+  background: var(--rift-rod-face);
+  color: var(--rift-rod-ink);
+  border: 1px solid var(--rift-rod-edge);
+  font-family: var(--rift-font-heading);
+}
+
+[data-interface='rift'] .rift-picker.is-selected {
+  background: var(--rift-select-face);
+  color: var(--rift-select-ink);
+  border-color: var(--rift-select-edge);
+}
+
+[data-interface='rift'] .rift-picker__arrow {
+  min-width: 2.25rem;
+  min-height: 2.75rem;
+}
+
+[data-interface='rift'] .rift-picker__value {
+  padding: 0.35rem 0;
+  text-align: center;
+}
+
+[data-interface='rift'] .rift-picker :focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+[data-interface='rift'] .rift-detail-score {
+  white-space: nowrap;
+  font-family: var(--rift-font-display);
+}
+
+[data-interface='rift'] .rift-detail-games :is(th, td) {
+  padding: 0.6rem 0.3rem;
+  overflow-wrap: anywhere;
+}
+
+[data-interface='rift'] .rift-detail-games thead {
+  background: var(--rift-raised);
+  font-family: var(--rift-font-heading);
+}
+
+[data-interface='rift'] .rift-rewards > div:last-child {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+}
+
+[data-interface='rift'] .rift-rewards .da-card {
+  border-radius: 0;
+  background: var(--rift-surface);
+}
+
+@media (max-width: 640px) {
+  [data-interface='rift'] .rift-profile-identity {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  [data-interface='rift'] .rift-profile-identity > :last-child {
+    margin-top: 0.25rem;
+  }
+
+  [data-interface='rift'] .rift-profile-stats {
+    flex-wrap: wrap;
+  }
+
+  [data-interface='rift'] .rift-detail-scoreboard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    text-align: center;
+  }
+
+  [data-interface='rift'] .rift-detail-scoreboard > .flex-1 {
+    display: none;
+  }
+
+  [data-interface='rift'] .rift-detail-scoreboard > div {
+    flex-direction: column;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
 }

@@ -1,0 +1,218 @@
+/* The Rift Match found dialog (#47), ported from lab round 1 (lab.css "match found", Crystal shatter only). */
+.rift-found {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 1rem;
+  /* Cosmos mode's is a neutral steel, a shade darker than the lab's so the page underneath reads as set aside
+     (review fix 3 on #42). */
+  background: var(--rift-scrim);
+}
+
+.rift-found__fx {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.rift-found__fx > * {
+  grid-area: 1 / 1;
+}
+
+.rift-found__card {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 100%);
+  /* A short screen (a phone on its side, or large text) scrolls the card rather than clipping Accept and Decline. */
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 26px 22px;
+  text-align: center;
+  border: 1px solid var(--rift-gold);
+  border-radius: 4px;
+  background: var(--rift-surface);
+  color: var(--rift-ink);
+  box-shadow: 0 0 60px color-mix(in srgb, var(--rift-gold) 35%, transparent);
+}
+.rift-found__card:focus-visible {
+  outline: 2px solid var(--rift-ink);
+  outline-offset: 3px;
+}
+[data-rift-mode='cosmos'] .rift-found__card {
+  border-color: var(--rift-silver-edge);
+  box-shadow: inset 0 1px 0 var(--rift-silver-hi), var(--rift-shadow);
+}
+.rift-found__crest {
+  display: inline-flex;
+  margin-bottom: 6px;
+}
+.rift-found__kicker {
+  margin: 0;
+  font-family: var(--rift-font-heading);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--rift-gold);
+}
+.rift-found__title {
+  margin: 6px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.rift-found__you,
+.rift-found__them {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-family: var(--rift-font-display);
+  font-size: 30px;
+  line-height: 1.1;
+}
+.rift-found__you {
+  color: var(--rift-cosmos);
+}
+.rift-found__them {
+  color: var(--rift-chaos);
+}
+.rift-found__vs {
+  font-family: var(--rift-font-heading);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.3em;
+  color: var(--rift-muted);
+}
+.rift-found__meta,
+.rift-found__time,
+.rift-found__waiting {
+  margin: 0;
+  color: var(--rift-muted);
+}
+.rift-found__time {
+  margin-top: 4px;
+  font-family: var(--rift-font-heading);
+  font-variant-numeric: tabular-nums;
+}
+.rift-found__error {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--color-chaos-soft);
+}
+.rift-found__waiting {
+  margin-top: 18px;
+  font-family: var(--rift-font-heading);
+  font-weight: 600;
+  color: var(--rift-ink);
+}
+.rift-found__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+/* Crystal shatter: a silver crystal swells in a soft glow, cracks, then bursts into shards with a ring of light.
+   The card rises in the gap. The chime lands on the burst at about 0.6s. Only the first time a match shows
+   (data-shatter), and only when motion is allowed: under reduced motion the effect layer isn't drawn at all. */
+.rift-found__glow {
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--rift-crystal-wash) 40%, transparent), transparent 65%);
+  opacity: 0;
+}
+.rift-found__crystal {
+  position: relative;
+  width: 84px;
+  height: 150px;
+  background: linear-gradient(160deg, var(--rift-silver-hi), var(--rift-crystal-wash) 45%, var(--rift-cosmos-deep));
+  clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
+  opacity: 0;
+}
+.rift-found__crack {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(115deg, transparent 46%, var(--rift-silver-hi) 48%, transparent 50%),
+    linear-gradient(62deg, transparent 54%, var(--rift-silver-hi) 56%, transparent 58%);
+  opacity: 0;
+}
+.rift-found__ring {
+  width: 120px;
+  height: 120px;
+  border: 3px solid var(--rift-silver-hi);
+  border-radius: 50%;
+  opacity: 0;
+}
+.rift-found__shard {
+  width: 28px;
+  height: 46px;
+  background: linear-gradient(160deg, var(--rift-silver-hi), var(--rift-crystal-wash) 50%, var(--rift-cosmos-deep));
+  clip-path: polygon(50% 0, 100% 55%, 40% 100%, 0 40%);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rift-found[data-shatter] {
+    animation: rift-found-fade 0.25s ease-out backwards;
+  }
+  .rift-found__glow {
+    animation: rift-found-glow 1.3s ease-out forwards;
+  }
+  .rift-found__crystal {
+    animation: rift-found-crystal 0.75s cubic-bezier(0.3, 0, 0.2, 1) forwards;
+  }
+  .rift-found__crack {
+    animation: rift-found-crack 0.18s ease-out 0.42s forwards;
+  }
+  .rift-found__ring {
+    animation: rift-found-ring 0.6s ease-out 0.62s forwards;
+  }
+  .rift-found__shard {
+    animation: rift-found-shard 0.95s cubic-bezier(0.15, 0.7, 0.3, 1) 0.62s forwards;
+  }
+  .rift-found[data-shatter] .rift-found__card {
+    animation: rift-found-rise 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) 0.7s backwards;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rift-found__fx {
+    display: none;
+  }
+}
+
+@keyframes rift-found-fade {
+  from { opacity: 0; }
+}
+@keyframes rift-found-glow {
+  0% { opacity: 0; transform: scale(0.5); }
+  45% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.3); }
+}
+@keyframes rift-found-crystal {
+  0% { transform: scale(0.3); opacity: 0; }
+  55% { transform: scale(1); opacity: 1; }
+  80% { transform: scale(1.04); opacity: 1; filter: brightness(1.6); }
+  100% { transform: scale(1.25); opacity: 0; filter: brightness(2.5); }
+}
+@keyframes rift-found-crack {
+  to { opacity: 1; }
+}
+@keyframes rift-found-ring {
+  0% { opacity: 0.9; transform: scale(0.4); }
+  100% { opacity: 0; transform: scale(3.4); }
+}
+@keyframes rift-found-shard {
+  0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(calc(var(--s) * 0.6)) rotate(0deg); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--d) * -1)) scale(var(--s)) rotate(var(--r)); }
+}
+@keyframes rift-found-rise {
+  from { opacity: 0; transform: translateY(12px) scale(0.92); }
+}

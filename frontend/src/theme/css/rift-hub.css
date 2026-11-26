@@ -1,0 +1,198 @@
+/*
+ * Rift Hub (#49): Blade v2 banner cards over the facet backdrop, ported from lab round 1 (lab.css Blade v2, lab-light.css
+ * variant C and its Glass plates). Chaos mode: a skewed plate with a silver bevelled edge, a slanted title tab and
+ * selection blue on hover and focus. Cosmos mode: straight frosted plates with an enamel stripe and a dark name plate,
+ * over a dimmed steel version of the facets.
+ */
+
+.rift-hub {
+  --rift-hub-gutter: clamp(20px, 4vw, 56px);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding-bottom: 3rem;
+}
+
+/* The backdrop fills the content column, gutters included, without widening the page. */
+.rift-hub__backdrop {
+  position: absolute;
+  inset: -2rem calc(-1 * var(--rift-hub-gutter)) 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  /* The column ends above the footer, so the facets fade out instead of stopping on a hard edge. */
+  mask-image: linear-gradient(black 70%, transparent);
+}
+
+.rift-hub__head p,
+.rift-hub__head h1 {
+  margin: 0;
+}
+
+.rift-hub__kicker {
+  font: 600 0.9rem var(--rift-font-heading);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--rift-muted);
+}
+
+.rift-banners {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rift-banner {
+  --accent: var(--rift-gold);
+  position: relative;
+  margin-top: 26px;
+}
+.rift-banner--match { --accent: var(--rift-chaos); }
+.rift-banner--season { --accent: var(--rift-cosmos); }
+
+.rift-banner__inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 104px;
+  margin: 0 14px;
+  padding: 18px 26px;
+  transform: skewX(-12deg);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rift-silver-edge) 12%, var(--rift-surface)), var(--rift-surface));
+  border-top: 2px solid var(--rift-silver-edge);
+  border-left: 6px solid var(--accent);
+  box-shadow: inset 0 1px 0 var(--rift-silver-hi), inset 0 -2px 0 var(--rift-bg), var(--rift-shadow);
+  color: var(--rift-ink);
+  transition: background 0.15s, transform 0.15s ease-out;
+}
+.rift-banner__inner > * { transform: skewX(12deg); }
+
+.rift-banner__body {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+[data-interface='rift'] .rift-banner__kicker {
+  position: absolute;
+  top: -46px;
+  left: -14px;
+  margin: 0;
+  padding: 5px 28px 5px 12px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rift-silver-edge) 25%, var(--rift-raised)), var(--rift-raised));
+  border-top: 1px solid var(--rift-silver-hi);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+  color: var(--accent);
+  font: 600 13px/1.4 var(--rift-font-heading);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rift-banner__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.rift-banner__big {
+  font: 700 48px/1 var(--rift-font-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.rift-banner__text {
+  font: 600 21px/1.3 var(--rift-font-heading);
+  letter-spacing: 0.02em;
+}
+
+.rift-banner:hover { transform: translateX(4px); }
+.rift-banner { transition: transform 0.15s ease-out; }
+
+.rift-banner:is(:hover, :focus-within) .rift-banner__inner {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rift-silver-hi) 20%, var(--rift-select)), var(--rift-select));
+  border-top-color: var(--rift-silver-hi);
+  color: var(--rift-select-ink);
+}
+
+/* Cosmos mode: straight frosted plates over the steel facets, the kicker a dark name plate. */
+[data-rift-mode='cosmos'] .rift-banner__inner {
+  margin: 0;
+  transform: none;
+  border: 1px solid var(--rift-glass-line);
+  border-left: 8px solid var(--accent);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(244, 246, 249, 0.62), rgba(214, 219, 227, 0.52));
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.9),
+    inset -1px -1px 0 rgba(110, 119, 136, 0.55),
+    inset 0 0 0 3px rgba(255, 255, 255, 0.1),
+    0 1px 0 rgba(238, 241, 245, 0.55),
+    var(--rift-shadow);
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+}
+[data-rift-mode='cosmos'] .rift-banner__inner > * { transform: none; }
+[data-rift-mode='cosmos'] .rift-banner:hover { transform: none; }
+[data-rift-mode='cosmos'] .rift-banner:is(:hover, :focus-within) .rift-banner__inner {
+  background: linear-gradient(180deg, rgba(250, 251, 253, 0.74), rgba(226, 230, 236, 0.64));
+  border-top-color: var(--rift-glass-line);
+  color: var(--rift-ink);
+}
+[data-rift-mode='cosmos'] .rift-banner__text { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.75); }
+[data-interface='rift'][data-rift-mode='cosmos'] .rift-banner__kicker {
+  top: -40px;
+  left: 0;
+  padding: 7px 20px;
+  background: var(--rift-helpstrip-face, none) var(--rift-helpstrip-bg);
+  border-top: 1px solid var(--rift-helpstrip-edge);
+  box-shadow: inset 0 -1px 0 var(--rift-helpstrip-shade);
+  clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px);
+  color: var(--rift-helpstrip-ink);
+  text-shadow: 0 -1px 0 var(--rift-helpstrip-shade);
+}
+[data-rift-mode='cosmos'] .rift-banner__big {
+  padding: 2px 14px;
+  border-radius: 3px;
+  background: var(--rift-helpstrip-bg);
+  color: var(--rift-helpstrip-ink);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* The dimmed steel facets under the frosted plates. */
+[data-rift-mode='cosmos'] .rift-hub .rift-facets path {
+  fill: var(--rift-steel-lo);
+  opacity: 0.16;
+  stroke: var(--rift-steel-hi);
+  stroke-opacity: 0.55;
+}
+[data-rift-mode='cosmos'] .rift-hub .rift-facets path:nth-child(3n + 2) {
+  fill: var(--rift-steel-hi);
+  opacity: 0.45;
+}
+[data-rift-mode='cosmos'] .rift-hub .rift-facets path:nth-child(3n) {
+  fill: var(--rift-silver-lo);
+  opacity: 0.12;
+}
+
+/* Phones: a gentler skew, and the body takes the full width with the action on its own row (#42 review note). */
+@media (max-width: 760px) {
+  .rift-banner__inner {
+    flex-wrap: wrap;
+    margin: 0 8px;
+    padding: 16px 18px;
+    min-height: 0;
+    transform: skewX(-6deg);
+  }
+  .rift-banner__inner > * { transform: skewX(6deg); }
+  .rift-banner__body { flex-basis: 100%; }
+  [data-interface='rift'] .rift-banner__kicker { left: -8px; }
+  .rift-banner__big { font-size: 40px; }
+  .rift-banner__text { font-size: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rift-banner:hover { transform: none; }
+}

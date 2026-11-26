@@ -2,7 +2,9 @@ import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { GAMES, MATCHES, playerById, type GameId } from '../data/mock'
 import { useApp } from '../state/AppState'
-import { Art, Avatar, Btn, Card, CharIcon, Pill, Stat, Sub } from '../components/ui'
+import { Art, Avatar, Btn, CharIcon, Pill, Stat, Sub } from '../components/ui'
+import { Panel } from '../components/rift/menus'
+import { useAppearance } from '../state/Appearance'
 import { cx } from '../lib/format'
 import { ACCENTS, BANNERS, loadCustom, type BlockId } from './profileCustom'
 
@@ -10,6 +12,7 @@ import { ACCENTS, BANNERS, loadCustom, type BlockId } from './profileCustom'
 export default function Profile() {
   const { id = '' } = useParams()
   const { game: currentGame, signedIn, requireSignIn, user, signOut } = useApp()
+  const { ui } = useAppearance()
   const navigate = useNavigate()
   const [game, setGame] = useState<GameId>(currentGame)
   const p = playerById(id)
@@ -34,15 +37,14 @@ export default function Profile() {
 
   const blocks: Record<BlockId, ReactNode> = {
     rank: (
-      <div className="flex gap-3">
+      <div className="rift-profile-stats flex gap-3">
         <Stat label={`S${GAMES[game].season} rank`} value={`#${s.rank} · ${s.rating}`} />
         <Stat label="W–L" value={`${s.wins}–${s.losses}`} />
         <Stat label="best season" value={s.best ?? `#${s.rank} S${GAMES[game].season}`} />
       </div>
     ),
     mains: (
-      <Card>
-        <b>Featured mains</b>
+      <Panel title="Featured mains">
         <div className="flex gap-2">
           {s.mains.map((c) => (
             <Link key={c} to={`/${game}/characters/${c.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} title={c}>
@@ -50,11 +52,10 @@ export default function Profile() {
             </Link>
           ))}
         </div>
-      </Card>
+      </Panel>
     ),
     pinned: (
-      <Card>
-        <b>Pinned match</b>
+      <Panel title="Pinned match">
         {history[0] ? (
           <Link to={`/matches/${history[0].id}`} className="text-sm hover:text-crystal-soft">
             {history[0].a.name} vs {history[0].b.name} · {history[0].date}
@@ -62,17 +63,15 @@ export default function Profile() {
         ) : (
           <Sub>No match pinned yet</Sub>
         )}
-      </Card>
+      </Panel>
     ),
     bio: (
-      <Card>
-        <b>Bio</b>
+      <Panel title="Bio">
         <span className="text-sm">{custom.bio || '—'}</span>
-      </Card>
+      </Panel>
     ),
     history: (
-      <Card>
-        <b>Match history</b>
+      <Panel title="Match history">
         {history.length ? (
           history.map((m) => {
             const isA = m.a.playerId === p.id
@@ -89,19 +88,19 @@ export default function Profile() {
         ) : (
           <Sub>No ranked matches in {GAMES[game].short} yet</Sub>
         )}
-      </Card>
+      </Panel>
     ),
   }
 
   return (
     <div className="flex flex-col gap-4">
       <Art label={BANNERS[custom.banner]} className="h-28" />
-      <div className="-mt-12 flex items-end gap-3 pl-3">
+      <div className="rift-profile-identity -mt-12 flex items-end gap-3 pl-3">
         <span className="rounded-full border-[3px] bg-ink" style={{ borderColor: custom.accent }}>
           <Avatar name={name} src={isMe ? user?.avatarUrl : undefined} size={64} className="border-0" />
         </span>
         <div className="flex flex-col">
-          <span className="text-xl font-semibold">{name}</span>
+          {ui === 'rift' ? <h1 className="m-0 text-3xl">{name}</h1> : <span className="text-xl font-semibold">{name}</span>}
           <Sub>
             {custom.title && <span className="text-gold-soft">{custom.title} · </span>}
             {region} · Discord: {discord}

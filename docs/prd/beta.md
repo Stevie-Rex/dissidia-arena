@@ -48,7 +48,8 @@ The owner settled the direction in a grilling session on 2026-11-25, and picked 
 
 ### Where the current look lives
 
-- Font families: `rift.fonts` in `frontend/src/theme/tokens.json`, loaded by `frontend/src/theme/css/fonts.css`. Rift uses Cinzel Decorative for the brand, Cinzel for headings, Cormorant Garamond for lore text and Inter for body text. Kalam, imported in `frontend/src/index.css`, is only for handwritten notes.
+- Font families: `rift.fonts` in `frontend/src/theme/tokens.json`, loaded by `frontend/src/theme/css/fonts.css`. Rift uses Marcellus SC for display, Chakra Petch for headings and Barlow for body text. Kalam, imported in `frontend/src/index.css`, is only for handwritten notes.
+- Rift's colours: `rift.modes.chaos` and `rift.modes.cosmos` in `tokens.json`, mirrored by hand as `--rift-*` variables in `frontend/src/theme/css/dissidia-theme.css`. The mode is the `rift_mode` appearance preference, set on `<html>` as `data-rift-mode`.
 - Interface styles: `frontend/src/theme/css/dissidia-theme.css` and `frontend/src/index.css`.
 - Layouts: `frontend/src/layouts/RiftLayout.tsx`, `ClassicLayout.tsx` and `Shell.tsx`.
 - Shared components: `frontend/src/components/ui.tsx`.

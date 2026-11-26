@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { GAMES, matchById, type Match } from '../data/mock'
 import { Avatar, Card, CharIcon, Note, Pill, Sub } from '../components/ui'
+import { Panel } from '../components/rift/menus'
+import { useAppearance } from '../state/Appearance'
 import { cx } from '../lib/format'
 
 /** 1m scoreboard + per-game table (1v1), 1n team view with game toggle (3v3). */
 export default function MatchDetails() {
+  const { ui } = useAppearance()
   const { id = '' } = useParams()
   const m = matchById(id)
   if (!m) return <Sub>Match not found.</Sub>
@@ -15,23 +18,26 @@ export default function MatchDetails() {
 
   return (
     <div className="flex flex-col gap-4">
+      {ui === 'rift' && <h1 className="m-0 text-4xl">Match details</h1>}
       <Sub>
         {info.name} · Ranked {m.mode} · Bo{m.bestOf} · {m.date} · {m.region}
       </Sub>
-      <Card>
-        <div className="flex items-center gap-3">
+      <Panel title="Result">
+        <div className="rift-detail-scoreboard flex items-center gap-3">
           <Side side={m.a} align="left" />
           <span className="flex-1" />
-          <span className="text-3xl font-semibold">
+          <span className="rift-detail-score text-3xl font-semibold">
             {aw} – {bw}
           </span>
           <span className="flex-1" />
           <Side side={m.b} align="right" />
         </div>
-      </Card>
-      {m.mode === '3v3' ? <TeamView m={m} /> : <GameTable m={m} />}
+      </Panel>
+      {ui === 'rift' ? (
+        <Panel title="Games">{m.mode === '3v3' ? <TeamView m={m} /> : <GameTable m={m} />}</Panel>
+      ) : m.mode === '3v3' ? <TeamView m={m} /> : <GameTable m={m} />}
       <button type="button" className="self-start text-xs text-muted hover:text-chaos-soft">
-        ⚑ dispute result
+        Dispute result
       </button>
     </div>
   )
@@ -67,14 +73,14 @@ function GameTable({ m }: { m: Match }) {
   const helper = GAMES[m.game].helperLabel.toLowerCase()
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="rift-detail-games w-full text-sm">
         <thead>
           <tr className="border-b border-line text-left text-xs text-muted">
-            <th className="w-8 py-1 font-normal">G</th>
-            <th className="py-1 font-normal">A: char / {helper}</th>
-            <th className="py-1 font-normal">B: char / {helper}</th>
+            <th className="w-8 py-1 font-normal">Game</th>
+            <th className="py-1 font-normal">A · Character / {helper}</th>
+            <th className="py-1 font-normal">B · Character / {helper}</th>
             <th className="py-1 font-normal">Stage</th>
-            <th className="w-10 py-1 font-normal">Win</th>
+            <th className="w-10 py-1 font-normal">Winner</th>
           </tr>
         </thead>
         <tbody>

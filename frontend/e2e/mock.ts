@@ -1,23 +1,23 @@
-import type { Page, Request } from '@playwright/test'
+import { expect, type APIRequestContext, type Page, type Request } from '@playwright/test'
 import type { Role } from '../src/lib/api'
 import tokens from '../src/theme/tokens.json' with { type: 'json' }
 
 type Prefs = {
   interface: string
-  world: string
   window_theme: string
   menu_font: string
   cursor: string
   window_rgb: number[]
+  rift_mode: string
 }
 
 const DEFAULTS: Prefs = {
   interface: 'rift',
-  world: 'dissidia',
   window_theme: 'classic',
   menu_font: 'auto',
   cursor: 'glove',
   window_rgb: [6, 10, 26],
+  rift_mode: 'chaos',
 }
 
 const REWARDS = tokens.rewards as { key: string; name: string; goal: number; unlocks: Record<string, string[]> }[]
@@ -55,7 +55,7 @@ export interface MockServer {
  */
 export async function mockApi(
   page: Page,
-  opts: { wins: number | null; prefs?: Partial<Prefs>; losses?: number; getDelayMs?: number; role?: Role },
+  opts: { wins: number | null; prefs?: Partial<Prefs>; losses?: number; getDelayMs?: number; role?: Role; onboarded?: boolean },
 ): Promise<MockServer> {
   const server: MockServer = { patches: [] }
   let prefs: Prefs = { ...DEFAULTS, ...opts.prefs }
@@ -70,7 +70,7 @@ export async function mockApi(
     if (path === '/api/me') {
       if (!signedIn) return json(401, { error: 'unauthenticated' })
       return json(200, {
-        id: 1, discordId: '1', username: 'tester', displayName: 'Tester', avatarUrl: '', onboarded: true,
+        id: 1, discordId: '1', username: 'tester', displayName: 'Tester', avatarUrl: '', onboarded: opts.onboarded ?? true,
         region: 'EU', games: ['012', 'nt'], gameIds: {}, rankedWins: wins, role: opts.role ?? 'player',
       })
     }
@@ -96,5 +96,23 @@ export async function mockApi(
   return server
 }
 
-export const WORLD_KEYS = Object.keys(tokens.rift.worlds)
 export const WINDOW_KEYS = Object.keys(tokens.classic.windows)
+
+/** "Chaos mode" or "Cosmos mode", as GLOSSARY.md writes them, for test titles. */
+export const modeName = (mode: string) => `${mode[0].toUpperCase()}${mode.slice(1)} mode`
+
+/**
+ * The Discord feedback URL the suite expects the dev server to have been started with.
+ * playwright.config.ts sets it, but a dev server already running on the port is reused as it is,
+ * so check that server's build has the URL and fail with the cause if it doesn't.
+ */
+export async function feedbackUrlServed(request: APIRequestContext): Promise<string> {
+  const url = process.env.VITE_DISCORD_FEEDBACK_URL!
+  const source = await (await request.get('/src/lib/links.ts')).text()
+  expect(
+    source.includes(JSON.stringify(url)),
+    `The dev server on this port was started without VITE_DISCORD_FEEDBACK_URL=${url}. ` +
+      'Playwright reused it, so its environment was not set. Stop that server, or start it with the variable.',
+  ).toBe(true)
+  return url
+}

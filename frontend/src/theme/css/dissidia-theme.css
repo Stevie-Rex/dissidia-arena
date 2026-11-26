@@ -1,154 +1,208 @@
-/* Dissidia Arena theme v1.0.0. Generated from tokens.json: change values there, not here. */
-/* Needs css/fonts.css. Set data-interface, data-world, data-window, data-menu-font and data-cursor on <html>. */
+/* Dissidia Arena theme v1.0.0. Mirrors tokens.json: change a value in both. */
+/* Needs css/fonts.css. Set data-interface, data-rift-mode, data-window, data-menu-font and data-cursor on <html>. */
 
-/* ---------- Rift worlds ---------- */
-:root, [data-world="dissidia"] {
-  --rift-page-bg: #F7F3EA;
-  --rift-card-bg: #FFFDF8;
-  --rift-ink: #16130E;
-  --rift-muted: #5E574B;
-  --rift-line: #DCD2BE;
-  --rift-gold: #9A7A2E;
-  --rift-gold-text: #765A1C;
-  --rift-cosmos-bg: #F3EEDF;
-  --rift-cosmos-ink: #1B2340;
-  --rift-cosmos-muted: #4A5270;
-  --rift-cosmos-accent: #1B2340;
-  --rift-cosmos-btn-ink: #F3EEDF;
-  --rift-cosmos-line: #B8964A;
-  --rift-chaos-bg: #0D0A0C;
-  --rift-chaos-ink: #F3E9E9;
-  --rift-chaos-muted: #BBAAAD;
-  --rift-chaos-accent: #E5404F;
-  --rift-chaos-btn-ink: #0D0A0C;
-  --rift-chaos-line: #E5404F;
-  --rift-meter-cosmos: #C9A957;
-  --rift-meter-chaos: #8E1A28;
+/* ---------- Rift colours: Chaos mode (dark, the default) and Cosmos mode (light) ---------- */
+/* Mirrors tokens.rift.modes; there's no generator, so change both by hand. No attribute means Chaos mode. */
+:root, [data-rift-mode="chaos"] {
+  --rift-bg: #090B14;
+  --rift-bg-2: #0F1220;
+  --rift-surface: #141829;
+  --rift-raised: #1C2136;
+  --rift-line: #2A3150;
+  --rift-line-strong: #3C4670;
+  --rift-ink: #EEEAE1;
+  --rift-muted: #A4A9BF;
+  --rift-gold: #E0B862;
+  --rift-gold-ink: #17120A;
+  --rift-cosmos: #8DBEF5;
+  --rift-cosmos-deep: #2B4C86;
+  --rift-chaos: #F0596A;
+  --rift-chaos-ink: #1A0609;
+  --rift-win: #7EE0A6;
+  --rift-silver-hi: #E6EBF4;
+  --rift-silver-edge: #B4BDD0;
+  --rift-silver-lo: #545E76;
+  --rift-select: #2C57D6;
+  --rift-select-ink: #FFFFFF;
+  --rift-crystal-wash: #A9CBFF;
+  --rift-glass: rgba(20,24,41,0.62);
+  --rift-glass-line: rgba(141,190,245,0.22);
+  --rift-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  --rift-page-wash-cosmos: rgba(43,76,134,0.28);
+  --rift-page-wash-chaos: rgba(240,89,106,0.10);
+  --rift-frame-hi: #E6EBF4;
+  --rift-frame-mid: #B4BDD0;
+  --rift-frame-lo: #545E76;
+  --rift-frame-top: #1C2136;
+  --rift-frame-bottom: #090B14;
+  --rift-crest-ink: #E0B862;
+  --rift-frame-top-on: #4A4332;
+  --rift-frame-bottom-on: #090B14;
+  --rift-crest-ink-on: #E0B862;
+  --rift-btn-primary-bg: #E0B862;
+  --rift-btn-primary-ink: #17120A;
+  --rift-btn-primary-edge: #E0B862;
+  --rift-btn-chaos-bg: #F0596A;
+  --rift-btn-chaos-ink: #1A0609;
+  --rift-btn-chaos-edge: #F0596A;
+  --rift-btn-ghost-bg: rgba(238,234,225,0.09);
+  --rift-btn-ghost-ink: #EEEAE1;
+  --rift-btn-ghost-edge: #3C4670;
+  --rift-btn-ghost-hover: rgba(224,184,98,0.22);
+  --rift-pill-bg: #141829;
+  --rift-pill-ink: #EEEAE1;
+  --rift-pill-edge: #3C4670;
+  --rift-pill-on-bg: #2A2618;
+  --rift-pill-on-ink: #EEEAE1;
+  --rift-pill-on-edge: #E0B862;
+  --rift-hero-cosmos-bg: #121A33;
+  --rift-hero-cosmos-ink: #EEEAE1;
+  --rift-hero-cosmos-muted: #B9C3DC;
+  --rift-hero-cosmos-line: #3A5D9E;
+  --rift-hero-chaos-bg: #07050A;
+  --rift-hero-chaos-ink: #EEEAE1;
+  --rift-hero-chaos-muted: #BFB2B6;
+  --rift-hero-chaos-line: #F0596A;
+  --rift-hero-chaos-accent: #F0596A;
+  --rift-rail-face: linear-gradient(180deg, #141829, #090B14);
+  --rift-rail-edge: #2A3150;
+  --rift-rail-bevel: transparent;
+  --rift-rod-face: linear-gradient(180deg, #31374C, #141829);
+  --rift-rod-ink: #EEEAE1;
+  --rift-rod-edge: #B4BDD0;
+  --rift-select-face: linear-gradient(180deg, #466CDA, #2C57D6);
+  --rift-select-edge: #E6EBF4;
+  --rift-frame-top-sel: #5B7CDE;
+  --rift-frame-bottom-sel: #203C92;
+  --rift-crest-ink-sel: #FFFFFF;
+  --rift-current-edge: #E0B862;
+  --rift-helpstrip-face: linear-gradient(180deg, #2E3448, #141829);
+  --rift-helpstrip-bg: #141829;
+  --rift-helpstrip-ink: #EEEAE1;
+  --rift-helpstrip-edge: #B4BDD0;
+  --rift-helpstrip-mark: transparent;
+  --rift-scrim: rgba(4,5,10,0.82);
 }
-[data-world="crystal"] {
-  --rift-page-bg: #F5F8FC;
-  --rift-card-bg: #FFFFFF;
-  --rift-ink: #0F1826;
-  --rift-muted: #4C5A6C;
-  --rift-line: #D2DCE8;
-  --rift-gold: #5E8FB8;
-  --rift-gold-text: #2F5F8A;
-  --rift-cosmos-bg: #E6F0F9;
-  --rift-cosmos-ink: #0F2233;
-  --rift-cosmos-muted: #3E5568;
-  --rift-cosmos-accent: #0F2233;
-  --rift-cosmos-btn-ink: #E6F0F9;
-  --rift-cosmos-line: #7FB4DD;
-  --rift-chaos-bg: #120E22;
-  --rift-chaos-ink: #EDE8FF;
-  --rift-chaos-muted: #B2A8D6;
-  --rift-chaos-accent: #A98BFF;
-  --rift-chaos-btn-ink: #120E22;
-  --rift-chaos-line: #A98BFF;
-  --rift-meter-cosmos: #8FC4EA;
-  --rift-meter-chaos: #4B2FA8;
-}
-[data-world="magitek"] {
-  --rift-page-bg: #F8F2E6;
-  --rift-card-bg: #FFFCF5;
-  --rift-ink: #1E1813;
-  --rift-muted: #64584A;
-  --rift-line: #DFD2BB;
-  --rift-gold: #9C7A3A;
-  --rift-gold-text: #73561F;
-  --rift-cosmos-bg: #EFE4CF;
-  --rift-cosmos-ink: #2A1F14;
-  --rift-cosmos-muted: #5E4E3C;
-  --rift-cosmos-accent: #2A1F14;
-  --rift-cosmos-btn-ink: #EFE4CF;
-  --rift-cosmos-line: #B08B47;
-  --rift-chaos-bg: #17110C;
-  --rift-chaos-ink: #F2E6D4;
-  --rift-chaos-muted: #BFAE96;
-  --rift-chaos-accent: #D9A24A;
-  --rift-chaos-btn-ink: #17110C;
-  --rift-chaos-line: #D9A24A;
-  --rift-meter-cosmos: #D8BC7E;
-  --rift-meter-chaos: #6B3A1E;
-}
-[data-world="mako"] {
-  --rift-page-bg: #F3F7F5;
-  --rift-card-bg: #FFFFFF;
-  --rift-ink: #101713;
-  --rift-muted: #4F5E57;
-  --rift-line: #CFDCD5;
-  --rift-gold: #3F9A72;
-  --rift-gold-text: #1E6B4A;
-  --rift-cosmos-bg: #E3F0E9;
-  --rift-cosmos-ink: #0E2A1F;
-  --rift-cosmos-muted: #3F5A4E;
-  --rift-cosmos-accent: #0E2A1F;
-  --rift-cosmos-btn-ink: #E3F0E9;
-  --rift-cosmos-line: #5DBF92;
-  --rift-chaos-bg: #0A0E0C;
-  --rift-chaos-ink: #E6F2EC;
-  --rift-chaos-muted: #A5B8AE;
-  --rift-chaos-accent: #4BE39C;
-  --rift-chaos-btn-ink: #0A0E0C;
-  --rift-chaos-line: #4BE39C;
-  --rift-meter-cosmos: #9FE3C0;
-  --rift-meter-chaos: #14523A;
-}
-[data-world="gaia"] {
-  --rift-page-bg: #F2F2F0;
-  --rift-card-bg: #FFFFFF;
-  --rift-ink: #1A1B1E;
-  --rift-muted: #55585F;
-  --rift-line: #D5D6D9;
-  --rift-gold: #8A8F99;
-  --rift-gold-text: #4E525A;
-  --rift-cosmos-bg: #E9EAEC;
-  --rift-cosmos-ink: #22252B;
-  --rift-cosmos-muted: #50545C;
-  --rift-cosmos-accent: #43474F;
-  --rift-cosmos-btn-ink: #FFFFFF;
-  --rift-cosmos-line: #9AA0AA;
-  --rift-chaos-bg: #1D1F24;
-  --rift-chaos-ink: #EEF0F3;
-  --rift-chaos-muted: #B3B7BF;
-  --rift-chaos-accent: #D9C27A;
-  --rift-chaos-btn-ink: #1D1F24;
-  --rift-chaos-line: #D9C27A;
-  --rift-meter-cosmos: #B7BCC5;
-  --rift-meter-chaos: #43474F;
-}
-[data-world="ivalice"] {
-  --rift-page-bg: #FAF6EE;
-  --rift-card-bg: #FFFFFF;
-  --rift-ink: #221C15;
-  --rift-muted: #62584B;
-  --rift-line: #DDD2C0;
-  --rift-gold: #A8823C;
-  --rift-gold-text: #7A5A1E;
-  --rift-cosmos-bg: #E8EEF4;
-  --rift-cosmos-ink: #1A2F47;
-  --rift-cosmos-muted: #455A70;
-  --rift-cosmos-accent: #2E5E8C;
-  --rift-cosmos-btn-ink: #FFFFFF;
-  --rift-cosmos-line: #7FA3C8;
-  --rift-chaos-bg: #1A1512;
-  --rift-chaos-ink: #F0E6D8;
-  --rift-chaos-muted: #B8AC9A;
-  --rift-chaos-accent: #D7684C;
-  --rift-chaos-btn-ink: #1A1512;
-  --rift-chaos-line: #D7684C;
-  --rift-meter-cosmos: #A9C3DD;
-  --rift-meter-chaos: #7A2616;
+/* Cosmos mode: Burnished Steel (#55). Keys whose name ends in -face are gradients over the -bg colour. */
+[data-rift-mode="cosmos"] {
+  --rift-bg: #B8BFCA;
+  --rift-bg-2: #A8B0BC;
+  --rift-surface: #D5DAE2;
+  --rift-raised: #C8CED8;
+  --rift-line: #8F98A7;
+  --rift-line-strong: #687183;
+  --rift-ink: #0C111E;
+  --rift-muted: #2C3444;
+  --rift-gold: #5A400A;
+  --rift-gold-ink: #FFFFFF;
+  --rift-cosmos: #15388A;
+  --rift-cosmos-deep: #15388A;
+  --rift-chaos: #86132A;
+  --rift-chaos-ink: #FFFFFF;
+  --rift-win: #0C4A28;
+  --rift-silver-hi: #FFFFFF;
+  --rift-silver-edge: #9AA3B2;
+  --rift-silver-lo: #4E5768;
+  --rift-select: #1B3FA6;
+  --rift-select-ink: #FFFFFF;
+  --rift-crystal-wash: #7FA6EC;
+  --rift-glass: rgba(214,219,227,0.52);
+  --rift-glass-line: rgba(62,71,87,0.85);
+  --rift-shadow: 0 2px 6px rgba(20,26,40,0.22);
+  --rift-steel-hi: #F4F6F9;
+  --rift-steel-lo: #6E7788;
+  --rift-well: #BEC4CE;
+  --rift-stage-top: #CDD3DC;
+  --rift-stage-mid: #AFB7C3;
+  --rift-stage-bottom: #A2AAB7;
+  --rift-stage-brush: rgba(255,255,255,0.05);
+  --rift-plate-top: #E4E8EE;
+  --rift-plate-bottom: #C9CFD9;
+  --rift-plate-edge: #4E5768;
+  --rift-plate-bevel-lo: #8E97A6;
+  --rift-plate-ledge: #EEF1F5;
+  --rift-plate-brush: rgba(255,255,255,0.07);
+  --rift-frame-hi: #FFFFFF;
+  --rift-frame-mid: #9AA3B2;
+  --rift-frame-lo: #3E4757;
+  --rift-frame-top: #E6E9EE;
+  --rift-frame-bottom: #A9B1BE;
+  --rift-crest-ink: #15388A;
+  --rift-frame-top-on: #122C78;
+  --rift-frame-bottom-on: #2D58CC;
+  --rift-crest-ink-on: #FFFFFF;
+  --rift-btn-primary-bg: #DCE1E8;
+  --rift-btn-primary-ink: #0C111E;
+  --rift-btn-primary-edge: #3E4757;
+  --rift-btn-primary-lip: #4E5768;
+  --rift-btn-primary-face: linear-gradient(180deg, #FDFEFF, #DCE1E8 46%, #BCC4CF 54%, #CFD5DD);
+  --rift-btn-chaos-bg: #DAC3C8;
+  --rift-btn-chaos-ink: #6E0F22;
+  --rift-btn-chaos-edge: #6E0F22;
+  --rift-btn-chaos-lip: #6E0F22;
+  --rift-btn-chaos-face: linear-gradient(180deg, #E6D3D7, #CDB3B9);
+  --rift-btn-ghost-bg: transparent;
+  --rift-btn-ghost-ink: #0C111E;
+  --rift-btn-ghost-edge: #3E4757;
+  --rift-btn-ghost-lip: #687183;
+  --rift-btn-ghost-hover: rgba(255,255,255,0.35);
+  --rift-btn-main-bg: #1C388F;
+  --rift-btn-main-ink: #FFFFFF;
+  --rift-btn-main-lip: #06123A;
+  --rift-btn-main-face: linear-gradient(180deg, #3C5BBB 0%, #1C388F 34%, #102668 66%, #0C1D55 100%);
+  --rift-btn-main-gleam: radial-gradient(120% 70% at 28% 0%, rgba(176,204,255,0.34), transparent 55%);
+  --rift-btn-main-sheen: linear-gradient(115deg, transparent 0 38%, rgba(255,255,255,0.15) 45%, transparent 52%);
+  --rift-pill-bg: #DEE2E8;
+  --rift-pill-ink: #0C111E;
+  --rift-pill-edge: #687183;
+  --rift-pill-face: linear-gradient(180deg, #F4F6F9, #C9CFD8);
+  --rift-pill-on-bg: #1B3FA6;
+  --rift-pill-on-ink: #FFFFFF;
+  --rift-pill-on-edge: #0A1A4A;
+  --rift-pill-on-face: linear-gradient(180deg, #122C78, #2D58CC);
+  --rift-hero-cosmos-bg: #D5DAE2;
+  --rift-hero-cosmos-ink: #0C111E;
+  --rift-hero-cosmos-muted: #2C3444;
+  --rift-hero-cosmos-line: #687183;
+  --rift-hero-chaos-bg: #14161C;
+  --rift-hero-chaos-ink: #E9EDF3;
+  --rift-hero-chaos-muted: #B9BFCB;
+  --rift-hero-chaos-line: #D2475D;
+  --rift-hero-chaos-accent: #F0596A;
+  --rift-phone-bar-face: repeating-linear-gradient(180deg, rgba(255,255,255,0.12) 0 1px, transparent 1px 3px), linear-gradient(180deg, #CDD3DC, #A9B1BD);
+  --rift-phone-bar-edge: #4E5768;
+  --rift-phone-bar-bevel: #F4F6F9;
+  --rift-rail-face: repeating-linear-gradient(180deg, rgba(255,255,255,0.12) 0 1px, transparent 1px 3px), linear-gradient(90deg, #A9B1BD, #C2C9D3 45%, #ACB4C0);
+  --rift-rail-edge: #4E5768;
+  --rift-rail-bevel: #E6E9EE;
+  --rift-rod-face: linear-gradient(180deg, #FAFBFD 0%, #DCE1E8 45%, #BFC7D2 55%, #D3D9E1 100%);
+  --rift-rod-ink: #0C111E;
+  --rift-rod-edge: #6E7788;
+  --rift-select-face: linear-gradient(180deg, #122C78, #1B3FA6 35%, #2D58CC 100%);
+  --rift-select-edge: #0A1A4A;
+  --rift-frame-top-sel: #2D58CC;
+  --rift-frame-bottom-sel: #122C78;
+  --rift-crest-ink-sel: #FFFFFF;
+  --rift-current-edge: #1B3FA6;
+  --rift-helpstrip-face: none;
+  --rift-helpstrip-bg: #1A2130;
+  --rift-helpstrip-ink: #DCE3EE;
+  --rift-helpstrip-edge: transparent;
+  --rift-helpstrip-mark: #7FA6EC;
+  --rift-helpstrip-shade: #000000;
+  --rift-scrim: rgba(146,154,168,0.92);
 }
 
 :root {
-  --rift-font-brand: 'Cinzel Decorative', serif;
-  --rift-font-heading: 'Cinzel', serif;
-  --rift-font-lore: 'Cormorant Garamond', serif;
-  --rift-font-body: 'Inter', system-ui, sans-serif;
+  --rift-font-display: 'Marcellus SC', serif;
+  --rift-font-heading: 'Chakra Petch', sans-serif;
+  --rift-font-body: 'Barlow', system-ui, sans-serif;
 }
 
 /* ---------- Classic window themes ---------- */
+:root {
+  --classic-bracket: #9A7A2E;
+}
 :root, [data-window="classic"] {
   --win-page-bg: #05070F;
   --win-angle: 180deg;
@@ -416,7 +470,7 @@
 [data-window] { --win-bg: linear-gradient(var(--win-angle), var(--win-top), var(--win-bot)); --win-frame: 0 0 0 1px rgba(0,0,0,.55), inset 0 0 0 1px var(--win-bevel); --menu-title: max(12px, calc(26px * var(--menu-scale))); --menu-command: max(13px, calc(22px * var(--menu-scale))); --menu-big: max(15px, calc(28px * var(--menu-scale))); --menu-label: max(12px, calc(17px * var(--menu-scale))); --menu-body: max(12px, calc(16px * var(--menu-scale))); --menu-small: max(12px, calc(14px * var(--menu-scale))); }
 
 /* ---------- Page backgrounds per interface ---------- */
-[data-interface="rift"] body { background: var(--rift-page-bg); color: var(--rift-ink); font-family: var(--rift-font-body); }
+[data-interface="rift"] body { background: var(--rift-bg); color: var(--rift-ink); font-family: var(--rift-font-body); }
 [data-interface="classic"] body { background: var(--win-page-bg); color: var(--win-ink); font-family: var(--menu-family); line-height: var(--menu-lh); }
 
 /* ---------- Classic window component ---------- */
@@ -452,17 +506,17 @@
 }
 
 /* ---------- Segmented gauge (Cycle of War, reward progress) ---------- */
-.da-gauge { position: relative; display: flex; height: 22px; padding: 3px; border: 1px solid var(--rift-ink); background: var(--rift-card-bg); }
-.da-gauge__cosmos { background: var(--rift-meter-cosmos); }
-.da-gauge__chaos { background: var(--rift-meter-chaos); }
-.da-gauge::after { content: ""; position: absolute; inset: 3px; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(5% - 3px), var(--rift-card-bg) calc(5% - 3px), var(--rift-card-bg) 5%); pointer-events: none; }
+.da-gauge { position: relative; display: flex; height: 22px; padding: 3px; border: 1px solid var(--rift-line-strong); background: var(--rift-surface); }
+.da-gauge__cosmos { background: var(--rift-cosmos); }
+.da-gauge__chaos { background: var(--rift-chaos); }
+.da-gauge::after { content: ""; position: absolute; inset: 3px; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(5% - 3px), var(--rift-surface) calc(5% - 3px), var(--rift-surface) 5%); pointer-events: none; }
 
 /* ---------- Sides ---------- */
 .da-glyph { width: 1em; height: 1em; display: inline-block; vertical-align: -0.15em; background: currentColor; }
 .da-glyph--cosmos { -webkit-mask: url("../assets/cosmos.svg") center / contain no-repeat; mask: url("../assets/cosmos.svg") center / contain no-repeat; }
 .da-glyph--chaos { -webkit-mask: url("../assets/chaos.svg") center / contain no-repeat; mask: url("../assets/chaos.svg") center / contain no-repeat; }
-[data-interface="rift"] [data-side="cosmos"] { --side: var(--rift-cosmos-accent); }
-[data-interface="rift"] [data-side="chaos"] { --side: var(--rift-chaos-accent); }
+[data-interface="rift"] [data-side="cosmos"] { --side: var(--rift-cosmos); }
+[data-interface="rift"] [data-side="chaos"] { --side: var(--rift-chaos); }
 [data-interface="classic"] [data-side="cosmos"] { --side: var(--win-cosmos); }
 [data-interface="classic"] [data-side="chaos"] { --side: var(--win-chaos); }
 

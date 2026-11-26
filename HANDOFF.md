@@ -140,10 +140,10 @@ website: the "Match on" DM links to the match room.
 - Real API: queue page, match-found modal and match room (`src/state/AppState.tsx` polls).
 - **Interfaces:** `src/state/Appearance.tsx` (appearance context; caches to `localStorage['da-appearance']`, which the
   inline script in `index.html` applies before paint), `src/layouts/{Shell,RiftLayout,ClassicLayout}.tsx`,
-  `src/components/appearance/*` (switcher, lock panel, preview banner, worlds, reward cards, Config window, victory
+  `src/components/appearance/*` (switcher, lock panel, preview banner, reward cards, Config window, victory
   card). `Card`/`Btn`/`Pill` in `ui.tsx` use `da-card`/`da-btn`/`da-pill`, styled per interface in `index.css`, so
-  older pages become Classic windows without changes. Swatches of other worlds/windows set `data-world`/`data-window`
-  on the swatch itself. Decisions taken: you are always Cosmos; the Cycle of War gauge shows your ranked W/L until
+  older pages become Classic windows without changes. Window swatches set `data-window` on the swatch itself.
+  Rift worlds were removed (ADR 0001); Rift has two modes, Chaos mode (dark, the default) and Cosmos mode (light), set by `data-rift-mode` on `<html>` and chosen in the sidebar foot, More or Config. Decisions taken: you are always Cosmos; the Cycle of War gauge shows your ranked W/L until
   seasons exist; Classic's Battle-HUD styling is the match room's score bar; nav maps to real pages.
 - **Mock data (`src/data/mock.ts`):** Ladder, Tournaments, Party, Meta, Profile, Hub, Discord pages. `mock.ts` also
   holds per-game UI settings (`GAMES`) and the `GameId`/`Region` types that real pages import, so don't delete it
@@ -156,7 +156,7 @@ cd frontend && npm run build && npm run lint   # clean
 cd frontend && npm run test:e2e                # Playwright + axe, API mocked (no backend needed)
 ```
 The e2e suite covers lock panel, preview (incl. no flash on reload), switching, 403 revert, the command menu keys,
-custom colour, colour contrast in all 6 worlds and 9 windows, and phone width. axe ignores `clip-path`, so the Rift
+custom colour, colour contrast in Rift (desktop and phone width) and all 9 windows, and phone width. axe ignores `clip-path`, so the Rift
 hero's Cosmos half is excluded from axe and its colour pairs are checked directly in the test.
 
 **macOS port 5000:** AirPlay Receiver (Control Center) listens on `*:5000`. Flask still binds `127.0.0.1:5000` and the

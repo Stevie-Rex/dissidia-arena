@@ -57,7 +57,6 @@ def test_ladder_is_classic_at_10_then_every_5():
         ("window_rgb", [1, 2, 3], "window_custom"),
         ("menu_font", "bit8", "font_8bit"),
         ("menu_font", "bit16", None),
-        ("world", "mako", None),
         ("cursor", "arrow", None),
     ],
 )

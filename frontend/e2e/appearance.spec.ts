@@ -1,13 +1,20 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { mockApi, WINDOW_KEYS, WORLD_KEYS } from './mock'
+import { mockApi, WINDOW_KEYS } from './mock'
 
 const html = (page: Page) => page.locator('html')
 
-/** WCAG contrast of the Cosmos hero's text pairs, from computed colours. */
-async function cosmosHeroRatios(page: Page): Promise<[string, number][]> {
+const SIZES = [['desktop', { width: 1280, height: 800 }], ['phone', { width: 375, height: 812 }]] as const
+const MODE_NAME = { chaos: 'Chaos mode', cosmos: 'Cosmos mode' } as const
+
+/** Contrast of each crest's icon against both ends of its frame's fill, from computed colours. */
+async function crestRatios(page: Page): Promise<[string, number][]> {
   return page.evaluate(() => {
-    const rgb = (c: string) => (c.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
+    // Computed colours come back as rgb()/rgba() or, from color-mix, as color(srgb r g b) in 0-1.
+    const rgb = (c: string) => {
+      const n = (c.match(/[\d.]+/g) ?? []).map(Number)
+      return c.startsWith('color(') ? n.slice(0, 3).map((v) => v * 255) : n.slice(0, 3)
+    }
     const lum = ([r, g, b]: number[]) =>
       [r, g, b].map((v) => {
         const s = v / 255
@@ -17,25 +24,25 @@ async function cosmosHeroRatios(page: Page): Promise<[string, number][]> {
       const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((m, n) => n - m)
       return Math.round(((x + 0.05) / (y + 0.05)) * 100) / 100
     }
-    const section = document.querySelector('section[aria-label="Choose your side"]')!
-    const bg = getComputedStyle(section).backgroundColor
-    const half = document.querySelector('[data-hero="cosmos"]')!
     const out: [string, number][] = []
-    half.querySelectorAll('p, h1').forEach((el) => out.push([el.textContent!.slice(0, 20), ratio(getComputedStyle(el).color, bg)]))
-    const btn = half.querySelector('button')!
-    out.push(['button', ratio(getComputedStyle(btn).color, getComputedStyle(btn).backgroundColor)])
+    document.querySelectorAll<HTMLElement>('[data-crest]').forEach((crest, i) => {
+      if (!crest.offsetParent) return
+      const ink = getComputedStyle(crest.querySelector('[data-crest-icon]')!).color
+      const where = `crest ${i} (${crest.closest('button')?.textContent?.trim() ?? ''})`
+      crest.querySelectorAll('[data-crest-fill]').forEach((stop, j) => out.push([`${where} fill ${j}`, ratio(ink, getComputedStyle(stop).stopColor)]))
+    })
     return out
   })
 }
+
 const classicButton = (page: Page) => page.getByRole('group', { name: 'Interface' }).getByRole('button', { name: /classic/i })
 
 test.describe('Rift for a new player', () => {
-  test('sees Rift with the Dissidia world, and Classic shows a lock', async ({ page }) => {
+  test('sees Rift, and Classic shows a lock', async ({ page }) => {
     await mockApi(page, { wins: null })
     await page.goto('/')
     await expect(html(page)).toHaveAttribute('data-interface', 'rift')
-    await expect(html(page)).toHaveAttribute('data-world', 'dissidia')
-    await expect(page.getByRole('heading', { level: 1, name: 'Light shall endure.' })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Dissidia Arena' }).getByRole('heading', { level: 1, name: 'Dissidia Arena' })).toBeVisible()
     await expect(page.locator('h1')).toHaveCount(1)
     await expect(classicButton(page).getByRole('img', { name: 'Locked' })).toBeVisible()
   })
@@ -52,12 +59,89 @@ test.describe('Rift for a new player', () => {
     await expect(panel).toBeHidden()
   })
 
-  test('choosing a world applies it at once and saves it', async ({ page }) => {
+  test('has no world picker on Home or Config', async ({ page }) => {
+    await mockApi(page, { wins: 0 })
+    for (const url of ['/', '/config']) {
+      await page.goto(url)
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('heading', { name: /world/i })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: /Mako|Gaia|Ivalice/ })).toHaveCount(0)
+      await expect(html(page)).not.toHaveAttribute('data-world', /.*/)
+    }
+  })
+
+  test('an old cached world is ignored and the rest of the cached look still paints first', async ({ page }) => {
+    await mockApi(page, { wins: 0, getDelayMs: 3000 })
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'da-appearance',
+        JSON.stringify({
+          preferences: { interface: 'rift', window_theme: 'classic', menu_font: 'auto', cursor: 'arrow', window_rgb: [6, 10, 26], world: 'gaia' },
+          unlocks: [], rewards: [], ranked_wins: 0, ranked_losses: 0, next: null,
+        }),
+      )
+    })
+    await page.goto('/', { waitUntil: 'commit' })
+    await page.waitForSelector('html[data-cursor="arrow"]', { timeout: 2000 })
+    await expect(html(page)).not.toHaveAttribute('data-world', /.*/)
+    await expect(page.getByRole('region', { name: 'Dissidia Arena' }).getByRole('heading', { level: 1, name: 'Dissidia Arena' })).toBeVisible()
+  })
+})
+
+const modeToggle = (page: Page) => page.getByRole('button', { name: /^Switch to (Cosmos|Chaos) mode$/ })
+
+test.describe('Chaos mode and Cosmos mode', () => {
+  test('a new visitor sees Chaos mode, and Cosmos mode persists across reloads', async ({ page }) => {
+    await mockApi(page, { wins: null })
+    await page.goto('/')
+    await expect(html(page)).toHaveAttribute('data-rift-mode', 'chaos')
+    await page.getByRole('button', { name: 'Switch to Cosmos mode' }).click()
+    await expect(html(page)).toHaveAttribute('data-rift-mode', 'cosmos')
+    await expect(modeToggle(page)).toHaveAccessibleName('Switch to Chaos mode')
+    await page.reload()
+    await expect(html(page)).toHaveAttribute('data-rift-mode', 'cosmos')
+    await page.getByRole('button', { name: 'Switch to Chaos mode' }).click()
+    await expect(html(page)).toHaveAttribute('data-rift-mode', 'chaos')
+  })
+
+  test("a signed-in player's mode is saved to their account", async ({ page }) => {
     const server = await mockApi(page, { wins: 0 })
     await page.goto('/')
-    await page.getByRole('button', { name: /Mako/ }).click()
-    await expect(html(page)).toHaveAttribute('data-world', 'mako')
-    await expect.poll(() => server.patches).toContainEqual({ world: 'mako' })
+    await page.getByRole('button', { name: 'Switch to Cosmos mode' }).click()
+    await expect.poll(() => server.patches).toContainEqual({ rift_mode: 'cosmos' })
+    // Another device: the server's choice wins over this browser's cache.
+    const other = await page.context().browser()!.newPage()
+    await mockApi(other, { wins: 0, prefs: { rift_mode: 'cosmos' } })
+    await other.goto('/')
+    await expect(other.locator('html')).toHaveAttribute('data-rift-mode', 'cosmos')
+    await other.close()
+  })
+
+  test('the saved mode paints before the app loads, with no flash of the other mode', async ({ page }) => {
+    // The appearance request doesn't answer until the check is done, so only the cached mode can have painted.
+    await mockApi(page, { wins: 0, getDelayMs: 60_000, prefs: { rift_mode: 'cosmos' } })
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'da-appearance',
+        JSON.stringify({
+          preferences: { interface: 'rift', window_theme: 'classic', menu_font: 'auto', cursor: 'glove', window_rgb: [6, 10, 26], rift_mode: 'cosmos' },
+          unlocks: [], rewards: [], ranked_wins: 0, ranked_losses: 0, next: null,
+        }),
+      )
+    })
+    await page.goto('/', { waitUntil: 'commit' })
+    await page.waitForSelector('html[data-rift-mode="cosmos"]')
+    // The first ground the styles paint is Cosmos steel, while the appearance request is still pending. The waits
+    // used to be 2-2.5s against a 3s request, which a busy machine (styles arrive through Vite's JS) could miss.
+    await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor !== 'rgba(0, 0, 0, 0)')
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(184, 191, 202)')
+  })
+
+  test('Classic ignores the Rift mode', async ({ page }) => {
+    await mockApi(page, { wins: 60, prefs: { interface: 'classic', rift_mode: 'cosmos' } })
+    await page.goto('/')
+    await expect(html(page)).toHaveAttribute('data-interface', 'classic')
+    await expect(modeToggle(page)).toHaveCount(0)
   })
 })
 
@@ -125,14 +209,14 @@ test.describe('Classic for a player with 10 wins', () => {
       localStorage.setItem(
         'da-appearance',
         JSON.stringify({
-          preferences: { interface: 'rift', world: 'gaia', window_theme: 'classic', menu_font: 'auto', cursor: 'glove', window_rgb: [6, 10, 26] },
+          preferences: { interface: 'rift', window_theme: 'classic', menu_font: 'auto', cursor: 'glove', window_rgb: [6, 10, 26] },
           unlocks: ['classic_interface'], rewards: [], ranked_wins: 3, ranked_losses: 0, next: null,
         }),
       )
     })
     await page.goto('/', { waitUntil: 'commit' })
     // The cached look is on <html> before React renders (no flash).
-    await page.waitForSelector('html[data-world="gaia"]', { timeout: 2000 })
+    await page.waitForSelector('html[data-cursor="glove"][data-interface="rift"]', { timeout: 2000 })
     await classicButton(page).click()
     await expect.poll(() => server.patches).toContainEqual({ interface: 'classic' })
     await expect(html(page)).toHaveAttribute('data-interface', 'rift')
@@ -174,19 +258,75 @@ test.describe('Classic command menu', () => {
 })
 
 test.describe('Look and accessibility', () => {
-  for (const world of WORLD_KEYS) {
-    test(`Rift home passes colour contrast in the ${world} world`, async ({ page }) => {
-      await mockApi(page, { wins: 12, losses: 5, prefs: { world } })
-      await page.goto('/')
-      await expect(html(page)).toHaveAttribute('data-world', world)
-      await page.waitForLoadState('networkidle')
-      // axe ignores clip-path, so it reads the full-size Chaos layer as the Cosmos half's background.
-      // Scan everything else with axe, and check the Cosmos half's colour pairs directly.
-      const results = await new AxeBuilder({ page }).withRules(['color-contrast']).exclude('[data-hero="cosmos"]').analyze()
-      expect(results.violations.flatMap((v) => v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary}`))).toEqual([])
-      for (const [label, ratio] of await cosmosHeroRatios(page)) expect(ratio, label).toBeGreaterThanOrEqual(4.5)
-    })
+  // These check still pixels. Home's shimmer sweeps under the panels' backdrop blur, so Chromium re-blurs every frame
+  // (about 20 fps on one core); with every worker on Home at once that starved the suite into timeouts.
+  test.beforeEach(({ page }) => page.emulateMedia({ reducedMotion: 'reduce' }))
+
+  for (const mode of ['chaos', 'cosmos'] as const) {
+    for (const [label, size] of SIZES) {
+      test(`Rift home in ${MODE_NAME[mode]} passes colour contrast at ${label} width`, async ({ page }) => {
+        await page.setViewportSize(size)
+        await mockApi(page, { wins: 12, losses: 5, prefs: { rift_mode: mode } })
+        await page.goto('/')
+        await expect(html(page)).toHaveAttribute('data-rift-mode', mode)
+        await page.waitForLoadState('networkidle')
+        const results = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()
+        expect(results.violations.flatMap((v) => v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary}`))).toEqual([])
+      })
+
+      test(`Rift home in ${MODE_NAME[mode]} has no axe violations at ${label} width`, async ({ page }) => {
+        await page.setViewportSize(size)
+        await mockApi(page, { wins: 22, prefs: { rift_mode: mode } })
+        for (const url of ['/', '/rewards']) {
+          await page.goto(url)
+          await page.waitForLoadState('networkidle')
+          const r = await new AxeBuilder({ page }).analyze()
+          expect(r.violations.map((v) => `${url} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
+        }
+      })
+
+      // WCAG 1.4.11, which axe doesn't test: an icon in a crest needs 3:1 against the crest's fill. Pages built later
+      // (the sidebar, the phone bar) put their icons in the same FramedIcon, so this picks them up.
+      test(`every crest icon in ${MODE_NAME[mode]} stands out from its frame at ${label} width`, async ({ page }) => {
+        await page.setViewportSize(size)
+        await mockApi(page, { wins: 12, prefs: { rift_mode: mode } })
+        await page.goto('/')
+        await page.waitForLoadState('networkidle')
+        const pairs = await crestRatios(page)
+        // The game switcher's two crests at least, one pressed and one not.
+        expect(pairs.length).toBeGreaterThanOrEqual(2)
+        for (const [where, ratio] of pairs) expect(ratio, where).toBeGreaterThanOrEqual(3)
+      })
+    }
   }
+
+  test('every Rift font weight in use has loaded, in both modes', async ({ page }) => {
+    await mockApi(page, { wins: 12, losses: 5 })
+    for (const [mode, url] of (['chaos', 'cosmos'] as const).flatMap((m) => ['/', '/rewards', '/config', '/queue'].map((u) => [m, u] as const))) {
+      await page.goto(url)
+      if (mode === 'cosmos' && url === '/') await page.getByRole('button', { name: 'Switch to Cosmos mode' }).click()
+      await expect(html(page)).toHaveAttribute('data-rift-mode', mode)
+      await page.waitForLoadState('networkidle')
+      const missing = await page.evaluate(async () => {
+        await document.fonts.ready
+        const loaded = new Set(
+          [...document.fonts].filter((f) => f.status === 'loaded').map((f) => `${f.family.replace(/["']/g, '')}|${f.weight}|${f.style}`),
+        )
+        const out = new Set<string>()
+        for (const el of document.querySelectorAll('body *')) {
+          const hasText = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim())
+          // Classic window swatches (reward previews) keep Classic's own fonts.
+          if (!hasText || !(el as HTMLElement).offsetParent || el.closest('[data-window]')) continue
+          const cs = getComputedStyle(el)
+          const family = cs.fontFamily.split(',')[0].trim().replace(/["']/g, '')
+          const key = `${family}|${cs.fontWeight}|${cs.fontStyle}`
+          if (!loaded.has(key)) out.add(`${key} (${el.tagName.toLowerCase()}: ${el.textContent!.trim().slice(0, 30)})`)
+        }
+        return [...out]
+      })
+      expect(missing, `${mode} ${url}`).toEqual([])
+    }
+  })
 
   for (const win of WINDOW_KEYS) {
     test(`Classic home passes colour contrast in the ${win} window`, async ({ page }) => {
@@ -199,16 +339,6 @@ test.describe('Look and accessibility', () => {
     })
   }
 
-  test('no axe violations on the Rift home and rewards', async ({ page }) => {
-    await mockApi(page, { wins: 22 })
-    for (const url of ['/', '/rewards']) {
-      await page.goto(url)
-      await page.waitForLoadState('networkidle')
-      const r = await new AxeBuilder({ page }).exclude('[data-hero="cosmos"]').analyze()
-      expect(r.violations.map((v) => `${url} ${v.id}: ${v.nodes.length}`)).toEqual([])
-    }
-  })
-
   test('no axe violations on the Classic home and Config', async ({ page }) => {
     await mockApi(page, { wins: 60, prefs: { interface: 'classic' } })
     for (const url of ['/', '/config', '/rewards']) {
@@ -219,13 +349,55 @@ test.describe('Look and accessibility', () => {
     }
   })
 
-  test('at phone width the crack runs across and nothing scrolls sideways', async ({ page }) => {
+  test('signed-out Home does not scroll sideways at phone width', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await mockApi(page, { wins: null })
     await page.goto('/')
+    await expect(page.getByRole('heading', { level: 1, name: 'Dissidia Arena' })).toBeVisible()
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     expect(overflow).toBeLessThanOrEqual(0)
-    const clip = await page.locator('.da-rift-chaos').evaluate((el) => getComputedStyle(el).clipPath)
-    expect(clip).toContain('polygon(0px 51%')
   })
+})
+
+// WCAG relative luminance and contrast ratio, from 0–255 channels.
+const luminance = ([r, g, b]: number[]) => {
+  const lin = (c: number) => (c / 255 <= 0.04045 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4)
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+const contrast = (a: number[], b: number[]) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+test('a Chaos ghost key keeps its label at 4.5:1 at the brightest point of its hover', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await mockApi(page, { wins: 12, prefs: { rift_mode: 'chaos' } })
+  await page.goto('/012/ladder')
+  const key = page.getByRole('main').getByRole('link', { name: 'View rewards' })
+  const ink = (await key.evaluate((el) => getComputedStyle(el).color)).match(/\d+(\.\d+)?/g)!.slice(0, 3).map(Number)
+  await key.hover()
+  // Hold any hover sheen at its peak, over the middle of the key, and hide the label so only the background shows.
+  await page.addStyleTag({ content: '.da-btn::after { transform: none !important; transition: none !important } .da-btn { color: transparent !important; transition: none !important }' })
+  await page.waitForTimeout(100)
+  const shot = (await key.screenshot()).toString('base64')
+  // The brightest pixel in the middle of the key, inside its slanted edges.
+  const brightest = await page.evaluate(async (src) => {
+    const img = new Image()
+    img.src = `data:image/png;base64,${src}`
+    await img.decode()
+    const canvas = document.createElement('canvas')
+    canvas.width = img.width
+    canvas.height = img.height
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(img, 0, 0)
+    const x0 = 16, y0 = 4
+    const { data } = ctx.getImageData(x0, y0, img.width - 2 * x0, img.height - 2 * y0)
+    let best = [0, 0, 0], bestSum = -1
+    for (let i = 0; i < data.length; i += 4) {
+      const sum = data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722
+      if (sum > bestSum) [bestSum, best] = [sum, [data[i], data[i + 1], data[i + 2]]]
+    }
+    return best
+  }, shot)
+  expect(contrast(ink, brightest), `label ${ink} on ${brightest}`).toBeGreaterThanOrEqual(4.5)
 })

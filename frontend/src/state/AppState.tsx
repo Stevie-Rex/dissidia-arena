@@ -10,6 +10,7 @@ import {
   type GameDetails,
   type Match,
   type Me,
+  type QueueEntry,
   type QueueSettings,
   type QueueState,
   type Side,
@@ -48,6 +49,8 @@ interface AppState {
   queue: QueueSettings
   setQueue: (q: Partial<QueueSettings>) => void
   phase: QueuePhase
+  /** Your entry in the queue as the server has it (game, mode, region, joinedAt), while searching. */
+  searchEntry: QueueEntry | null
   elapsed: number
   acceptLeft: number
   /** Players searching per game in your region. */
@@ -59,6 +62,8 @@ interface AppState {
   cancelQueue: () => void
   acceptMatch: () => void
   declineMatch: () => void
+  /** Why the last Accept of the pending match failed, or null. */
+  acceptError: string | null
 
   /** Match being played, or the one that just finished until closeMatch(). */
   live: Match | null
@@ -155,6 +160,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, [live])
   const [queueError, setQueueError] = useState<AppState['queueError']>(null)
   const [matchError, setMatchError] = useState<string | null>(null)
+  const [acceptFailure, setAcceptFailure] = useState<{ matchId: number; message: string } | null>(null)
   const [now, setNow] = useState(() => Date.now())
 
   const [party, setParty] = useState<PartyMember[]>([{ playerId: 'me', ready: false }])
@@ -285,8 +291,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const acceptMatch = useCallback(() => {
     if (!pending) return
-    api.matchAction(pending.id, 'accept').then(refresh, refresh)
+    const matchId = pending.id
+    setAcceptFailure(null)
+    api.matchAction(matchId, 'accept').then(refresh, (e) => {
+      setAcceptFailure({ matchId, message: errorMessage(e) })
+      refresh()
+    })
   }, [pending, refresh])
+  // Only the match that failed shows the failure.
+  const acceptError = acceptFailure && acceptFailure.matchId === pending?.id ? acceptFailure.message : null
 
   const declineMatch = useCallback(() => {
     if (!pending) return
@@ -411,6 +424,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       queue,
       setQueue,
       phase,
+      searchEntry: server?.queue ?? null,
       elapsed,
       acceptLeft,
       searching: server?.searching ?? { '012': 0, nt: 0 },
@@ -419,6 +433,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       startQueue,
       cancelQueue,
       acceptMatch,
+      acceptError,
       declineMatch,
       live,
       matchError,
@@ -445,7 +460,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [
       user, signedIn, onboarded, signIn, signOut, finishOnboarding, stepDown, myGames, region, ids, game, setGame,
       signInPrompt, requireSignIn, queue, setQueue, phase, elapsed, acceptLeft, server, queueError, pending,
-      startQueue, cancelQueue, acceptMatch, declineMatch, live, matchError, sendChat, reportGame, confirmResult,
+      startQueue, cancelQueue, acceptMatch, acceptError, declineMatch, live, matchError, sendChat, reportGame, confirmResult,
       disputeResult, saveStatement, askAdmin, uploadScreenshot, viewed, openMatch, abandonMatch, closeMatch, party,
       inviteToParty, removeFromParty, toggleReady, invite, dismissInvite, acceptInvite,
     ],

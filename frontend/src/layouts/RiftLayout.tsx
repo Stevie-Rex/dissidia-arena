@@ -1,67 +1,25 @@
-import { Fragment } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import InterfaceSwitcher from '../components/appearance/InterfaceSwitcher'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import LockPanel from '../components/appearance/LockPanel'
-import { AuthErrorBanner, DisputeNotice, FriendsSidebar, GameSwitcher, MobileTabs, Overlays } from '../components/Layout'
-import { Avatar, Btn, Logo, Pill } from '../components/ui'
-import { OPEN_STATUSES, roleLinks } from '../lib/api'
-import { cx } from '../lib/format'
+import { AuthErrorBanner, DisputeNotice, GameSwitcher, Overlays } from '../components/Layout'
+import BottomBar from '../components/rift/BottomBar'
+import HelpStrip from '../components/rift/HelpStrip'
+import IconCredit from '../components/rift/IconCredit'
+import MatchStatus from '../components/rift/MatchStatus'
+import { useHelpText } from '../components/rift/hints'
+import Sidebar from '../components/rift/Sidebar'
+import { Btn, Logo } from '../components/ui'
 import { useApp } from '../state/AppState'
-import { useAppearance } from '../state/Appearance'
-import { WORLDS } from '../theme/appearance'
 
+/** Phones only: the brand and the game switcher. The bottom bar does the rest; desktop has the sidebar. */
 function RiftHeader() {
-  const { game, signedIn, startQueue, phase, live, requireSignIn, user } = useApp()
-  const navigate = useNavigate()
-  const links = [
-    { to: '/queue', label: 'PLAY' },
-    { to: `/${game}/meta`, label: 'FIGHTERS' },
-    { to: `/${game}/ladder`, label: 'RANKINGS' },
-    { to: '/rewards', label: 'REWARDS' },
-    ...roleLinks(user?.role).map((l) => ({ ...l, label: l.label.toUpperCase() })),
-  ]
-  const link = ({ isActive }: { isActive: boolean }) =>
-    cx('flex min-h-11 items-center px-3 no-underline underline-offset-8', isActive && 'underline decoration-gold decoration-1')
+  const { user, requireSignIn } = useApp()
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-ink/95 backdrop-blur">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-[clamp(20px,4vw,56px)] py-2.5">
-        <div className="flex items-center gap-4">
-          <Logo />
-          <GameSwitcher />
-        </div>
-        <nav aria-label="Main" className="hidden flex-wrap items-center font-heading text-sm font-semibold tracking-[0.1em] md:flex">
-          {links.map((l, i) => (
-            <Fragment key={l.to}>
-              {i > 0 && (
-                <span aria-hidden className="text-[8px] text-gold">
-                  ◆
-                </span>
-              )}
-              <NavLink to={l.to} className={link}>
-                {l.label}
-              </NavLink>
-            </Fragment>
-          ))}
-        </nav>
-        <div className="flex flex-wrap items-center gap-3">
-          <InterfaceSwitcher />
-          {live && OPEN_STATUSES.includes(live.status) && (
-            <Link to="/match/live">
-              <Pill active className="hidden sm:inline-block">
-                ● In match vs {live.opponent.displayName}
-              </Pill>
-            </Link>
-          )}
-          {phase === 'idle' && (
-            <Btn className="hidden sm:inline-flex" onClick={() => (signedIn ? navigate('/queue') : startQueue())}>
-              Queue
-            </Btn>
-          )}
-          {signedIn ? (
-            <Link to="/players/me" aria-label="Your profile" className="flex min-h-11 items-center">
-              <Avatar name={user?.displayName ?? 'You'} src={user?.avatarUrl} ring="you" size={30} />
-            </Link>
-          ) : (
+    <header className="sticky top-0 z-30 border-b border-line bg-ink/95 backdrop-blur md:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-4 py-1.5">
+        <Logo />
+        <div className="flex items-center gap-2">
+          <GameSwitcher crests />
+          {user === null && (
             <Btn variant="ghost" onClick={() => requireSignIn('Sign in')}>
               Sign in
             </Btn>
@@ -72,65 +30,53 @@ function RiftHeader() {
   )
 }
 
+/** The fan-project line at every width, and links that aren't in the sidebar or the phone bar. The icon credit sits in the sidebar foot on desktop. */
 function RiftFooter() {
-  const { prefs } = useAppearance()
-  const { user } = useApp()
-  const world = WORLDS.find((w) => w.key === prefs.world)?.name ?? 'Dissidia'
   return (
     <footer className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-line px-[clamp(20px,4vw,56px)] py-7 text-[13px] text-muted">
       <span>Dissidia Arena — a fan project</span>
-      <nav aria-label="More" className="flex flex-wrap gap-4">
-        <Link to="/tournaments" className="hover:text-fg">
-          Tournaments
+      <nav aria-label="Site links" className="flex flex-wrap gap-4">
+        <Link to="/credits" className="hover:text-fg">
+          Credits
         </Link>
-        <Link to="/party" className="hover:text-fg">
-          Party
-        </Link>
-        <Link to="/friends" className="hover:text-fg xl:hidden">
-          Friends
-        </Link>
-        <Link to="/discord" className="hover:text-fg">
-          Discord bot
-        </Link>
-        {/* The header nav is hidden on small screens. */}
-        {roleLinks(user?.role).map((l) => (
-          <Link key={l.to} to={l.to} className="hover:text-fg md:hidden">
-            {l.label}
-          </Link>
-        ))}
       </nav>
-      <span className="font-heading tracking-[0.1em]">INTERFACE: RIFT · WORLD: {world.toUpperCase()}</span>
+      <IconCredit className="m-0 w-full text-xs md:hidden" linkClassName="underline underline-offset-2 hover:text-fg" />
     </footer>
   )
 }
 
-/** The default interface: a light editorial page with a Cosmos side and a Chaos side. */
+/**
+ * The default interface, in Chaos mode (dark) or Cosmos mode (light). Desktop: the sidebar, then a column with the
+ * page and the help strip. Phones: a compact header and the bottom bar.
+ */
 export default function RiftLayout() {
-  const { signedIn } = useApp()
   const { pathname } = useLocation()
+  const help = useHelpText()
   // The home page runs edge to edge (the fracture hero); everything else sits in the content column.
   const fullBleed = pathname === '/'
   return (
-    <div className="min-h-screen pb-20 md:pb-0">
-      <RiftHeader />
-      <LockPanel />
-      <AuthErrorBanner />
-      <DisputeNotice />
-      {fullBleed ? (
-        <main>
-          <Outlet />
-        </main>
-      ) : (
-        <div className="mx-auto flex max-w-7xl gap-6 px-[clamp(20px,4vw,56px)] pt-8">
-          <main className="min-w-0 flex-1">
+    <div className="rift-shell" {...help.handlers}>
+      <Sidebar className="hidden md:flex" />
+      <div className="rift-column">
+        <RiftHeader />
+        <LockPanel />
+        <AuthErrorBanner />
+        <DisputeNotice />
+        {fullBleed ? (
+          <main className="flex-1">
             <Outlet />
           </main>
-          {signedIn && <FriendsSidebar />}
-        </div>
-      )}
-      <RiftFooter />
-      <MobileTabs />
-      <Overlays />
+        ) : (
+          <main className="mx-auto w-full max-w-7xl flex-1 px-[clamp(20px,4vw,56px)] pt-8">
+            <Outlet />
+          </main>
+        )}
+        <RiftFooter />
+        <HelpStrip text={help.text} className="hidden md:flex" />
+      </div>
+      <BottomBar />
+      <MatchStatus />
+      <Overlays rift />
     </div>
   )
 }

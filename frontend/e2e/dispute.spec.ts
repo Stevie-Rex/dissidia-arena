@@ -77,13 +77,13 @@ test('the opponent disputes through the form: games, a reason, then their statem
   await form.getByRole('textbox', { name: 'Why are you disputing?' }).fill('Game 3 was mine, they misreported.')
   await form.getByRole('button', { name: 'Submit dispute' }).click()
 
-  expect(sent).toEqual([
-    { method: 'POST', path: '/api/matches/42/dispute', body: { games: [3], reason: 'Game 3 was mine, they misreported.' } },
-  ])
   const panel = page.getByRole('region', { name: 'Dispute' })
   await expect(panel).toContainText('Disputed games: 3')
   await expect(panel).toContainText('Game 3 was mine, they misreported.')
   await expect(panel).toContainText('Rival has not added their side yet.')
+  expect(sent).toEqual([
+    { method: 'POST', path: '/api/matches/42/dispute', body: { games: [3], reason: 'Game 3 was mine, they misreported.' } },
+  ])
 
   await panel.getByRole('textbox', { name: 'Your side' }).fill('Video in Discord.')
   await panel.getByRole('button', { name: 'Save your side' }).click()

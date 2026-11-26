@@ -18,6 +18,8 @@ import { Character, Meta } from './pages/Meta'
 import Discord from './pages/Discord'
 import Rewards from './pages/Rewards'
 import Config from './pages/Config'
+import More from './pages/More'
+import Credits from './pages/Credits'
 import AdminCases, { CasePage } from './pages/AdminCases'
 import { HelpRequestPage } from './pages/AdminHelp'
 import AdminLog from './pages/AdminLog'
@@ -46,6 +48,8 @@ export default function App() {
           <Route path="friends" element={<FriendsList />} />
           <Route path="discord" element={<Discord />} />
           <Route path="rewards" element={<Rewards />} />
+          <Route path="more" element={<More />} />
+          <Route path="credits" element={<Credits />} />
           <Route path="config" element={<Config />} />
           <Route path="admin" element={<AdminCases />} />
           <Route path="admin/cases/:id" element={<CasePage />} />
