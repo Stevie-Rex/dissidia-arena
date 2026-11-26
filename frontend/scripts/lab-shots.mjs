@@ -65,9 +65,9 @@ for (const screen of screens) {
 
 /* ---------- Cosmos mode pass (#58) ---------- */
 
-const ACCENTS = ['Olive · Current', 'Warm bronze · New', 'Copper bronze · New', 'Antique gold · New']
-const PLATES = ['Steel · Current', 'Glass · New']
-const MEDALLIONS = ['Current', '80% · New', '65% · New']
+const ACCENTS = ['Olive · Picked', 'Warm bronze', 'Copper bronze', 'Antique gold']
+const PLATES = ['Glass · Picked', 'Steel']
+const MEDALLIONS = ['80% · Picked', 'Full size', '65%']
 const contrast = []
 let byPixels = 0
 let hidden = 0
@@ -209,7 +209,7 @@ for (const screen of ['Desktop', 'Narrow', 'Phone']) {
   await pick('Screen', screen === 'Narrow' ? 'Desktop' : screen)
   await page.setViewportSize({ width: screen === 'Narrow' ? 820 : 1440, height: 900 })
   for (const accent of ACCENTS) {
-    await pick('Cosmos accent · New', accent)
+    await pick('Cosmos accent', accent)
     await pick('Page', 'Home')
     await pick('Status', 'Searching') // the Searching dot
     await check(`${screen} Home accent ${accent}`)
@@ -222,20 +222,20 @@ for (const screen of ['Desktop', 'Narrow', 'Phone']) {
     await page.keyboard.press('Escape')
     await pick('Status', 'None')
   }
-  await pick('Cosmos accent · New', ACCENTS[0])
+  await pick('Cosmos accent', ACCENTS[0])
   for (const plates of PLATES) {
-    await pick('Cosmos plates · New', plates)
+    await pick('Cosmos plates', plates)
     for (const name of ['Home', 'Hub']) {
       await pick('Page', name)
       await check(`${screen} ${name} plates ${plates}`)
     }
   }
-  await pick('Cosmos plates · New', PLATES[0])
+  await pick('Cosmos plates', PLATES[0])
   for (const size of MEDALLIONS) {
-    await pick('Medallion · New', size) // this also goes to Home
+    await pick('Medallion', size) // this also goes to Home
     await check(`${screen} Home medallion ${size}`)
   }
-  await pick('Medallion · New', MEDALLIONS[0])
+  await pick('Medallion', MEDALLIONS[0])
 }
 await page.setViewportSize({ width: 1440, height: 900 })
 

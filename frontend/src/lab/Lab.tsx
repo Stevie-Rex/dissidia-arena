@@ -54,21 +54,21 @@ type MedallionSize = 'current' | '80' | '65'
 
 /** Each accent passes WCAG AA for normal text on Cosmos mode's ground, plates and wells. Values in lab-light.css. */
 const COSMOS_ACCENTS: { value: CosmosAccent; label: string; detail: string }[] = [
-  { value: 'olive', label: 'Olive · Current', detail: 'What direction C uses now' },
-  { value: 'warm', label: 'Warm bronze · New', detail: 'A warm, golden bronze' },
-  { value: 'copper', label: 'Copper bronze · New', detail: 'A redder bronze, close to copper' },
-  { value: 'antique', label: 'Antique gold · New', detail: 'A dark, aged gold' },
+  { value: 'olive', label: 'Olive · Picked', detail: 'What direction C uses now; kept as the default (#58)' },
+  { value: 'warm', label: 'Warm bronze', detail: 'A warm, golden bronze' },
+  { value: 'copper', label: 'Copper bronze', detail: 'A redder bronze, close to copper' },
+  { value: 'antique', label: 'Antique gold', detail: 'A dark, aged gold' },
 ]
 
 const COSMOS_PLATES: { value: CosmosPlates; label: string; detail: string }[] = [
-  { value: 'steel', label: 'Steel · Current', detail: 'Solid brushed-steel plates everywhere' },
-  { value: 'glass', label: 'Glass · New', detail: 'Frosted glass on Home and Hub; the match room and More keep steel' },
+  { value: 'steel', label: 'Steel', detail: 'Solid brushed-steel plates everywhere' },
+  { value: 'glass', label: 'Glass · Picked', detail: 'Frosted glass on Home and Hub; the match room and More keep steel' },
 ]
 
 const MEDALLIONS: { value: MedallionSize; label: string; scale: number }[] = [
-  { value: 'current', label: 'Current', scale: 1 },
-  { value: '80', label: '80% · New', scale: 0.8 },
-  { value: '65', label: '65% · New', scale: 0.65 },
+  { value: 'current', label: 'Full size', scale: 1 },
+  { value: '80', label: '80% · Picked', scale: 0.8 },
+  { value: '65', label: '65%', scale: 0.65 },
 ]
 
 const LIGHT_FRAMES: { value: LightFrame; label: string; detail: string }[] = [
@@ -1106,8 +1106,8 @@ export default function Lab() {
   const [lightFrame, setLightFrame] = useState<LightFrame>('navy')
   const [btnSet, setBtnSet] = useState<BtnSet>('silver')
   const [cosmosAccent, setCosmosAccent] = useState<CosmosAccent>('olive')
-  const [cosmosPlates, setCosmosPlates] = useState<CosmosPlates>('steel')
-  const [medallion, setMedallion] = useState<MedallionSize>('current')
+  const [cosmosPlates, setCosmosPlates] = useState<CosmosPlates>('glass')
+  const [medallion, setMedallion] = useState<MedallionSize>('80')
   const [muted, setMutedState] = useState(loadMuted)
   /** Bumped to replay the match-found overlay; 0 means it is closed. */
   const [foundRun, setFoundRun] = useState(0)
@@ -1329,19 +1329,19 @@ export default function Lab() {
         {cosmosC && (
           <>
             <Choice
-              label="Cosmos accent · New"
+              label="Cosmos accent"
               value={cosmosAccent}
               onChange={setCosmosAccent}
               options={COSMOS_ACCENTS.map((a) => ({ value: a.value, label: a.label, title: a.detail }))}
             />
             <Choice
-              label="Cosmos plates · New"
+              label="Cosmos plates"
               value={cosmosPlates}
               onChange={setCosmosPlates}
               options={COSMOS_PLATES.map((p) => ({ value: p.value, label: p.label, title: p.detail }))}
             />
             <Choice
-              label="Medallion · New"
+              label="Medallion"
               value={medallion}
               onChange={(m) => {
                 setMedallion(m)
