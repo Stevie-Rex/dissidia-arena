@@ -920,9 +920,13 @@
   --frame-top: color-mix(in srgb, var(--silver-hi) 25%, var(--select));
   --frame-bottom: color-mix(in srgb, var(--bg) 35%, var(--select));
 }
-.lab-switch .lab-crest, .lab-tile .lab-crest { color: inherit; }
+/* The light frame sets give the icon its own colour (--crest-ink); dark mode keeps the text colour. */
+.lab-switch .lab-crest, .lab-tile .lab-crest { color: var(--crest-ink, inherit); }
 .lab-switch button[aria-pressed="true"] .lab-crest,
 .lab-tile[aria-current="page"] .lab-crest { --frame-top: color-mix(in srgb, var(--gold) 30%, var(--raised)); }
+/* In light mode the chosen game keeps its frame colours: the gold-tinted top turned the navy enamel muddy. */
+.lab[data-mode="light"] .lab-switch button[aria-pressed="true"] .lab-crest,
+.lab[data-mode="light"] .lab-tile[aria-current="page"] .lab-crest { --frame-top: inherit; }
 .lab-found__crest { display: flex; justify-content: center; margin: -64px 0 10px; }
 .lab-status__head .lab-crest { color: var(--gold); }
 

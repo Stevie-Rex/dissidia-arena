@@ -46,7 +46,7 @@ type BtnSet = 'current' | 'navy' | 'silver' | 'blue' | 'ink'
 
 const LIGHT_FRAMES: { value: LightFrame; label: string; detail: string }[] = [
   { value: 'silver', label: 'Silver', detail: 'What it uses now: silver rim, pale fill' },
-  { value: 'navy', label: 'Navy enamel', detail: 'Dark navy fill and a bright gold icon, like an enamel badge' },
+  { value: 'navy', label: 'Navy enamel · Picked', detail: 'Dark navy fill and a bright gold icon, like an enamel badge' },
   { value: 'gold', label: 'Gold rim', detail: 'A gold rim on a cream fill' },
   { value: 'line', label: 'Flat line', detail: 'No fill, a thin navy outline and a navy icon' },
 ]
@@ -54,7 +54,7 @@ const LIGHT_FRAMES: { value: LightFrame; label: string; detail: string }[] = [
 const BTN_SETS: { value: BtnSet; label: string; detail: string }[] = [
   { value: 'current', label: 'Gold and red', detail: 'What it uses now' },
   { value: 'navy', label: 'Navy and gold', detail: 'Navy main buttons, gold for your match' },
-  { value: 'silver', label: '012 silver', detail: 'Silver bevel buttons, selection blue for your match' },
+  { value: 'silver', label: '012 silver · Picked', detail: 'Silver bevel buttons, selection blue for your match' },
   { value: 'blue', label: 'Selection blue', detail: 'Blue main buttons, dark navy and gold for your match' },
   { value: 'ink', label: 'Ink and gold', detail: 'Near-black buttons with gold text, blue for your match' },
 ]
@@ -1012,8 +1012,8 @@ export default function Lab() {
   const [frame, setFrame] = useState<Frame>('diamond')
   const [scoreFont, setScoreFont] = useState<ScoreFont>('marcellus')
   const [unlockBar, setUnlockBar] = useState<UnlockBar>('blue')
-  const [lightFrame, setLightFrame] = useState<LightFrame>('silver')
-  const [btnSet, setBtnSet] = useState<BtnSet>('current')
+  const [lightFrame, setLightFrame] = useState<LightFrame>('navy')
+  const [btnSet, setBtnSet] = useState<BtnSet>('silver')
   const [muted, setMutedState] = useState(loadMuted)
   /** Bumped to replay the match-found overlay; 0 means it is closed. */
   const [foundRun, setFoundRun] = useState(0)
