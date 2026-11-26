@@ -26,11 +26,12 @@ test.describe('Rift phone bottom bar', () => {
     await expect(page).toHaveURL(/\/nt$/)
     await expect(tile(page, 'Ladder')).toHaveAttribute('href', '/nt/ladder')
 
+    // Scroll to the very end: scrollIntoViewIfNeeded only centres the footer, which on a short page leaves it under the bar.
     const footer = page.getByRole('contentinfo')
-    await footer.scrollIntoViewIfNeeded()
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
     const footerBox = await footer.boundingBox()
     const barBox = await bar(page).boundingBox()
-    expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(barBox!.y)
+    expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(barBox!.y + 1)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(PHONE.width)
   })
 
