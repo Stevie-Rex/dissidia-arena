@@ -1,6 +1,6 @@
 # Beta launch PRD
 
-Status: draft, 2026-11-25. Owner: the Master.
+Status: draft, 2026-11-25. Updated 2026-11-26 with the decisions from Lab round 1 (#40). Owner: the Master.
 
 This document plans the work between the code on `main` and a beta with real players. Read it before you plan, spec or build any Stage 1, 2 or 3 work. Use the terms in `GLOSSARY.md`. `HANDOFF.md` describes what is already built and how to run it.
 
@@ -35,7 +35,7 @@ A beta can run before Ratings exist because of a rule in #4: a match settled bef
 
 Rebuild the default Rift interface so it looks made for this community, not generated. The look is a hybrid: an esports portal in structure, dense, bold and driven by stats, with a fantasy layer drawn from Final Fantasy's feel, such as Cosmos and Chaos, crystals and engraved display type. Layout, fonts, components, colour, copy and the Admin pages all change. Pages hidden in the beta wait until they launch.
 
-The owner settled the direction in a grilling session on 2026-11-25. The decisions below replace the open questions this section used to hold. A spec breaks this work into tickets before anyone builds it.
+The owner settled the direction in a grilling session on 2026-11-25, and picked the look by eye in Lab round 1 (#40), which closed on 2026-11-26. The decisions below replace the open questions this section used to hold. The dark mode is final. The light mode's design is still open in #55. A spec breaks this work into tickets before anyone builds it.
 
 ### Hard rules
 
@@ -68,37 +68,45 @@ The owner settled the direction in a grilling session on 2026-11-25. The decisio
 **Appearance**
 
 - Rift is dark by default. Light is the only other Rift appearance.
+- The dark mode is final, as recorded on #40. The light mode needs another design pass, closer to the Dissidia 012 menus, in #55. Its palette, frames and buttons come from there.
 - Worlds are removed. See `docs/adr/0001-remove-rift-worlds.md`. Classic's window themes are a separate setting and stay, with their unlocks.
 
 **Fonts**
 
-Three roles replace today's four families:
+Three roles replace today's four families. The owner picked this set in the lab:
 
-| Role | Use | Lead candidate |
+| Role | Use | Font |
 |---|---|---|
-| Display | The brand and big titles. This carries the fantasy feel. | Marcellus SC |
-| Heading | Section headings, numbers and stats. This carries the esports energy. | Saira Condensed |
+| Display | The brand, big titles and the match score. This carries the fantasy feel. | Marcellus SC |
+| Heading | Section headings, numbers and stats. This carries the esports energy. | Chakra Petch |
 | Body | Everything else | Barlow |
 
-The owner picks the final set in the lab, from the lead candidate and two alternates. Alternates for display include bold Cormorant SC. Alternates for heading include Barlow Condensed and Chakra Petch. Cinzel and Inter are out.
+Cinzel and Inter are out.
+
+**Icons and menus**
+
+- Icons come from game-icons.net (CC BY 3.0), so the site needs a credits page naming the authors.
+- Icons sit in bevelled diamond crest frames.
+- Menus borrow patterns from the Dissidia 012 menus, redrawn and with no art copied: stacked bars with a silver edge, a selection-blue highlighted row with a crystal-shard cursor, slanted title tabs, ◀ value ▶ pickers, and a help strip along the bottom of the page that explains what the pointer is on. Selection blue appears on menus only.
+- The Settings icon is the game-icons gears.
 
 **Shell**
 
 - Desktop has a left sidebar instead of the top navigation bar. From top to bottom it holds:
   - the game switcher, with an emblem for 012 and for NT;
-  - the player card, with avatar, name, ranked wins and a progress bar to the next unlock. Stage 3 adds the Season emblem;
-  - navigation: Hub, Queue, Ladder, Profile and Rewards;
+  - the player card, with avatar, name, ranked wins and a progress bar to the next unlock, in one colour, Cosmos blue. Stage 3 adds the Season emblem;
+  - navigation as Dissidia 012 menu bars: Hub, Queue, Ladder, Profile and Rewards;
   - an Admin link, shown only to Admins;
   - at the bottom, settings, the light and dark toggle, and the Discord feedback link.
-- Searching and an open match show in one place on every page: either a block pinned in the sidebar, or a floating card in the bottom-right corner with a timer and an action. The lab shows both, and the owner picks one.
+- Searching and an open match show in one place on every page: a floating card in the bottom-right corner with a timer and an action. When a match is found the card grows, glows and plays a short chime. The chime follows its own Sound setting, not reduced motion.
 - Phones are designed for second. Queue, the match room, reporting, the dispute form and Admin cases are fully designed at phone width. Other pages only need to stack cleanly.
-- The phone navigation is a bottom bar of emblem tiles with condensed labels: Hub, Ladder, Queue, Profile and More, with Queue largest and in the centre. The emblems are original SVG crests. The lab tests it.
+- The phone navigation is a bottom bar of emblem tiles with condensed labels: Hub, Ladder, Queue, Profile and More. Queue sits in the centre at the same size as the other tiles. The emblems are framed crests.
 
 **Pages**
 
-- Home has a large hero slot. In the beta it holds an abstract Cosmos and Chaos composition built from the theme's SVGs, with light rays and a split of light and dark. The slot is built so commissioned art can replace it later.
+- Home has a large hero slot. In the beta it holds an abstract Cosmos and Chaos composition built from the theme's SVGs: a split of light and dark with a crystal at the seam, and a slow shimmer that moves in one direction. It has no sun rays and nothing spins. The slot is built so commissioned art can replace it later.
 - Home and Hub put frosted glass panels over that dimmed backdrop. Queue, the match room and the Admin pages use a plain dark background, so they stay readable.
-- Hub carries slanted banner cards built only from real data: joining the queue with the number of players searching, your open match, and the Season status, such as "Pre-season: wins still count". They replace the mock top list and recent matches. The lab tests the style.
+- Hub carries slanted banner cards in the Blade v2 style (a silver bevelled edge and a slanted title tab), built only from real data: joining the queue with the number of players searching, your open match, and the Season status, such as "Pre-season: wins still count". They replace the mock top list and recent matches.
 
 **Voice**
 
@@ -107,7 +115,7 @@ The owner picks the final set in the lab, from the lead candidate and two altern
 
 **Motion**
 
-- The site gets a signature match-found animation, such as a crystal shatter or a Cosmos and Chaos split, plus hover and press feedback. The lab explores options before any ship.
+- The site gets a signature match-found animation, the crystal shatter, plus hover and press feedback.
 
 **Admin**
 
@@ -120,7 +128,7 @@ The owner picks the final set in the lab, from the lead candidate and two altern
 
 ### How the work runs
 
-1. **Lab, round 1.** A dev-only `/lab` route on its own branch, which never merges. It uses the real components with fixed sample data, so `npm run dev` shows it with no backend or Discord sign-in. It holds:
+1. **Lab, round 1 (done, #40).** A dev-only `/lab` route on its own branch, `feat/lab-round-1`, which never merges. It uses the real components with fixed sample data, so `npm run dev` shows it with no backend or Discord sign-in. It holds:
    - the font sets, switchable, on a Home mock and a match room mock;
    - the dark shell with the sidebar and game switcher;
    - both places for searching and open match status;
@@ -128,6 +136,8 @@ The owner picks the final set in the lab, from the lead candidate and two altern
    - the phone bottom bar;
    - two or three match-found animations, with hover and press feedback;
    - Home's hero with glass panels.
+
+   The light mode continues in the lab in #55.
 2. **Lab, round 2.** The Admin panel, built on the font set and shell chosen in round 1.
 3. **Build.** One parent issue with several pull requests, each leaving the site working. A likely order: the foundation (fonts, tokens, dark and light modes, removing worlds, the sidebar shell), then the match flow pages, then Home, Welcome, Hub and the remaining pages, then the Admin panel. The spec sets the final split.
 4. **Review.** Each pull request opens as a draft with before and after screenshots at desktop and phone width, and the commands to run the branch locally. The owner tests it and leaves feedback in the pull request or the chat. The pull request leaves draft only when the owner signs off.
