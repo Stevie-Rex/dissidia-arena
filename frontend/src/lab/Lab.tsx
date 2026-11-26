@@ -389,11 +389,11 @@ function Sidebar({
         <button
           type="button"
           className="lab-foot-btn"
-          aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={mode === 'dark' ? 'Switch to Cosmos mode' : 'Switch to Chaos mode'}
           onClick={() => setMode(mode === 'dark' ? 'light' : 'dark')}
         >
           {mode === 'dark' ? <SunGlyph /> : <MoonGlyph />}
-          <span>{mode === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+          <span>{mode === 'dark' ? 'Cosmos mode' : 'Chaos mode'}</span>
         </button>
         <button type="button" className="lab-foot-btn" aria-pressed={!muted} onClick={() => setMuted(!muted)}>
           <SoundGlyph muted={muted} />
@@ -768,7 +768,7 @@ const MORE_MENU: MenuItem[] = [
     icon: <GiGears size={20} />,
     hint: 'Appearance, sound and your region.',
     children: [
-      { key: 'appearance', label: 'Appearance', hint: 'Dark or light, and Classic if you have unlocked it.' },
+      { key: 'appearance', label: 'Appearance', hint: 'Chaos mode or Cosmos mode, and Classic if you have unlocked it.' },
       { key: 'sound', label: 'Sound', hint: 'Turn the match-found sound on or off.' },
       { key: 'region', label: 'Region', hint: 'Where you queue. It decides who you meet.' },
     ],
@@ -800,7 +800,7 @@ function Menus({ muted, setMuted }: { muted: boolean; setMuted: (m: boolean) => 
   const merged = { ...values, sound: muted ? 1 : 0 }
   return (
     <div className="lab-page">
-      <p className="lab-kicker">Dissidia 012 patterns, dark theme</p>
+      <p className="lab-kicker">Dissidia 012 patterns, Chaos mode</p>
       <h1 className="lab-h1">More</h1>
       <p className="lab-note">
         Selection blue and the crystal-shard cursor are a prototype, shown on the bars and pickers only. The help strip
@@ -854,9 +854,9 @@ function LightTests({ lightFrame, btnSet }: { lightFrame: LightFrame; btnSet: Bt
   ]
   return (
     <div className="lab-page">
-      <p className="lab-kicker">Light theme</p>
+      <p className="lab-kicker">Cosmos mode</p>
       <h1 className="lab-h1">Light tests</h1>
-      <p className="lab-note">This page switches the lab to light. The toolbar choices apply to the whole lab in light mode.</p>
+      <p className="lab-note">This page switches the lab to Cosmos mode. The toolbar choices apply to the whole lab in Cosmos mode.</p>
 
       <h2 className="lab-h2 lab-compare-head">Crest frames</h2>
       <div className="lab-lighttests">

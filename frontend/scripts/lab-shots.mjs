@@ -10,10 +10,10 @@
  * Then a Cosmos mode pass (#58): with direction C, it steps through every option of the Cosmos accent, Cosmos
  * plates and Medallion switches on the pages they change, saves a screenshot of each and runs axe's
  * color-contrast rule on it. axe cannot judge text on a gradient or on art, which is most of direction C, so for
- * each node it leaves undecided the script photographs each line of the text twice, with the text and without it.
- * The pixels the text changes are where its glyphs sit; it measures the text colour against what is behind them
- * (ignoring the 5% most extreme, for anti-aliasing). It prints every failure with the option that caused it, and
- * exits non-zero if there are any. It only uses what a person sees: toolbar buttons by role and name, and the
+ * each node it leaves undecided the script photographs each line of the text in black, in white and hidden. Where
+ * the black and white renders differ is where the glyphs sit; it measures the real text colour against the hidden
+ * render there (ignoring the 5% most extreme, for anti-aliasing). Visible text it cannot measure counts as a
+ * failure. It prints every failure with the option that caused it, and exits non-zero if there are any. It only uses what a person sees: toolbar buttons by role and name, and the
  * rendered page.
  */
 import { mkdirSync } from 'node:fs'
@@ -70,20 +70,23 @@ const PLATES = ['Steel · Current', 'Glass · New']
 const MEDALLIONS = ['Current', '80% · New', '65% · New']
 const contrast = []
 let byPixels = 0
-let unjudged = 0
+let hidden = 0
 
-/** The contrast of an element's text against the pixels behind it, or null if it can't be measured. */
+/**
+ * The contrast of an element's text against the pixels behind its glyphs. Returns { ratio, need }, or
+ * { skip: reason } when it can't measure: 'hidden' (not on screen, fine) or 'covered' / 'no glyphs' (a failure).
+ */
 async function pixelContrast(selector) {
   const el = page.locator(selector).first()
-  if (!(await el.isVisible().catch(() => false))) return null
-  // Bring it to the middle, and skip it if something else (the floating status card, say) sits over it.
+  if (!(await el.isVisible().catch(() => false))) return { skip: 'hidden' }
+  // Bring it to the middle, and note it if something else (the floating status card, say) sits over it.
   const covered = await el.evaluate((e) => {
     e.scrollIntoView({ block: 'center', inline: 'nearest' })
     const r = e.getBoundingClientRect()
     const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
     return !top || !(e.contains(top) || top.contains(e))
   })
-  if (covered) return null
+  if (covered) return { skip: 'covered' }
   // Measure behind the text itself, line by line: a link that wraps would otherwise take in the sentence around it.
   // Each line is cut to the element's own box: a big numeral's line box reaches past the well it sits in.
   const lines = await el.evaluate((e) => {
@@ -98,51 +101,56 @@ async function pixelContrast(selector) {
       })
       .filter((r) => r.width >= 2 && r.height >= 2)
   })
-  if (lines.length === 0) return null
-  const withText = []
-  for (const clip of lines) withText.push(await page.screenshot({ clip, animations: 'disabled' }))
+  if (lines.length === 0) return { skip: 'hidden' }
   const text = await el.evaluate((e) => {
-    // Read the colour before hiding the text: getComputedStyle is live.
+    // Read the colour before touching it: getComputedStyle is live.
     const { color, fontSize, fontWeight } = getComputedStyle(e)
     const big = parseFloat(fontSize) >= 24 || (parseFloat(fontSize) >= 18.66 && Number(fontWeight) >= 700)
     e.dataset.shotStyle = e.getAttribute('style') ?? ''
-    for (const [k, v] of [['color', 'transparent'], ['-webkit-text-fill-color', 'transparent'], ['text-shadow', 'none']]) e.style.setProperty(k, v, 'important')
     return { color, big }
   })
-  const behind = []
-  for (const clip of lines) behind.push(await page.screenshot({ clip, animations: 'disabled' }))
+  // Three renders of each line: the text in black, in white, and hidden. Where black and white differ are the
+  // glyphs, however close the real text colour is to its background; the hidden render is what sits behind them.
+  const shots = { black: [], white: [], behind: [] }
+  for (const [key, ink] of [['black', '#000000'], ['white', '#FFFFFF'], ['behind', 'transparent']]) {
+    await el.evaluate((e, ink) => {
+      for (const [k, v] of [['color', ink], ['-webkit-text-fill-color', ink], ['text-shadow', 'none']]) e.style.setProperty(k, v, 'important')
+    }, ink)
+    for (const clip of lines) shots[key].push(await page.screenshot({ clip, animations: 'disabled' }))
+  }
   await el.evaluate((e) => {
     e.setAttribute('style', e.dataset.shotStyle ?? '')
     delete e.dataset.shotStyle
   })
   let ratio = Infinity
   for (let i = 0; i < lines.length; i++) {
-    const r = await glyphRatio(withText[i], behind[i], text.color)
+    const r = await glyphRatio(shots.black[i], shots.white[i], shots.behind[i], text.color)
     if (r !== null) ratio = Math.min(ratio, r)
   }
-  return ratio === Infinity ? null : { ratio, need: text.big ? 3 : 4.5 }
+  return ratio === Infinity ? { skip: 'no glyphs' } : { ratio, need: text.big ? 3 : 4.5 }
 }
 
 /**
- * The contrast of `color` against what sits behind its glyphs: the pixels of `behind` wherever `withText` differs
- * from it. Takes the 5th-worst percentile, so anti-aliased edges don't count. Null if the text changed nothing.
+ * The contrast of `color` against what sits behind its glyphs: the pixels of `behind` wherever the black and white
+ * renders differ. Takes the 5th-worst percentile, so anti-aliased edges don't count. Null if there are no glyphs.
  */
-function glyphRatio(withText, behind, color) {
+function glyphRatio(black, white, behind, color) {
   return page.evaluate(
-    async ({ a, b, color }) => {
+    async ({ k, w, b, color }) => {
       const pixels = async (b64) => {
         const img = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob())
         const c = new OffscreenCanvas(img.width, img.height).getContext('2d')
         c.drawImage(img, 0, 0)
         return c.getImageData(0, 0, img.width, img.height).data
       }
-      const [on, off] = [await pixels(a), await pixels(b)]
+      const [dark, light, off] = [await pixels(k), await pixels(w), await pixels(b)]
       const lum = (r, g, b) =>
         [r, g, b].map((v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((acc, v, i) => acc + v * [0.2126, 0.7152, 0.0722][i], 0)
       const fg = lum(...(color.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number))
       const ratios = []
       for (let i = 0; i < off.length; i += 4) {
-        if (Math.abs(on[i] - off[i]) + Math.abs(on[i + 1] - off[i + 1]) + Math.abs(on[i + 2] - off[i + 2]) < 60) continue
+        // A glyph pixel is mostly ink: black and white renders differ there by well over half the range.
+        if (Math.abs(dark[i] - light[i]) + Math.abs(dark[i + 1] - light[i + 1]) + Math.abs(dark[i + 2] - light[i + 2]) < 400) continue
         const bg = lum(off[i], off[i + 1], off[i + 2])
         ratios.push((Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05))
       }
@@ -150,7 +158,7 @@ function glyphRatio(withText, behind, color) {
       ratios.sort((x, y) => x - y)
       return ratios[Math.floor(ratios.length * 0.05)]
     },
-    { a: withText.toString('base64'), b: behind.toString('base64'), color },
+    { k: black.toString('base64'), w: white.toString('base64'), b: behind.toString('base64'), color },
   )
 }
 
@@ -170,8 +178,12 @@ async function check(label, scope = '.lab-stage') {
     for (const node of v.nodes) {
       const selector = node.target.join(' ')
       const m = await pixelContrast(selector)
-      if (!m) {
-        unjudged++
+      if (m.skip === 'hidden') {
+        hidden++
+        continue
+      }
+      if (m.skip) {
+        contrast.push(`${label}: ${selector}: could not be measured (${m.skip})`)
         continue
       }
       byPixels++
@@ -192,8 +204,10 @@ async function check(label, scope = '.lab-stage') {
 
 await pick('Light variant', 'C · Burnished Steel')
 await pick('Mode', 'Cosmos')
-for (const screen of screens) {
-  await pick('Screen', screen)
+// "Narrow" is the desktop layout in an 820px window: the hero copy and the Chaos slab are closest there.
+for (const screen of ['Desktop', 'Narrow', 'Phone']) {
+  await pick('Screen', screen === 'Narrow' ? 'Desktop' : screen)
+  await page.setViewportSize({ width: screen === 'Narrow' ? 820 : 1440, height: 900 })
   for (const accent of ACCENTS) {
     await pick('Cosmos accent · New', accent)
     await pick('Page', 'Home')
@@ -223,11 +237,12 @@ for (const screen of screens) {
   }
   await pick('Medallion · New', MEDALLIONS[0])
 }
+await page.setViewportSize({ width: 1440, height: 900 })
 
 console.log(`${n} screenshots in ${out}`)
 console.log('phone overflow:', overflow.length ? overflow.join(', ') : 'none')
 console.log('console errors:', errors.length ? errors.join('\n') : 'none')
 console.log('Cosmos mode contrast failures:', contrast.length ? `\n${contrast.join('\n')}` : 'none')
-console.log(`(${byPixels} text nodes axe could not judge were measured against their pixels; ${unjudged} were hidden or covered and not measured)`)
+console.log(`(${byPixels} text nodes axe could not judge were measured against their pixels; ${hidden} were off screen)`)
 if (contrast.length || errors.length || overflow.length) process.exitCode = 1
 await browser.close()

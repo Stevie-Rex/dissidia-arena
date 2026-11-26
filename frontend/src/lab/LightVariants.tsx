@@ -282,8 +282,9 @@ function SteelHero({ scale = 1 }: { scale?: number }) {
     const a = ((i * 45 - 90) * Math.PI) / 180
     return { x: +(Math.cos(a) * 224).toFixed(1), y: +(Math.sin(a) * 224).toFixed(1), big: i % 2 === 0 }
   })
+  // Anchored right: when a narrow band crops the art, the plain steel on the left goes, not the medallion and slab.
   return (
-    <svg className="lab-hero__art" viewBox="0 0 1200 520" preserveAspectRatio="xMidYMid slice" aria-hidden focusable="false">
+    <svg className="lab-hero__art" viewBox="0 0 1200 520" preserveAspectRatio="xMaxYMid slice" aria-hidden focusable="false">
       <defs>
         <pattern id="lv-c-brush" width="7" height="3" patternUnits="userSpaceOnUse">
           <rect width="7" height="1" fill="var(--steel-hi)" opacity="0.35" />

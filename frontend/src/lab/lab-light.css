@@ -636,8 +636,9 @@
   .lab.lab[data-light="c"] .lab-btn:active { transform: none; }
 }
 
-/* Phone Home: the medallion gets its own band and the copy sits below it on plain steel, not across the seam. */
-@container stage (max-width: 760px) {
+/* Phone and narrow desktop Home: the medallion gets its own band and the copy sits below it on plain steel, not
+   across the seam. (Pass 6: from 1100px down, not 760px; between them the lede crossed the Chaos slab.) */
+@container stage (max-width: 1100px) {
   .lab.lab[data-light="c"] .lab-hero { height: auto; display: flex; flex-direction: column; }
   .lab.lab[data-light="c"] .lab-hero__art { position: relative; inset: auto; height: 190px; flex: none; }
   .lab.lab[data-light="c"] .lab-hero::after { inset: 0 0 auto 0; height: 190px; }
