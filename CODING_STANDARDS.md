@@ -19,4 +19,5 @@ Rules for reviewing a change. Each one is a judgement call; anything mechanical 
 
 - **State that belongs to one entity resets with it.** When a component holds form or UI state for a case, match or player, and the route can swap that entity without unmounting it, key the component on the entity's id. The same goes for a part that can be replaced inside one match, such as a new dispute after a Replay.
 - **Colours** come from the theme's tokens and Tailwind theme colours.
+- **Theme overrides** set custom properties only. State rules (selected, focus, hover, reduced motion) read those properties, so a theme's selector never outranks a state rule.
 - **Browser checks** mock every `/api` call and run axe on the page under test.
