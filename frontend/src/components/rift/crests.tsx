@@ -89,3 +89,13 @@ export function FramedIcon({ size, icon }: { size: number; icon: (size: number) 
 export function GameCrest({ game, size }: { game: GameId; size: number }) {
   return <FramedIcon size={size} icon={(s) => <GameEmblem game={game} size={s} />} />
 }
+
+/** An original crystal-shard cursor, pointing right. It marks the selected menu row, like the 012 menu's glove. */
+export function ShardCursor({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size * 0.6} viewBox="0 0 40 24" aria-hidden focusable="false" className="rift-shard-cursor">
+      <path d="M2 12 L14 3 L38 12 L14 21 Z" fill="var(--rift-crystal-wash)" stroke="var(--rift-silver-edge)" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M14 3 L18 12 L14 21 M2 12 L38 12" stroke="var(--rift-silver-hi)" strokeWidth="1" fill="none" opacity="0.8" />
+    </svg>
+  )
+}

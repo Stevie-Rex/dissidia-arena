@@ -2,21 +2,15 @@ import { useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { DISCORD_SUGGESTIONS, FRIENDS, GAMES, playerById, type FriendStatus, type GameId } from '../data/mock'
 import { useApp } from '../state/AppState'
+import { usePickGame } from '../usePickGame'
 import { GameCrest } from './rift/crests'
 import { Avatar, Btn, Card, DiscordButton, Gem, Modal, Pill, Sub } from './ui'
 import { cx, fmtTime } from '../lib/format'
 
 /** The current-game toggle. `crests` (Rift) shows each game's emblem in a diamond crest. */
 export function GameSwitcher({ className, crests }: { className?: string; crests?: boolean }) {
-  const { game, setGame } = useApp()
-  const navigate = useNavigate()
-  const { pathname } = useLocation()
-  const pick = (g: GameId) => {
-    setGame(g)
-    // If we're on a per-game page, jump to the same page for the other game.
-    const m = pathname.match(/^\/(012|nt)(\/.*)?$/)
-    if (m) navigate(`/${g}${m[2]?.startsWith('/characters') ? '/meta' : (m[2] ?? '')}`)
-  }
+  const { game } = useApp()
+  const pick = usePickGame()
   return (
     <div className={cx('flex gap-1.5', className)}>
       {(['012', 'nt'] as GameId[]).map((g) => (

@@ -539,6 +539,342 @@ body,
   background: var(--rift-raised);
 }
 
+/* ------------------------------------------------------------------ Rift sidebar shell (#43)
+   Desktop: a 260px rail, then a column holding the page and the help strip. Ported from lab round 1 (the 012 menu
+   bars, selection blue with the shard cursor, the gold current edge; in Cosmos mode, steel rods with chamfered ends
+   and a cobalt inlay). Phones hide the rail and the strip until the bottom bar (#45). */
+.rift-shell {
+  display: flex;
+  min-height: 100vh;
+}
+.rift-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rift-sidebar {
+  position: sticky;
+  top: 0;
+  flex: none;
+  flex-direction: column;
+  gap: 16px;
+  width: 260px;
+  height: 100vh;
+  height: 100dvh;
+  padding: 18px 14px 14px;
+  overflow-y: auto;
+  background: var(--rift-rail-face);
+  background-color: var(--rift-bg);
+  border-right: 1px solid var(--rift-rail-edge);
+  box-shadow: inset -1px 0 0 var(--rift-rail-bevel);
+  color: var(--rift-ink);
+}
+.rift-brand {
+  padding: 0 4px;
+  font-family: var(--rift-font-display);
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  color: var(--rift-gold);
+  text-decoration: none;
+}
+[data-rift-mode='cosmos'] .rift-brand {
+  color: var(--rift-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 20px;
+}
+.rift-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+[data-interface='rift'] .rift-switch .da-pill--crest {
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 6px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+[data-interface='rift'][data-rift-mode='cosmos'] .rift-switch .da-pill--crest {
+  border-radius: 4px;
+}
+
+/* The player card */
+.rift-player {
+  min-height: 112px;
+  padding: 12px;
+  border: 1px solid var(--rift-line);
+  border-radius: 8px;
+  background: var(--rift-raised);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+[data-rift-mode='cosmos'] .rift-player {
+  clip-path: none;
+  border-color: var(--rift-plate-edge);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--rift-plate-top), var(--rift-plate-bottom));
+  box-shadow: inset 1px 1px 0 var(--rift-silver-hi), inset -1px -1px 0 var(--rift-plate-bevel-lo);
+}
+.rift-player__top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rift-player__name {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--rift-font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+.rift-player__wins,
+.rift-player__note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--rift-muted);
+}
+.rift-player__note {
+  margin-top: 4px;
+}
+.rift-player__wins strong {
+  font-family: var(--rift-font-heading);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--rift-ink);
+}
+.rift-player__unlock {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 10px 0 5px;
+  font-size: 12px;
+  color: var(--rift-muted);
+}
+.rift-player__count {
+  font-family: var(--rift-font-heading);
+  font-weight: 600;
+  color: var(--rift-gold);
+}
+/* The next-unlock bar: one colour, Cosmos blue */
+.rift-meter {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--rift-bg);
+  overflow: hidden;
+}
+.rift-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--rift-cosmos);
+  box-shadow: 0 0 10px var(--rift-cosmos);
+}
+[data-rift-mode='cosmos'] .rift-meter {
+  height: 8px;
+  border-radius: 2px;
+  background: var(--rift-well);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+[data-rift-mode='cosmos'] .rift-meter > span {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* The 012 menu bars */
+.rift-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rift-bars--sub {
+  margin: 4px 0 0 22px;
+}
+.rift-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 20px 0 2px;
+  background: var(--rift-rod-face);
+  border-top: 1px solid var(--rift-rod-edge);
+  box-shadow: inset 0 -1px 0 var(--rift-bg);
+  color: var(--rift-rod-ink);
+  font-family: var(--rift-font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+}
+.rift-bar--sub {
+  min-height: 34px;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
+.rift-bar__cursor {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  width: 20px;
+}
+.rift-bar__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rift-shard-cursor {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+}
+.rift-bar.is-current {
+  box-shadow: inset 3px 0 0 var(--rift-current-edge), inset 0 -1px 0 var(--rift-bg);
+}
+.rift-bar.is-selected {
+  background: var(--rift-select-face);
+  background-color: var(--rift-select);
+  border-top-color: var(--rift-select-edge);
+  color: var(--rift-select-ink);
+}
+/* The selected row's crest: the icon goes white on a blue frame (the pressed-pill rule doesn't reach links). */
+.rift-bar.is-selected .da-crest {
+  --rift-frame-top: var(--rift-frame-top-sel);
+  --rift-frame-bottom: var(--rift-frame-bottom-sel);
+  --rift-crest-ink: var(--rift-crest-ink-sel);
+}
+.rift-bar:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--rift-silver-hi);
+}
+[data-rift-mode='cosmos'] .rift-bar {
+  border-top: 0;
+  box-shadow: inset 0 0 0 1px var(--rift-rod-edge), inset 0 2px 0 rgba(255, 255, 255, 0.9);
+  clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px);
+}
+[data-rift-mode='cosmos'] .rift-bar.is-current:not(.is-selected) {
+  box-shadow: inset 0 0 0 1px var(--rift-rod-edge), inset 4px 0 0 var(--rift-current-edge), inset 0 2px 0 rgba(255, 255, 255, 0.9);
+}
+[data-rift-mode='cosmos'] .rift-bar.is-selected {
+  box-shadow: inset 0 0 0 1px var(--rift-select-edge), inset 0 3px 5px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(255, 255, 255, 0.35);
+}
+[data-rift-mode='cosmos'] .rift-bar:focus-visible {
+  outline: 2px solid var(--rift-ink);
+  outline-offset: -6px;
+}
+[data-rift-mode='cosmos'] .rift-bar.is-selected:focus-visible {
+  outline-color: var(--rift-select-ink);
+}
+
+/* The foot: Settings, the mode toggle, the interface switch, the fan line and the icon credit */
+.rift-sidebar__foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rift-line);
+}
+[data-rift-mode='cosmos'] .rift-sidebar__foot {
+  border-top-color: var(--rift-line-strong);
+  box-shadow: inset 0 1px 0 var(--rift-rail-bevel);
+}
+.rift-foot-btn.rift-foot-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--rift-muted);
+  font-family: var(--rift-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-decoration: none;
+}
+.rift-foot-btn.rift-foot-btn:hover {
+  background: var(--rift-raised);
+  color: var(--rift-ink);
+}
+[data-rift-mode='cosmos'] .rift-foot-btn.rift-foot-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+/* Current Settings: the same edge as the current menu bar (review fix 4) */
+.rift-foot-btn[aria-current='page'] {
+  background: var(--rift-raised);
+  box-shadow: inset 3px 0 0 var(--rift-current-edge);
+  color: var(--rift-ink);
+}
+.rift-sidebar__interface {
+  padding: 4px 12px;
+}
+.rift-sidebar__interface .da-switch__label {
+  display: none;
+}
+.rift-sidebar__small {
+  margin: 4px 12px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--rift-muted);
+}
+.rift-sidebar__small a {
+  color: inherit;
+  text-decoration: underline;
+}
+.rift-sidebar__fan {
+  margin-top: 8px;
+}
+
+/* The help strip: one line of hint text, stuck to the bottom of the window */
+.rift-helpstrip {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  flex: none;
+  align-items: center;
+  height: 50px;
+  padding: 0 28px;
+  border-top: 2px solid var(--rift-helpstrip-edge);
+  box-shadow: inset 0 1px 0 var(--rift-silver-hi);
+  background: var(--rift-helpstrip-face), var(--rift-helpstrip-bg);
+  color: var(--rift-helpstrip-ink);
+  font-size: 17px;
+  font-weight: 500;
+}
+.rift-helpstrip__text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+[data-rift-mode='cosmos'] .rift-helpstrip {
+  bottom: 10px;
+  height: 42px;
+  margin: 0 12px 10px;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.7);
+  font-family: var(--rift-font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+[data-rift-mode='cosmos'] .rift-helpstrip__text::before {
+  content: '▶';
+  margin-right: 12px;
+  font-size: 10px;
+  vertical-align: 2px;
+  color: var(--rift-helpstrip-mark);
+}
+
 /* ------------------------------------------------------------------ interface switcher */
 .da-switch__btn {
   min-height: 44px;

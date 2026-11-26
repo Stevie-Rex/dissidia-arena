@@ -64,6 +64,23 @@
   --rift-hero-chaos-muted: #BFB2B6;
   --rift-hero-chaos-line: #F0596A;
   --rift-hero-chaos-accent: #F0596A;
+  --rift-rail-face: linear-gradient(180deg, #141829, #090B14);
+  --rift-rail-edge: #2A3150;
+  --rift-rail-bevel: transparent;
+  --rift-rod-face: linear-gradient(180deg, #31374C, #141829);
+  --rift-rod-ink: #EEEAE1;
+  --rift-rod-edge: #B4BDD0;
+  --rift-select-face: linear-gradient(180deg, #466CDA, #2C57D6);
+  --rift-select-edge: #E6EBF4;
+  --rift-frame-top-sel: #5B7CDE;
+  --rift-frame-bottom-sel: #203C92;
+  --rift-crest-ink-sel: #FFFFFF;
+  --rift-current-edge: #E0B862;
+  --rift-helpstrip-face: linear-gradient(180deg, #2E3448, #141829);
+  --rift-helpstrip-bg: #141829;
+  --rift-helpstrip-ink: #EEEAE1;
+  --rift-helpstrip-edge: #B4BDD0;
+  --rift-helpstrip-mark: transparent;
 }
 /* Cosmos mode: Burnished Steel (#55). Keys whose name ends in -face are gradients over the -bg colour. */
 [data-rift-mode="cosmos"] {
@@ -151,6 +168,23 @@
   --rift-hero-chaos-muted: #B9BFCB;
   --rift-hero-chaos-line: #D2475D;
   --rift-hero-chaos-accent: #F0596A;
+  --rift-rail-face: repeating-linear-gradient(180deg, rgba(255,255,255,0.12) 0 1px, transparent 1px 3px), linear-gradient(90deg, #A9B1BD, #C2C9D3 45%, #ACB4C0);
+  --rift-rail-edge: #4E5768;
+  --rift-rail-bevel: #E6E9EE;
+  --rift-rod-face: linear-gradient(180deg, #FAFBFD 0%, #DCE1E8 45%, #BFC7D2 55%, #D3D9E1 100%);
+  --rift-rod-ink: #0C111E;
+  --rift-rod-edge: #6E7788;
+  --rift-select-face: linear-gradient(180deg, #122C78, #1B3FA6 35%, #2D58CC 100%);
+  --rift-select-edge: #0A1A4A;
+  --rift-frame-top-sel: #2D58CC;
+  --rift-frame-bottom-sel: #122C78;
+  --rift-crest-ink-sel: #FFFFFF;
+  --rift-current-edge: #1B3FA6;
+  --rift-helpstrip-face: none;
+  --rift-helpstrip-bg: #1A2130;
+  --rift-helpstrip-ink: #DCE3EE;
+  --rift-helpstrip-edge: transparent;
+  --rift-helpstrip-mark: #7FA6EC;
 }
 
 :root {

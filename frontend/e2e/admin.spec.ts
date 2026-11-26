@@ -49,15 +49,25 @@ async function signedInAs(page: Page, role: Role) {
   return sent
 }
 
-test('the nav shows Admin to Admins and the Master, and the Master panel to the Master only', async ({ page }) => {
+test('the sidebar shows Admin to Admins and the Master, and Admins to the Master only', async ({ page }) => {
   for (const [role, admin, master] of [['player', 0, 0], ['admin', 1, 0], ['master', 1, 1]] as const) {
     await signedInAs(page, role)
     await page.goto('/rewards')
-    await expect(nav(page).getByRole('link', { name: 'REWARDS' })).toBeVisible()
-    await expect(nav(page).getByRole('link', { name: 'ADMIN' })).toHaveCount(admin)
-    await expect(nav(page).getByRole('link', { name: 'MASTER PANEL' })).toHaveCount(master)
+    await expect(nav(page).getByRole('link', { name: 'Rewards' })).toBeVisible()
+    await expect(nav(page).getByRole('link', { name: 'Admin', exact: true })).toHaveCount(admin)
+    await expect(nav(page).getByRole('link', { name: 'Cases', exact: true })).toHaveCount(admin)
+    await expect(nav(page).getByRole('link', { name: 'Admin log', exact: true })).toHaveCount(admin)
+    await expect(nav(page).getByRole('link', { name: 'Admins', exact: true })).toHaveCount(master)
     await page.unrouteAll()
   }
+  await signedInAs(page, 'master')
+  await page.goto('/rewards')
+  await nav(page).getByRole('link', { name: 'Admins', exact: true }).click()
+  await expect(page).toHaveURL(/\/master$/)
+  await expect(nav(page).getByRole('link', { name: 'Admins', exact: true })).toHaveAttribute('aria-current', 'page')
+  await nav(page).getByRole('link', { name: 'Admin log', exact: true }).click()
+  await expect(page).toHaveURL(/\/admin\/log$/)
+  await expect(nav(page).getByRole('link', { name: 'Admin log', exact: true })).toHaveAttribute('aria-current', 'page')
 })
 
 test('the Classic command menu lists Admin and Master panel for the right roles only', async ({ page }) => {
@@ -102,7 +112,7 @@ test('an Admin steps down with a reason and loses the Admin link', async ({ page
   await stepDown.getByRole('button', { name: 'Step down' }).click()
   await expect(page).toHaveURL(/\/$/)
   expect(sent).toEqual([{ method: 'POST', path: '/api/admin/step-down', body: { reason: 'Taking a break' } }])
-  await expect(nav(page).getByRole('link', { name: 'ADMIN' })).toHaveCount(0)
+  await expect(nav(page).getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0)
 })
 
 test('the Master does not see a step-down form', async ({ page }) => {
