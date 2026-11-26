@@ -43,14 +43,14 @@ type UnlockBar = 'duo' | 'blue' | 'gold' | 'shift' | 'sweep'
 const SCORE_FONTS: { value: ScoreFont; label: string; detail: string }[] = [
   { value: 'chakra', label: 'Chakra Petch', detail: 'What it uses now (the font set C heading font)' },
   { value: 'cinzel', label: 'Cinzel', detail: 'Roman, carved-stone numerals' },
-  { value: 'marcellus', label: 'Marcellus SC', detail: 'The title font, so the score matches the headings' },
+  { value: 'marcellus', label: 'Marcellus SC · Picked', detail: 'The title font, so the score matches the headings' },
   { value: 'teko', label: 'Teko', detail: 'Tall and condensed, like a sports scoreboard' },
   { value: 'oxanium', label: 'Oxanium', detail: 'Squared and angular, a crystal-cut look' },
 ]
 
 const UNLOCK_BARS: { value: UnlockBar; label: string; detail: string }[] = [
   { value: 'duo', label: 'Blue to gold', detail: 'What it uses now' },
-  { value: 'blue', label: 'Blue', detail: 'One colour, Cosmos blue' },
+  { value: 'blue', label: 'Blue · Picked', detail: 'One colour, Cosmos blue' },
   { value: 'gold', label: 'Gold', detail: 'One colour, gold' },
   { value: 'shift', label: 'Blue turns red', detail: 'One colour that moves from blue to red as you near the unlock' },
   { value: 'sweep', label: 'Blue to red track', detail: 'A blue-to-red track that the bar reveals as it fills' },
@@ -942,8 +942,8 @@ export default function Lab() {
   const [admin, setAdmin] = useState(true)
   const [still, setStill] = useState(false)
   const [frame, setFrame] = useState<Frame>('diamond')
-  const [scoreFont, setScoreFont] = useState<ScoreFont>('chakra')
-  const [unlockBar, setUnlockBar] = useState<UnlockBar>('duo')
+  const [scoreFont, setScoreFont] = useState<ScoreFont>('marcellus')
+  const [unlockBar, setUnlockBar] = useState<UnlockBar>('blue')
   const [muted, setMutedState] = useState(loadMuted)
   /** Bumped to replay the match-found overlay; 0 means it is closed. */
   const [foundRun, setFoundRun] = useState(0)
