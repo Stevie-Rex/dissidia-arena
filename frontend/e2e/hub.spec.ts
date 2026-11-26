@@ -120,6 +120,55 @@ test.describe('Rift Hub', () => {
   })
 })
 
+test.describe('Classic Hub', () => {
+  const classic = { prefs: { interface: 'classic' } }
+
+  test('shows no invented data', async ({ page }) => {
+    await mockApi(page, { wins: 3, ...classic })
+    await page.goto('/012')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dissidia 012 Duodecim')
+    const main = page.getByRole('main')
+    for (const text of ['Player A', 'Player B', 'Recent matches', 'online', 'days left', '#212', 'Ladder · ']) {
+      await expect(main).not.toContainText(text)
+    }
+  })
+
+  test('shows the real search count for this game', async ({ page }) => {
+    await mockApi(page, { wins: 3, ...classic })
+    await queueState(page, { searching: { '012': 7, nt: 2 } })
+    await page.goto('/012')
+    await expect(page.getByRole('main')).toContainText('7 players searching now')
+    await page.goto('/nt')
+    await expect(page.getByRole('main')).toContainText('2 players searching now')
+  })
+
+  test('signed out, asks you to sign in instead of showing a count', async ({ page }) => {
+    await mockApi(page, { wins: null, ...classic })
+    await page.goto('/012')
+    const main = page.getByRole('main')
+    await expect(main).toContainText('Sign in to queue and see who is searching')
+    await expect(main).not.toContainText('searching now')
+  })
+
+  test('with an open match, links to it', async ({ page }) => {
+    await mockApi(page, { wins: 3, ...classic })
+    await queueState(page, { match: openMatch })
+    await page.goto('/012')
+    const main = page.getByRole('main')
+    await expect(main).toContainText('vs Rival')
+    await main.getByRole('link', { name: 'Go to match' }).click()
+    await expect(page).toHaveURL(/\/match\/live$/)
+  })
+
+  test('says the pre-season is on, and Find match goes to the queue', async ({ page }) => {
+    await mockApi(page, { wins: 3, ...classic })
+    await page.goto('/nt')
+    await expect(page.getByRole('main')).toContainText('Pre-season: wins still count before Season 1')
+    await page.getByRole('button', { name: 'Find match' }).first().click()
+    await expect(page).toHaveURL(/\/queue$/)
+  })
+})
+
 for (const mode of ['chaos', 'cosmos'] as const) {
   test(`Hub fits a phone in ${modeName(mode)}, with each action on its own row`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
