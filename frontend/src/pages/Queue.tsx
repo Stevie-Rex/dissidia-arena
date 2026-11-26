@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { GAMES, type GameId } from '../data/mock'
 import { useApp } from '../state/AppState'
+import { useAppearance } from '../state/Appearance'
 import { Note, Pill, Sub } from '../components/ui'
 import { cx, fmtTime } from '../lib/format'
 
@@ -34,15 +35,17 @@ function Group<T extends string | number>({
 /** 1j — single queue page: settings + big button. Searching continues in the queue bar if you leave. */
 export default function Queue() {
   const { queue, setQueue, phase, elapsed, startQueue, cancelQueue, region, searching: counts, queueError } = useApp()
+  const { ui } = useAppearance()
+  const found = ui === 'rift' && phase === 'found'
   const info = GAMES[queue.game]
   const searching = phase === 'searching'
 
-  if (phase === 'match')
+  if (phase === 'match' || found)
     return (
       <div className="flex flex-col items-center gap-3 py-10">
-        <Sub>You're already in a match.</Sub>
+        <Sub>{found ? 'Match found' : 'You’re already in a match.'}</Sub>
         <Link to="/match/live" className="text-gold-note hover:text-crystal-soft">
-          Back to match room →
+          {found ? 'Go to match' : 'Back to match room →'}
         </Link>
       </div>
     )

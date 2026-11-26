@@ -3,6 +3,7 @@ import LockPanel from '../components/appearance/LockPanel'
 import { AuthErrorBanner, DisputeNotice, GameSwitcher, Overlays } from '../components/Layout'
 import BottomBar from '../components/rift/BottomBar'
 import HelpStrip from '../components/rift/HelpStrip'
+import MatchStatus from '../components/rift/MatchStatus'
 import { useHelpText } from '../components/rift/hints'
 import Sidebar from '../components/rift/Sidebar'
 import { Btn, Logo } from '../components/ui'
@@ -95,7 +96,8 @@ export default function RiftLayout() {
         <HelpStrip text={help.text} className="hidden md:flex" />
       </div>
       <BottomBar />
-      <Overlays />
+      <MatchStatus />
+      <Overlays rift />
     </div>
   )
 }

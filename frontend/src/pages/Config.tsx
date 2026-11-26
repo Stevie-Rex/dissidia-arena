@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import ConfigWindow from '../components/appearance/ConfigWindow'
 import InterfaceSwitcher from '../components/appearance/InterfaceSwitcher'
+import { useMuted } from '../lib/sound'
 import { useAppearance } from '../state/Appearance'
 
 /** Appearance settings. Classic gets its Config window; Rift gets the interface choice. */
 export default function Config() {
   const { ui } = useAppearance()
+  const [muted, setMuted] = useMuted()
   if (ui === 'classic') return <ConfigWindow asPage />
   return (
     <div className="flex flex-col gap-8">
@@ -26,6 +28,10 @@ export default function Config() {
         </h2>
         <InterfaceSwitcher />
       </section>
+      <label className="flex min-h-11 items-center gap-3 self-start">
+        <input type="checkbox" checked={!muted} onChange={(event) => setMuted(!event.target.checked)} />
+        Match found sound
+      </label>
     </div>
   )
 }

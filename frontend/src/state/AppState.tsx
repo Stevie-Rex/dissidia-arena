@@ -10,6 +10,7 @@ import {
   type GameDetails,
   type Match,
   type Me,
+  type QueueEntry,
   type QueueSettings,
   type QueueState,
   type Side,
@@ -48,6 +49,8 @@ interface AppState {
   queue: QueueSettings
   setQueue: (q: Partial<QueueSettings>) => void
   phase: QueuePhase
+  /** Your entry in the queue as the server has it (game, mode, region, joinedAt), while searching. */
+  searchEntry: QueueEntry | null
   elapsed: number
   acceptLeft: number
   /** Players searching per game in your region. */
@@ -411,6 +414,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       queue,
       setQueue,
       phase,
+      searchEntry: server?.queue ?? null,
       elapsed,
       acceptLeft,
       searching: server?.searching ?? { '012': 0, nt: 0 },

@@ -5,6 +5,8 @@ import { useApp } from '../state/AppState'
 import type { GameDetails, Match, RulingOutcome, Side } from '../lib/api'
 import { Avatar, Btn, Card, Pill, Select, SideGlyph, Sub } from '../components/ui'
 import VictoryReward from '../components/appearance/VictoryReward'
+import { PendingMatchRoom } from '../components/rift/MatchStatus'
+import { useAppearance } from '../state/Appearance'
 import AskAdmin from '../components/AskAdmin'
 import { ScreenshotList, ScreenshotUpload } from '../components/Screenshots'
 import { FIELD, cx } from '../lib/format'
@@ -19,9 +21,10 @@ const RULING_NOTES: Record<RulingOutcome, string> = {
 /** 1p — match room: connect info + report on the left, opponent-only chat on the right. */
 export default function MatchRoom() {
   const {
-    live: current, viewed, matchError, sendChat, reportGame, confirmResult, disputeResult, saveStatement, askAdmin, uploadScreenshot, openMatch,
+    live: current, pending, viewed, matchError, sendChat, reportGame, confirmResult, disputeResult, saveStatement, askAdmin, uploadScreenshot, openMatch,
     abandonMatch, closeMatch, startQueue,
   } = useApp()
+  const { ui } = useAppearance()
   const navigate = useNavigate()
   const [text, setText] = useState('')
   const [copied, setCopied] = useState(false)
@@ -32,7 +35,7 @@ export default function MatchRoom() {
   // match, such as an old Disputed one, it's loaded separately so queue polling can't swap it out.
   const [params] = useSearchParams()
   const linkedId = Number(params.get('match')) || null
-  const showViewed = linkedId !== null && linkedId !== current?.id
+  const showViewed = linkedId !== null && linkedId !== current?.id && !(ui === 'rift' && linkedId === pending?.id)
   const live = showViewed ? (viewed?.id === linkedId ? viewed : null) : current
   useEffect(() => {
     if (showViewed) openMatch(linkedId)
@@ -41,6 +44,8 @@ export default function MatchRoom() {
   useEffect(() => {
     chatEnd.current?.scrollIntoView({ block: 'nearest' })
   }, [live?.messages.length])
+
+  if (ui === 'rift' && pending && !showViewed) return <PendingMatchRoom />
 
   if (!live)
     return (

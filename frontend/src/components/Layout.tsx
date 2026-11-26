@@ -316,12 +316,16 @@ export function AuthErrorBanner() {
 }
 
 /** Floating pieces both layouts render: queue bar, chat dock, match-found and sign-in modals, invites. */
-export function Overlays() {
+export function Overlays({ rift = false }: { rift?: boolean }) {
   return (
     <>
-      <QueueBar />
-      <ChatDock />
-      <MatchFound />
+      {!rift && (
+        <>
+          <QueueBar />
+          <ChatDock />
+          <MatchFound />
+        </>
+      )}
       <SignInModal />
       <InviteToast />
     </>
