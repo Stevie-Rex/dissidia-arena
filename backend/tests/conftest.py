@@ -35,6 +35,8 @@ def app(tmp_path):
     with app.app_context():
         db.create_all()
         yield app
+        # End the test's transaction first: on MariaDB an open one holds table locks that DROP TABLE waits on.
+        db.session.remove()
         db.drop_all()
 
 
