@@ -55,7 +55,7 @@ export interface MockServer {
  */
 export async function mockApi(
   page: Page,
-  opts: { wins: number | null; prefs?: Partial<Prefs>; losses?: number; getDelayMs?: number; role?: Role },
+  opts: { wins: number | null; prefs?: Partial<Prefs>; losses?: number; getDelayMs?: number; role?: Role; onboarded?: boolean },
 ): Promise<MockServer> {
   const server: MockServer = { patches: [] }
   let prefs: Prefs = { ...DEFAULTS, ...opts.prefs }
@@ -70,7 +70,7 @@ export async function mockApi(
     if (path === '/api/me') {
       if (!signedIn) return json(401, { error: 'unauthenticated' })
       return json(200, {
-        id: 1, discordId: '1', username: 'tester', displayName: 'Tester', avatarUrl: '', onboarded: true,
+        id: 1, discordId: '1', username: 'tester', displayName: 'Tester', avatarUrl: '', onboarded: opts.onboarded ?? true,
         region: 'EU', games: ['012', 'nt'], gameIds: {}, rankedWins: wins, role: opts.role ?? 'player',
       })
     }

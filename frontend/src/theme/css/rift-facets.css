@@ -1,0 +1,19 @@
+.rift-facets {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+[data-rift-mode="cosmos"] .rift-facets path {
+  fill: var(--rift-steel-lo);
+  stroke: var(--rift-steel-hi);
+  opacity: 0.2;
+}
+
+[data-rift-mode="cosmos"] .rift-facets path:nth-child(3n + 2) {
+  fill: var(--rift-steel-hi);
+  opacity: 0.45;
+}

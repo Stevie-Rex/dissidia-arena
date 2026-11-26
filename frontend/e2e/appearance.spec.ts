@@ -4,29 +4,6 @@ import { mockApi, WINDOW_KEYS } from './mock'
 
 const html = (page: Page) => page.locator('html')
 
-/** WCAG contrast of the Cosmos hero's text pairs, from computed colours. */
-async function cosmosHeroRatios(page: Page): Promise<[string, number][]> {
-  return page.evaluate(() => {
-    const rgb = (c: string) => (c.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
-    const lum = ([r, g, b]: number[]) =>
-      [r, g, b].map((v) => {
-        const s = v / 255
-        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
-      }).reduce((acc, v, i) => acc + v * [0.2126, 0.7152, 0.0722][i], 0)
-    const ratio = (a: string, b: string) => {
-      const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((m, n) => n - m)
-      return Math.round(((x + 0.05) / (y + 0.05)) * 100) / 100
-    }
-    const section = document.querySelector('section[aria-label="Choose your side"]')!
-    const bg = getComputedStyle(section).backgroundColor
-    const half = document.querySelector('[data-hero="cosmos"]')!
-    const out: [string, number][] = []
-    half.querySelectorAll('p, h1').forEach((el) => out.push([el.textContent!.slice(0, 20), ratio(getComputedStyle(el).color, bg)]))
-    const btn = half.querySelector('button')!
-    out.push(['button', ratio(getComputedStyle(btn).color, getComputedStyle(btn).backgroundColor)])
-    return out
-  })
-}
 const SIZES = [['desktop', { width: 1280, height: 800 }], ['phone', { width: 375, height: 812 }]] as const
 const MODE_NAME = { chaos: 'Chaos mode', cosmos: 'Cosmos mode' } as const
 
@@ -65,7 +42,7 @@ test.describe('Rift for a new player', () => {
     await mockApi(page, { wins: null })
     await page.goto('/')
     await expect(html(page)).toHaveAttribute('data-interface', 'rift')
-    await expect(page.getByRole('heading', { level: 1, name: 'Light shall endure.' })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Dissidia Arena' }).getByRole('heading', { level: 1, name: 'Dissidia Arena' })).toBeVisible()
     await expect(page.locator('h1')).toHaveCount(1)
     await expect(classicButton(page).getByRole('img', { name: 'Locked' })).toBeVisible()
   })
@@ -107,7 +84,7 @@ test.describe('Rift for a new player', () => {
     await page.goto('/', { waitUntil: 'commit' })
     await page.waitForSelector('html[data-cursor="arrow"]', { timeout: 2000 })
     await expect(html(page)).not.toHaveAttribute('data-world', /.*/)
-    await expect(page.getByRole('heading', { level: 1, name: 'Light shall endure.' })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Dissidia Arena' }).getByRole('heading', { level: 1, name: 'Dissidia Arena' })).toBeVisible()
   })
 })
 
@@ -287,11 +264,8 @@ test.describe('Look and accessibility', () => {
         await page.goto('/')
         await expect(html(page)).toHaveAttribute('data-rift-mode', mode)
         await page.waitForLoadState('networkidle')
-        // axe ignores clip-path, so it reads the full-size Chaos layer as the Cosmos half's background.
-        // Scan everything else with axe, and check the Cosmos half's colour pairs directly.
-        const results = await new AxeBuilder({ page }).withRules(['color-contrast']).exclude('[data-hero="cosmos"]').analyze()
+        const results = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()
         expect(results.violations.flatMap((v) => v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary}`))).toEqual([])
-        for (const [label, ratio] of await cosmosHeroRatios(page)) expect(ratio, label).toBeGreaterThanOrEqual(4.5)
       })
 
       test(`Rift home in ${MODE_NAME[mode]} has no axe violations at ${label} width`, async ({ page }) => {
@@ -300,7 +274,7 @@ test.describe('Look and accessibility', () => {
         for (const url of ['/', '/rewards']) {
           await page.goto(url)
           await page.waitForLoadState('networkidle')
-          const r = await new AxeBuilder({ page }).exclude('[data-hero="cosmos"]').analyze()
+          const r = await new AxeBuilder({ page }).analyze()
           expect(r.violations.map((v) => `${url} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
         }
       })
@@ -369,13 +343,12 @@ test.describe('Look and accessibility', () => {
     }
   })
 
-  test('at phone width the crack runs across and nothing scrolls sideways', async ({ page }) => {
+  test('signed-out Home does not scroll sideways at phone width', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await mockApi(page, { wins: null })
     await page.goto('/')
+    await expect(page.getByRole('heading', { level: 1, name: 'Dissidia Arena' })).toBeVisible()
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     expect(overflow).toBeLessThanOrEqual(0)
-    const clip = await page.locator('.da-rift-chaos').evaluate((el) => getComputedStyle(el).clipPath)
-    expect(clip).toContain('polygon(0px 51%')
   })
 })
