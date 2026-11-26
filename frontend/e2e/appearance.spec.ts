@@ -76,7 +76,7 @@ test.describe('Rift for a new player', () => {
       localStorage.setItem(
         'da-appearance',
         JSON.stringify({
-          preferences: { interface: 'rift', window_theme: 'classic', menu_font: 'auto', cursor: 'arrow', window_rgb: [6, 10, 26] },
+          preferences: { interface: 'rift', window_theme: 'classic', menu_font: 'auto', cursor: 'arrow', window_rgb: [6, 10, 26], world: 'gaia' },
           unlocks: [], rewards: [], ranked_wins: 0, ranked_losses: 0, next: null,
         }),
       )
