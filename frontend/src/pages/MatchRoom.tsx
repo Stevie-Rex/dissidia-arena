@@ -32,6 +32,7 @@ export default function MatchRoom() {
   const [copied, setCopied] = useState(false)
   const [disputing, setDisputing] = useState(false)
   const transcript = useRef<HTMLDivElement>(null)
+  const chatEnd = useRef<HTMLDivElement>(null)
 
   // ?match=<id> (links from DMs and the dispute notice) shows that match. If it isn't your current
   // match, such as an old Disputed one, it's loaded separately so queue polling can't swap it out.
@@ -43,10 +44,13 @@ export default function MatchRoom() {
     if (showViewed) openMatch(linkedId)
   }, [showViewed, linkedId, openMatch])
 
+  // Rift's transcript has a fixed height and scrolls itself. Classic's grows with the chat, so the page scrolls to its end.
   useEffect(() => {
     const chat = transcript.current
-    if (chat) chat.scrollTop = chat.scrollHeight
-  }, [live?.id, live?.messages.length])
+    if (rift) {
+      if (chat) chat.scrollTop = chat.scrollHeight
+    } else chatEnd.current?.scrollIntoView({ block: 'nearest' })
+  }, [rift, live?.id, live?.messages.length])
 
   if (rift && pending && !showViewed) return <PendingMatchRoom />
 
@@ -209,6 +213,7 @@ export default function MatchRoom() {
                 </div>
               ),
             )}
+            {!rift && <div ref={chatEnd} />}
           </div>
           {canChat && (
             <>

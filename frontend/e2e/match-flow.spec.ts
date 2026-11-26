@@ -189,3 +189,25 @@ test.describe('responding to a result at phone width', () => {
     })
   }
 })
+
+test('in Classic, a new chat message scrolls the page to it', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await mockApi(page, { wins: 10, prefs: { interface: 'classic' } })
+  const older = Array.from({ length: 30 }, (_, i) => ({ id: i + 1, from: (i % 2 ? 'opponent' : 'you') as Side, text: `Message ${i + 1}`, at: iso(-60_000) }))
+  let m = match({ messages: older })
+  await page.route('**/api/queue', (r) => r.fulfill(json({ queue: null, match: m, searching: { '012': 0, nt: 0 }, disputes: [] })))
+  await page.route('**/api/matches/42**', (r) => {
+    const req = r.request()
+    if (req.method() === 'POST' && req.url().endsWith('/messages')) {
+      m = { ...m, messages: [...m.messages, { id: m.messages.length + 1, from: 'you', text: req.postDataJSON().text, at: iso(0) }] }
+    }
+    return r.fulfill(json(m))
+  })
+  await page.goto('/match/live')
+  await expect(page.getByText('Message 30', { exact: true })).toBeInViewport()
+  await page.evaluate(() => window.scrollTo(0, 0))
+  const box = page.getByRole('textbox', { name: 'Message Rival' })
+  await box.fill('Good games.')
+  await box.press('Enter')
+  await expect(page.getByText('Good games.', { exact: true })).toBeInViewport()
+})
