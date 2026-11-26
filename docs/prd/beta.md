@@ -35,14 +35,14 @@ A beta can run before Ratings exist because of a rule in #4: a match settled bef
 
 Rebuild the default Rift interface so it looks made for this community, not generated. The look is a hybrid: an esports portal in structure, dense, bold and driven by stats, with a fantasy layer drawn from Final Fantasy's feel, such as Cosmos and Chaos, crystals and engraved display type. Layout, fonts, components, colour, copy and the Admin pages all change. Pages hidden in the beta wait until they launch.
 
-The owner settled the direction in a grilling session on 2026-11-25, and picked the look by eye in Lab round 1 (#40), which closed on 2026-11-26. The decisions below replace the open questions this section used to hold. The dark mode is final. The light mode's design is still open in #55. A spec breaks this work into tickets before anyone builds it.
+The owner settled the direction in a grilling session on 2026-11-25, and picked the look by eye in Lab round 1 (#40), which closed on 2026-11-26. The decisions below replace the open questions this section used to hold. Chaos mode (dark) was settled in #40, and Cosmos mode (light) in #55 and #58. A spec breaks this work into tickets before anyone builds it.
 
 ### Hard rules
 
 - The site is a fan project. Use no official Dissidia or Final Fantasy logos, art or fonts. Keep the "a fan project" line in the footer.
 - Colours come from `frontend/src/theme/tokens.json` through CSS custom properties. CI fails when a `.tsx` file contains a hex colour.
 - The Classic interface and its unlocks keep working. Classic windows share the `da-card`, `da-btn` and `da-pill` classes with Rift, so scope new styles to Rift, and check Classic with screenshots after each change.
-- Rift's dark and light modes pass the colour contrast checks in `frontend/e2e/appearance.spec.ts`, at desktop and phone width.
+- Rift's Chaos mode and Cosmos mode pass the colour contrast checks in `frontend/e2e/appearance.spec.ts`, at desktop and phone width.
 - The no-flash script in `frontend/index.html` still applies the cached appearance before first paint.
 - Motion turns off under `prefers-reduced-motion`.
 
@@ -67,8 +67,10 @@ The owner settled the direction in a grilling session on 2026-11-25, and picked 
 
 **Appearance**
 
-- Rift is dark by default. Light is the only other Rift appearance.
-- The dark mode is final, as recorded on #40. The light mode needs another design pass, closer to the Dissidia 012 menus, in #55. Its palette, frames and buttons come from there.
+- Rift has two modes: Chaos mode (dark), which is the default, and Cosmos mode (light). There is no other Rift appearance. Always use the full names. In a match the player is on the Cosmos side and the opponent on the Chaos side, whichever mode is on.
+- Chaos mode is final, as recorded on #40.
+- Cosmos mode is Burnished Steel, picked in the lab on #55 with the pass 6 picks from #58 (recorded on #55). It is mid-tone brushed metal that never glares. Containers are bevelled steel plates; lists, chat and numbers sit in recessed wells; title tabs are dark engraved name plates; menu rows are polished rods with chamfered ends, and the selected row is a cobalt enamel inlay. The accent is Olive. The help strip stays a dark bar, as in Dissidia 012. The Home hero is a machined medallion with a cut gem on the Cosmos and Chaos seam, at 80% of its first size, with the Chaos slab shrunk to match. Below a 1100px stage width the medallion takes its own band above the hero copy.
+- Buttons are keys with a lip that press down. In Cosmos mode, the one action per screen that gets the player into a game is the Cosmos blue key: Queue (Home hero, Home's searching panel, Hub banner), Accept on Match found, and Go to match. It is deeper than the selection blue, with a gem-like sheen and white lettering. Every other button is a silver key, and Dispute is a rose key.
 - Worlds are removed. See `docs/adr/0001-remove-rift-worlds.md`. Classic's window themes are a separate setting and stay, with their unlocks.
 
 **Fonts**
@@ -97,7 +99,7 @@ Cinzel and Inter are out.
   - the player card, with avatar, name, ranked wins and a progress bar to the next unlock, in one colour, Cosmos blue. Stage 3 adds the Season emblem;
   - navigation as Dissidia 012 menu bars: Hub, Queue, Ladder, Profile and Rewards;
   - an Admin link, shown only to Admins;
-  - at the bottom, settings, the light and dark toggle, and the Discord feedback link.
+  - at the bottom, settings, the Chaos mode and Cosmos mode toggle, and the Discord feedback link.
 - Searching and an open match show in one place on every page: a floating card in the bottom-right corner with a timer and an action. When a match is found the card grows, glows and plays a short chime. The chime follows its own Sound setting, not reduced motion.
 - Phones are designed for second. Queue, the match room, reporting, the dispute form and Admin cases are fully designed at phone width. Other pages only need to stack cleanly.
 - The phone navigation is a bottom bar of emblem tiles with condensed labels: Hub, Ladder, Queue, Profile and More. Queue sits in the centre at the same size as the other tiles. The emblems are framed crests.
@@ -105,7 +107,7 @@ Cinzel and Inter are out.
 **Pages**
 
 - Home has a large hero slot. In the beta it holds an abstract Cosmos and Chaos composition built from the theme's SVGs: a split of light and dark with a crystal at the seam, and a slow shimmer that moves in one direction. It has no sun rays and nothing spins. The slot is built so commissioned art can replace it later.
-- Home and Hub put frosted glass panels over that dimmed backdrop. Queue, the match room and the Admin pages use a plain dark background, so they stay readable.
+- Home and Hub put frosted glass panels over that dimmed backdrop, in both modes. In Cosmos mode, Home's panels frost the hero, and the Hub gets a dimmed steel version of the facet backdrop under frosted banner plates. Queue, the match room, More and the Admin pages use plain backgrounds (dark in Chaos mode, steel plates in Cosmos mode), so they stay readable.
 - Hub carries slanted banner cards in the Blade v2 style (a silver bevelled edge and a slanted title tab), built only from real data: joining the queue with the number of players searching, your open match, and the Season status, such as "Pre-season: wins still count". They replace the mock top list and recent matches.
 
 **Voice**
@@ -137,9 +139,9 @@ Cinzel and Inter are out.
    - two or three match-found animations, with hover and press feedback;
    - Home's hero with glass panels.
 
-   The light mode continues in the lab in #55.
+   Cosmos mode was settled in the lab in #55 and #58.
 2. **Lab, round 2.** The Admin panel, built on the font set and shell chosen in round 1.
-3. **Build.** One parent issue with several pull requests, each leaving the site working. A likely order: the foundation (fonts, tokens, dark and light modes, removing worlds, the sidebar shell), then the match flow pages, then Home, Welcome, Hub and the remaining pages, then the Admin panel. The spec sets the final split.
+3. **Build.** One parent issue with several pull requests, each leaving the site working. A likely order: the foundation (fonts, tokens, Chaos mode and Cosmos mode, removing worlds, the sidebar shell), then the match flow pages, then Home, Welcome, Hub and the remaining pages, then the Admin panel. The spec sets the final split.
 4. **Review.** Each pull request opens as a draft with before and after screenshots at desktop and phone width, and the commands to run the branch locally. The owner tests it and leaves feedback in the pull request or the chat. The pull request leaves draft only when the owner signs off.
 
 ### Later, separate work
