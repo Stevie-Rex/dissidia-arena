@@ -128,7 +128,9 @@ def validate_changes(changes, unlocked: set[str], wins: int) -> dict:
                                             "message": f"window_rgb must be three integers from 0 to {RGB_MAX}"})
             clean[field] = list(value)
         elif field in ALLOWED:
-            if value not in ALLOWED[field]:
+            # Every allowed value is a string; checking the type first keeps an
+            # unhashable value (a list or dict) from raising TypeError in the set test.
+            if not isinstance(value, str) or value not in ALLOWED[field]:
                 raise AppearanceError(400, {"error": "invalid", "field": field,
                                             "message": f"{field} must be one of {sorted(ALLOWED[field])}"})
             clean[field] = value

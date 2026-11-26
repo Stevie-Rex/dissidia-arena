@@ -147,6 +147,9 @@ def test_custom_rgb_round_trip(player):
         {"rift_mode": "dark"},
         {"rift_mode": "light"},
         {"rift_mode": None},
+        {"rift_mode": []},
+        {"rift_mode": {}},
+        {"cursor": ["arrow"]},
     ],
 )
 def test_bad_values_are_400(player, body):
