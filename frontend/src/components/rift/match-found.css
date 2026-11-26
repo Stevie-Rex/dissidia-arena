@@ -27,6 +27,10 @@
   position: relative;
   z-index: 1;
   width: min(440px, 100%);
+  /* A short screen (a phone on its side, or large text) scrolls the card rather than clipping Accept and Decline. */
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 26px 22px;
   text-align: center;
   border: 1px solid var(--rift-gold);

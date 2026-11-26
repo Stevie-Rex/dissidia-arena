@@ -108,3 +108,17 @@ test('the match found sound setting survives a reload', async ({ page }) => {
   await page.reload()
   await expect(sound).not.toBeChecked()
 })
+
+test('the Match found dialog scrolls when the screen is too short for it', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 300 })
+  await withQueue(page, { queue: null, match: match() })
+  await page.goto('/rewards')
+  const dialog = page.getByRole('dialog', { name: 'Match found' })
+  await expect(dialog).toBeVisible()
+  const box = await dialog.boundingBox()
+  expect(box!.y).toBeGreaterThanOrEqual(0)
+  expect(box!.y + box!.height).toBeLessThanOrEqual(300)
+  const decline = dialog.getByRole('button', { name: 'Decline' })
+  await decline.scrollIntoViewIfNeeded()
+  await expect(decline).toBeInViewport()
+})
