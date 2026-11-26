@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 import { mockApi } from './mock'
 
@@ -119,6 +120,20 @@ test('a found match opens the dialog over the room of a different match', async 
   await page.goto('/match/live?match=42')
   await expect(page.getByRole('main').getByRole('button', { name: 'Accept', exact: true })).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Match found' })).toBeHidden()
+})
+
+test('a failed Accept says so inside the dialog', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await withQueue(page, { queue: null, match: match() })
+  await page.route('**/api/matches/42/accept', (r) =>
+    r.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'expired', message: 'This match is no longer waiting for you' }) }),
+  )
+  await page.goto('/rewards')
+  const dialog = page.getByRole('dialog', { name: 'Match found' })
+  await dialog.getByRole('button', { name: 'Accept', exact: true }).click()
+  await expect(dialog.getByRole('alert')).toHaveText('This match is no longer waiting for you')
+  const results = await new AxeBuilder({ page }).include('[role="dialog"]').withRules(['color-contrast']).analyze()
+  expect(results.violations).toEqual([])
 })
 
 test('the Match found dialog scrolls when the screen is too short for it', async ({ page }) => {

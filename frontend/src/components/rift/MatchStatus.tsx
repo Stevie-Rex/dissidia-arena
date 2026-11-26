@@ -11,7 +11,7 @@ import './match-status.css'
 
 export default function MatchStatus() {
   const { pathname, search } = useLocation()
-  const { pending, live, searchEntry, phase, elapsed, acceptLeft, searching, cancelQueue, acceptMatch, declineMatch } = useApp()
+  const { pending, live, searchEntry, phase, elapsed, acceptLeft, searching, cancelQueue, acceptMatch, acceptError, declineMatch } = useApp()
   const announced = useRef<number | null>(null)
   const pendingId = pending?.id
 
@@ -45,7 +45,7 @@ export default function MatchStatus() {
   const roomId = Number(linkedId) || null
   const inPendingRoom = pathname === '/match/live' && (roomId === null || roomId === pending?.id || roomId === live?.id)
   if (pending && !inPendingRoom)
-    return <MatchFoundDialog key={pending.id} match={pending} acceptLeft={acceptLeft} onAccept={acceptMatch} onDecline={declineMatch} />
+    return <MatchFoundDialog key={pending.id} match={pending} acceptLeft={acceptLeft} error={acceptError} onAccept={acceptMatch} onDecline={declineMatch} />
   if (match && pathname === '/match/live' && (!linkedId || linkedId === String(match.id))) return null
 
   const entry = phase === 'searching' ? searchEntry : null
@@ -83,7 +83,7 @@ export default function MatchStatus() {
 }
 
 export function PendingMatchRoom() {
-  const { pending, acceptLeft, acceptMatch, declineMatch } = useApp()
+  const { pending, acceptLeft, acceptMatch, acceptError, declineMatch } = useApp()
   if (!pending) return null
 
   return (
@@ -93,6 +93,7 @@ export function PendingMatchRoom() {
       <Sub>{queueSummary(pending, pending.platform)}</Sub>
       <p className="m-0">vs {pending.opponent.displayName}</p>
       <p className="m-0 font-heading tabular-nums">Time left to accept · {fmtTime(acceptLeft)}</p>
+      {acceptError && <p className="m-0 text-sm text-chaos-soft" role="alert">{acceptError}</p>}
       {pending.you.accepted ? (
         <p className="m-0" role="status">Waiting for {pending.opponent.displayName}</p>
       ) : (

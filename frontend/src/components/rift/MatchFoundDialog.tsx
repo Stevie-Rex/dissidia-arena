@@ -40,11 +40,14 @@ function markShattered(id: number) {
 export default function MatchFoundDialog({
   match,
   acceptLeft,
+  error,
   onAccept,
   onDecline,
 }: {
   match: Match
   acceptLeft: number
+  /** Why the last Accept failed, shown in the dialog. */
+  error?: string | null
   onAccept: () => void
   onDecline: () => void
 }) {
@@ -157,6 +160,11 @@ export default function MatchFoundDialog({
           {queueSummary(match, match.region)}
         </p>
         <p className="rift-found__time">Time left to accept · {fmtTime(acceptLeft)}</p>
+        {error && (
+          <p className="rift-found__error" role="alert">
+            {error}
+          </p>
+        )}
         {waiting ? (
           <p className="rift-found__waiting" role="status">
             Waiting for {match.opponent.displayName}

@@ -99,6 +99,11 @@
   font-family: var(--rift-font-heading);
   font-variant-numeric: tabular-nums;
 }
+.rift-found__error {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--color-chaos-soft);
+}
 .rift-found__waiting {
   margin-top: 18px;
   font-family: var(--rift-font-heading);
