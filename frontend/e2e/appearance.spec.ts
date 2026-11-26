@@ -358,3 +358,46 @@ test.describe('Look and accessibility', () => {
     expect(overflow).toBeLessThanOrEqual(0)
   })
 })
+
+// WCAG relative luminance and contrast ratio, from 0–255 channels.
+const luminance = ([r, g, b]: number[]) => {
+  const lin = (c: number) => (c / 255 <= 0.04045 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4)
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+const contrast = (a: number[], b: number[]) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+test('a Chaos ghost key keeps its label at 4.5:1 at the brightest point of its hover', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await mockApi(page, { wins: 12, prefs: { rift_mode: 'chaos' } })
+  await page.goto('/012/ladder')
+  const key = page.getByRole('main').getByRole('link', { name: 'View rewards' })
+  const ink = (await key.evaluate((el) => getComputedStyle(el).color)).match(/\d+(\.\d+)?/g)!.slice(0, 3).map(Number)
+  await key.hover()
+  // Hold any hover sheen at its peak, over the middle of the key, and hide the label so only the background shows.
+  await page.addStyleTag({ content: '.da-btn::after { transform: none !important; transition: none !important } .da-btn { color: transparent !important; transition: none !important }' })
+  await page.waitForTimeout(100)
+  const shot = (await key.screenshot()).toString('base64')
+  // The brightest pixel in the middle of the key, inside its slanted edges.
+  const brightest = await page.evaluate(async (src) => {
+    const img = new Image()
+    img.src = `data:image/png;base64,${src}`
+    await img.decode()
+    const canvas = document.createElement('canvas')
+    canvas.width = img.width
+    canvas.height = img.height
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(img, 0, 0)
+    const x0 = 16, y0 = 4
+    const { data } = ctx.getImageData(x0, y0, img.width - 2 * x0, img.height - 2 * y0)
+    let best = [0, 0, 0], bestSum = -1
+    for (let i = 0; i < data.length; i += 4) {
+      const sum = data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722
+      if (sum > bestSum) [bestSum, best] = [sum, [data[i], data[i + 1], data[i + 2]]]
+    }
+    return best
+  }, shot)
+  expect(contrast(ink, brightest), `label ${ink} on ${brightest}`).toBeGreaterThanOrEqual(4.5)
+})
