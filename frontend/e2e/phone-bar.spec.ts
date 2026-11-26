@@ -27,11 +27,16 @@ test.describe('Rift phone bottom bar', () => {
     await expect(tile(page, 'Ladder')).toHaveAttribute('href', '/nt/ladder')
 
     // Scroll to the very end: scrollIntoViewIfNeeded only centres the footer, which on a short page leaves it under the bar.
+    // The NT hub may still be filling in, so scroll and measure again until the page has settled.
     const footer = page.getByRole('contentinfo')
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
-    const footerBox = await footer.boundingBox()
-    const barBox = await bar(page).boundingBox()
-    expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(barBox!.y + 1)
+    await expect
+      .poll(async () => {
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+        const footerBox = await footer.boundingBox()
+        const barBox = await bar(page).boundingBox()
+        return footerBox!.y + footerBox!.height - barBox!.y
+      })
+      .toBeLessThanOrEqual(1)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(PHONE.width)
   })
 
