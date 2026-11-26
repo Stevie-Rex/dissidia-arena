@@ -2,6 +2,7 @@ import { Fragment } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import InterfaceSwitcher from '../components/appearance/InterfaceSwitcher'
 import LockPanel from '../components/appearance/LockPanel'
+import ModeToggle from '../components/appearance/ModeToggle'
 import { AuthErrorBanner, DisputeNotice, FriendsSidebar, GameSwitcher, MobileTabs, Overlays } from '../components/Layout'
 import { Avatar, Btn, Logo, Pill } from '../components/ui'
 import { OPEN_STATUSES, roleLinks } from '../lib/api'
@@ -25,7 +26,7 @@ function RiftHeader() {
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-[clamp(20px,4vw,56px)] py-2.5">
         <div className="flex items-center gap-4">
           <Logo />
-          <GameSwitcher />
+          <GameSwitcher crests />
         </div>
         <nav aria-label="Main" className="hidden flex-wrap items-center font-heading text-sm font-semibold tracking-[0.1em] md:flex">
           {links.map((l, i) => (
@@ -42,6 +43,7 @@ function RiftHeader() {
           ))}
         </nav>
         <div className="flex flex-wrap items-center gap-3">
+          <ModeToggle />
           <InterfaceSwitcher />
           {live && OPEN_STATUSES.includes(live.status) && (
             <Link to="/match/live">
@@ -51,7 +53,7 @@ function RiftHeader() {
             </Link>
           )}
           {phase === 'idle' && (
-            <Btn className="hidden sm:inline-flex" onClick={() => (signedIn ? navigate('/queue') : startQueue())}>
+            <Btn main className="hidden sm:inline-flex" onClick={() => (signedIn ? navigate('/queue') : startQueue())}>
               Queue
             </Btn>
           )}
@@ -95,12 +97,23 @@ function RiftFooter() {
           </Link>
         ))}
       </nav>
-      <span className="font-heading tracking-[0.1em]">INTERFACE: RIFT</span>
+      <span className="font-heading font-semibold tracking-[0.1em]">INTERFACE: RIFT</span>
+      <p className="m-0 w-full text-xs">
+        Icons by Lorc and Delapouite from{' '}
+        <a href="https://game-icons.net" className="underline underline-offset-2 hover:text-fg">
+          game-icons.net
+        </a>
+        ,{' '}
+        <a href="https://creativecommons.org/licenses/by/3.0/" className="underline underline-offset-2 hover:text-fg">
+          CC BY 3.0
+        </a>
+        .
+      </p>
     </footer>
   )
 }
 
-/** The default interface: a light editorial page with a Cosmos side and a Chaos side. */
+/** The default interface, in Chaos mode (dark) or Cosmos mode (light), with a Cosmos side and a Chaos side. */
 export default function RiftLayout() {
   const { signedIn } = useApp()
   const { pathname } = useLocation()

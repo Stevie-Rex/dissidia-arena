@@ -27,6 +27,37 @@ async function cosmosHeroRatios(page: Page): Promise<[string, number][]> {
     return out
   })
 }
+const SIZES = [['desktop', { width: 1280, height: 800 }], ['phone', { width: 375, height: 812 }]] as const
+const MODE_NAME = { chaos: 'Chaos mode', cosmos: 'Cosmos mode' } as const
+
+/** Contrast of each crest's icon against both ends of its frame's fill, from computed colours. */
+async function crestRatios(page: Page): Promise<[string, number][]> {
+  return page.evaluate(() => {
+    // Computed colours come back as rgb()/rgba() or, from color-mix, as color(srgb r g b) in 0-1.
+    const rgb = (c: string) => {
+      const n = (c.match(/[\d.]+/g) ?? []).map(Number)
+      return c.startsWith('color(') ? n.slice(0, 3).map((v) => v * 255) : n.slice(0, 3)
+    }
+    const lum = ([r, g, b]: number[]) =>
+      [r, g, b].map((v) => {
+        const s = v / 255
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+      }).reduce((acc, v, i) => acc + v * [0.2126, 0.7152, 0.0722][i], 0)
+    const ratio = (a: string, b: string) => {
+      const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((m, n) => n - m)
+      return Math.round(((x + 0.05) / (y + 0.05)) * 100) / 100
+    }
+    const out: [string, number][] = []
+    document.querySelectorAll<HTMLElement>('[data-crest]').forEach((crest, i) => {
+      if (!crest.offsetParent) return
+      const ink = getComputedStyle(crest.querySelector('[data-crest-icon]')!).color
+      const where = `crest ${i} (${crest.closest('button')?.textContent?.trim() ?? ''})`
+      crest.querySelectorAll('[data-crest-fill]').forEach((stop, j) => out.push([`${where} fill ${j}`, ratio(ink, getComputedStyle(stop).stopColor)]))
+    })
+    return out
+  })
+}
+
 const classicButton = (page: Page) => page.getByRole('group', { name: 'Interface' }).getByRole('button', { name: /classic/i })
 
 test.describe('Rift for a new player', () => {
@@ -77,6 +108,61 @@ test.describe('Rift for a new player', () => {
     await page.waitForSelector('html[data-cursor="arrow"]', { timeout: 2000 })
     await expect(html(page)).not.toHaveAttribute('data-world', /.*/)
     await expect(page.getByRole('heading', { level: 1, name: 'Light shall endure.' })).toBeVisible()
+  })
+})
+
+const modeToggle = (page: Page) => page.getByRole('button', { name: /^Switch to (Cosmos|Chaos) mode$/ })
+
+test.describe('Chaos mode and Cosmos mode', () => {
+  test('a new visitor sees Chaos mode, and Cosmos mode persists across reloads', async ({ page }) => {
+    await mockApi(page, { wins: null })
+    await page.goto('/')
+    await expect(html(page)).toHaveAttribute('data-rift-mode', 'chaos')
+    await page.getByRole('button', { name: 'Switch to Cosmos mode' }).click()
+    await expect(html(page)).toHaveAttribute('data-rift-mode', 'cosmos')
+    await expect(modeToggle(page)).toHaveAccessibleName('Switch to Chaos mode')
+    await page.reload()
+    await expect(html(page)).toHaveAttribute('data-rift-mode', 'cosmos')
+    await page.getByRole('button', { name: 'Switch to Chaos mode' }).click()
+    await expect(html(page)).toHaveAttribute('data-rift-mode', 'chaos')
+  })
+
+  test("a signed-in player's mode is saved to their account", async ({ page }) => {
+    const server = await mockApi(page, { wins: 0 })
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Switch to Cosmos mode' }).click()
+    await expect.poll(() => server.patches).toContainEqual({ rift_mode: 'cosmos' })
+    // Another device: the server's choice wins over this browser's cache.
+    const other = await page.context().browser()!.newPage()
+    await mockApi(other, { wins: 0, prefs: { rift_mode: 'cosmos' } })
+    await other.goto('/')
+    await expect(other.locator('html')).toHaveAttribute('data-rift-mode', 'cosmos')
+    await other.close()
+  })
+
+  test('the saved mode paints before the app loads, with no flash of the other mode', async ({ page }) => {
+    await mockApi(page, { wins: 0, getDelayMs: 3000, prefs: { rift_mode: 'cosmos' } })
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'da-appearance',
+        JSON.stringify({
+          preferences: { interface: 'rift', window_theme: 'classic', menu_font: 'auto', cursor: 'glove', window_rgb: [6, 10, 26], rift_mode: 'cosmos' },
+          unlocks: [], rewards: [], ranked_wins: 0, ranked_losses: 0, next: null,
+        }),
+      )
+    })
+    await page.goto('/', { waitUntil: 'commit' })
+    await page.waitForSelector('html[data-rift-mode="cosmos"]', { timeout: 2000 })
+    // The first ground the styles paint is Cosmos steel, while the 3s appearance request is still pending.
+    await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor !== 'rgba(0, 0, 0, 0)', null, { timeout: 2500 })
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(184, 191, 202)')
+  })
+
+  test('Classic ignores the Rift mode', async ({ page }) => {
+    await mockApi(page, { wins: 60, prefs: { interface: 'classic', rift_mode: 'cosmos' } })
+    await page.goto('/')
+    await expect(html(page)).toHaveAttribute('data-interface', 'classic')
+    await expect(modeToggle(page)).toHaveCount(0)
   })
 })
 
@@ -193,19 +279,74 @@ test.describe('Classic command menu', () => {
 })
 
 test.describe('Look and accessibility', () => {
-  for (const [label, size] of [['desktop', { width: 1280, height: 800 }], ['phone', { width: 375, height: 812 }]] as const) {
-    test(`Rift home passes colour contrast at ${label} width`, async ({ page }) => {
-      await page.setViewportSize(size)
-      await mockApi(page, { wins: 12, losses: 5 })
-      await page.goto('/')
-      await page.waitForLoadState('networkidle')
-      // axe ignores clip-path, so it reads the full-size Chaos layer as the Cosmos half's background.
-      // Scan everything else with axe, and check the Cosmos half's colour pairs directly.
-      const results = await new AxeBuilder({ page }).withRules(['color-contrast']).exclude('[data-hero="cosmos"]').analyze()
-      expect(results.violations.flatMap((v) => v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary}`))).toEqual([])
-      for (const [label, ratio] of await cosmosHeroRatios(page)) expect(ratio, label).toBeGreaterThanOrEqual(4.5)
-    })
+  for (const mode of ['chaos', 'cosmos'] as const) {
+    for (const [label, size] of SIZES) {
+      test(`Rift home in ${MODE_NAME[mode]} passes colour contrast at ${label} width`, async ({ page }) => {
+        await page.setViewportSize(size)
+        await mockApi(page, { wins: 12, losses: 5, prefs: { rift_mode: mode } })
+        await page.goto('/')
+        await expect(html(page)).toHaveAttribute('data-rift-mode', mode)
+        await page.waitForLoadState('networkidle')
+        // axe ignores clip-path, so it reads the full-size Chaos layer as the Cosmos half's background.
+        // Scan everything else with axe, and check the Cosmos half's colour pairs directly.
+        const results = await new AxeBuilder({ page }).withRules(['color-contrast']).exclude('[data-hero="cosmos"]').analyze()
+        expect(results.violations.flatMap((v) => v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary}`))).toEqual([])
+        for (const [label, ratio] of await cosmosHeroRatios(page)) expect(ratio, label).toBeGreaterThanOrEqual(4.5)
+      })
+
+      test(`Rift home in ${MODE_NAME[mode]} has no axe violations at ${label} width`, async ({ page }) => {
+        await page.setViewportSize(size)
+        await mockApi(page, { wins: 22, prefs: { rift_mode: mode } })
+        for (const url of ['/', '/rewards']) {
+          await page.goto(url)
+          await page.waitForLoadState('networkidle')
+          const r = await new AxeBuilder({ page }).exclude('[data-hero="cosmos"]').analyze()
+          expect(r.violations.map((v) => `${url} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
+        }
+      })
+
+      // WCAG 1.4.11, which axe doesn't test: an icon in a crest needs 3:1 against the crest's fill. Pages built later
+      // (the sidebar, the phone bar) put their icons in the same FramedIcon, so this picks them up.
+      test(`every crest icon in ${MODE_NAME[mode]} stands out from its frame at ${label} width`, async ({ page }) => {
+        await page.setViewportSize(size)
+        await mockApi(page, { wins: 12, prefs: { rift_mode: mode } })
+        await page.goto('/')
+        await page.waitForLoadState('networkidle')
+        const pairs = await crestRatios(page)
+        // The game switcher's two crests at least, one pressed and one not.
+        expect(pairs.length).toBeGreaterThanOrEqual(2)
+        for (const [where, ratio] of pairs) expect(ratio, where).toBeGreaterThanOrEqual(3)
+      })
+    }
   }
+
+  test('every Rift font weight in use has loaded, in both modes', async ({ page }) => {
+    await mockApi(page, { wins: 12, losses: 5 })
+    for (const [mode, url] of (['chaos', 'cosmos'] as const).flatMap((m) => ['/', '/rewards', '/config', '/queue'].map((u) => [m, u] as const))) {
+      await page.goto(url)
+      if (mode === 'cosmos' && url === '/') await page.getByRole('button', { name: 'Switch to Cosmos mode' }).click()
+      await expect(html(page)).toHaveAttribute('data-rift-mode', mode)
+      await page.waitForLoadState('networkidle')
+      const missing = await page.evaluate(async () => {
+        await document.fonts.ready
+        const loaded = new Set(
+          [...document.fonts].filter((f) => f.status === 'loaded').map((f) => `${f.family.replace(/["']/g, '')}|${f.weight}|${f.style}`),
+        )
+        const out = new Set<string>()
+        for (const el of document.querySelectorAll('body *')) {
+          const hasText = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim())
+          // Classic window swatches (reward previews) keep Classic's own fonts.
+          if (!hasText || !(el as HTMLElement).offsetParent || el.closest('[data-window]')) continue
+          const cs = getComputedStyle(el)
+          const family = cs.fontFamily.split(',')[0].trim().replace(/["']/g, '')
+          const key = `${family}|${cs.fontWeight}|${cs.fontStyle}`
+          if (!loaded.has(key)) out.add(`${key} (${el.tagName.toLowerCase()}: ${el.textContent!.trim().slice(0, 30)})`)
+        }
+        return [...out]
+      })
+      expect(missing, `${mode} ${url}`).toEqual([])
+    }
+  })
 
   for (const win of WINDOW_KEYS) {
     test(`Classic home passes colour contrast in the ${win} window`, async ({ page }) => {
@@ -217,16 +358,6 @@ test.describe('Look and accessibility', () => {
       expect(results.violations.flatMap((v) => v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary}`))).toEqual([])
     })
   }
-
-  test('no axe violations on the Rift home and rewards', async ({ page }) => {
-    await mockApi(page, { wins: 22 })
-    for (const url of ['/', '/rewards']) {
-      await page.goto(url)
-      await page.waitForLoadState('networkidle')
-      const r = await new AxeBuilder({ page }).exclude('[data-hero="cosmos"]').analyze()
-      expect(r.violations.map((v) => `${url} ${v.id}: ${v.nodes.length}`)).toEqual([])
-    }
-  })
 
   test('no axe violations on the Classic home and Config', async ({ page }) => {
     await mockApi(page, { wins: 60, prefs: { interface: 'classic' } })

@@ -9,18 +9,18 @@
  */
 :root,
 [data-interface="rift"] {
-  --ui-page-bg: var(--rift-page-bg);
-  --ui-panel: var(--rift-card-bg);
-  --ui-card: var(--rift-card-bg);
-  --ui-raised: var(--rift-card-bg);
+  /* Chaos mode or Cosmos mode, whichever data-rift-mode picks in dissidia-theme.css */
+  --ui-page-bg: var(--rift-bg);
+  --ui-panel: var(--rift-surface);
+  --ui-card: var(--rift-surface);
+  --ui-raised: var(--rift-raised);
   --ui-line: var(--rift-line);
-  --ui-line-strong: var(--rift-line);
+  --ui-line-strong: var(--rift-line-strong);
   --ui-fg: var(--rift-ink);
   --ui-muted: var(--rift-muted);
-  --ui-gold: var(--rift-gold-text);
-  --ui-cosmos: var(--rift-cosmos-accent);
-  /* chaos-accent is tuned for the dark Chaos half; on light cards the deeper meter shade passes 4.5:1 */
-  --ui-chaos: var(--rift-meter-chaos);
+  --ui-gold: var(--rift-gold);
+  --ui-cosmos: var(--rift-cosmos);
+  --ui-chaos: var(--rift-chaos);
   --ui-font-body: var(--rift-font-body);
 }
 
@@ -50,9 +50,8 @@
 
 @theme inline {
   --font-sans: var(--ui-font-body);
-  --font-brand: var(--rift-font-brand);
+  --font-display: var(--rift-font-display);
   --font-heading: var(--rift-font-heading);
-  --font-lore: var(--rift-font-lore);
   --font-menu: var(--menu-family);
   --font-note: Kalam, cursive;
 
@@ -105,6 +104,21 @@ body,
   color: var(--ui-fg);
   -webkit-font-smoothing: antialiased;
 }
+/* Rift's ground. Chaos mode: two faint washes over the night. Cosmos mode: brushed steel. */
+:root[data-interface='rift'] body {
+  background:
+    radial-gradient(900px 500px at 10% 0, var(--rift-page-wash-cosmos), transparent 70%),
+    radial-gradient(900px 500px at 100% 100%, var(--rift-page-wash-chaos), transparent 70%),
+    var(--rift-bg);
+  background-attachment: fixed;
+}
+:root[data-interface='rift'][data-rift-mode='cosmos'] body {
+  background:
+    repeating-linear-gradient(180deg, var(--rift-stage-brush) 0 1px, transparent 1px 4px),
+    linear-gradient(160deg, var(--rift-stage-top), var(--rift-stage-mid) 60%, var(--rift-stage-bottom)),
+    var(--rift-bg);
+  background-attachment: fixed;
+}
 
 .placeholder-art {
   background: repeating-linear-gradient(
@@ -134,19 +148,42 @@ body,
     gap: 0.5rem;
     padding: 0.75rem;
   }
+  /* Chaos mode: a night panel with a silver top edge. */
   [data-interface='rift'] .da-card {
-    background: var(--rift-card-bg);
+    background: var(--rift-surface);
     border: 1px solid var(--rift-line);
+    border-top-color: var(--rift-silver-lo);
+    border-radius: 8px;
   }
   [data-interface='rift'] .da-card--cosmos {
-    background: var(--rift-cosmos-bg);
-    border-color: var(--rift-cosmos-line);
+    background: color-mix(in srgb, var(--rift-cosmos-deep) 22%, var(--rift-surface));
+    border-color: var(--rift-cosmos-deep);
   }
   [data-interface='rift'] .da-card--chaos {
-    background: var(--rift-card-bg);
-    border-color: var(--rift-meter-chaos);
+    border-color: color-mix(in srgb, var(--rift-chaos) 55%, var(--rift-surface));
   }
   [data-interface='rift'] .da-card--gold {
+    border-color: color-mix(in srgb, var(--rift-gold) 60%, var(--rift-surface));
+  }
+  /* Cosmos mode: a bevelled steel plate, lightly brushed, with a short shadow. */
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-card {
+    background:
+      repeating-linear-gradient(180deg, var(--rift-plate-brush) 0 1px, transparent 1px 3px),
+      linear-gradient(180deg, var(--rift-plate-top), var(--rift-plate-bottom));
+    background-color: var(--rift-surface);
+    border-color: var(--rift-plate-edge);
+    border-radius: 4px;
+    box-shadow: inset 1px 1px 0 var(--rift-silver-hi), inset -1px -1px 0 var(--rift-plate-bevel-lo), 0 1px 0 var(--rift-plate-ledge), var(--rift-shadow);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-card--cosmos {
+    border-color: var(--rift-cosmos);
+    border-left-width: 4px;
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-card--chaos {
+    border-color: var(--rift-chaos);
+    border-left-width: 4px;
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-card--gold {
     border-color: var(--rift-gold);
   }
   [data-interface='rift'] .da-card--dashed {
@@ -191,30 +228,96 @@ body,
     cursor: not-allowed;
     opacity: 0.55;
   }
+  /* Rift keys. Chaos mode: a slanted blade that lifts on hover and sinks when pressed. */
   [data-interface='rift'] .da-btn {
-    border: 1px solid var(--rift-cosmos-accent);
-    background: var(--rift-cosmos-accent);
-    color: var(--rift-cosmos-btn-ink);
+    --btn-bg: var(--rift-btn-primary-bg);
+    --btn-ink: var(--rift-btn-primary-ink);
+    --btn-edge: var(--rift-btn-primary-edge);
+    position: relative;
+    padding-inline: 1.375rem;
+    border: 1px solid var(--btn-edge);
+    background: var(--btn-bg);
+    color: var(--btn-ink);
     font-family: var(--rift-font-heading);
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-  }
-  [data-interface='rift'] .da-btn:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--rift-cosmos-accent) 85%, var(--rift-page-bg));
+    clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+    transition: transform 0.12s ease-out, filter 0.15s, box-shadow 0.15s, background-color 0.15s;
   }
   [data-interface='rift'] .da-btn--chaos {
-    border-color: var(--rift-chaos-bg);
-    background: var(--rift-chaos-bg);
-    color: var(--rift-chaos-ink);
+    --btn-bg: var(--rift-btn-chaos-bg);
+    --btn-ink: var(--rift-btn-chaos-ink);
+    --btn-edge: var(--rift-btn-chaos-edge);
   }
   [data-interface='rift'] .da-btn--ghost {
-    background: transparent;
-    border-color: var(--rift-ink);
-    color: var(--rift-ink);
+    --btn-bg: var(--rift-btn-ghost-bg);
+    --btn-ink: var(--rift-btn-ghost-ink);
+    --btn-edge: var(--rift-btn-ghost-edge);
+  }
+  [data-interface='rift'] .da-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    filter: brightness(1.08);
   }
   [data-interface='rift'] .da-btn--ghost:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--rift-ink) 6%, transparent);
+    background: var(--rift-btn-ghost-hover);
+  }
+  [data-interface='rift'] .da-btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.97);
+    filter: brightness(0.92);
+    transition-duration: 0.05s;
+  }
+  /* The clip-path cuts anything drawn outside the key, so the focus ring sits inside it. */
+  [data-interface='rift'] .da-btn:focus-visible {
+    outline: 2px solid var(--btn-ink);
+    outline-offset: -5px;
+  }
+
+  /* Cosmos mode: physical keys with a lip under them; pressing sinks the key onto it. No slant. */
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn {
+    --btn-face: var(--rift-btn-primary-face);
+    --btn-lip: var(--rift-btn-primary-lip);
+    clip-path: none;
+    border-radius: 4px;
+    background: var(--btn-face);
+    background-color: var(--btn-bg);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 3px 0 var(--btn-lip), 0 5px 8px rgba(0, 0, 0, 0.25);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn--chaos {
+    --btn-face: var(--rift-btn-chaos-face);
+    --btn-lip: var(--rift-btn-chaos-lip);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn--ghost {
+    --btn-face: none;
+    --btn-lip: var(--rift-btn-ghost-lip);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 3px 0 var(--btn-lip);
+  }
+  /* The Cosmos blue key: the one action on a screen that gets the player into a game. */
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn--main {
+    --btn-bg: var(--rift-btn-main-bg);
+    --btn-ink: var(--rift-btn-main-ink);
+    --btn-edge: var(--rift-btn-main-lip);
+    --btn-lip: var(--rift-btn-main-lip);
+    background: var(--rift-btn-main-sheen), var(--rift-btn-main-gleam), var(--rift-btn-main-face);
+    background-color: var(--btn-bg);
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.5);
+    box-shadow: inset 0 1px 0 rgba(206, 222, 255, 0.75), inset 0 -2px 0 rgba(0, 0, 0, 0.3), 0 3px 0 var(--btn-lip), 0 5px 10px rgba(6, 18, 58, 0.45);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn:hover:not(:disabled) {
+    transform: none;
+    filter: brightness(1.05);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn--ghost:hover:not(:disabled) {
+    background: var(--rift-btn-ghost-hover);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn:active:not(:disabled) {
+    transform: translateY(3px);
+    filter: brightness(0.95);
+    box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.25), 0 0 0 var(--btn-lip);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-btn:focus-visible {
+    outline: 2px solid var(--rift-ink);
+    outline-offset: 5px;
   }
   [data-interface='classic'] .da-btn {
     border: 1px solid var(--win-border);
@@ -244,18 +347,49 @@ body,
     opacity: 0.55;
   }
   [data-interface='rift'] .da-pill {
-    border-color: var(--rift-line);
-    color: var(--rift-ink);
-    background: var(--rift-card-bg);
+    border-color: var(--rift-pill-edge);
+    color: var(--rift-pill-ink);
+    background: var(--rift-pill-bg);
+    font-family: var(--rift-font-heading);
+    font-weight: 600;
+    letter-spacing: 0.04em;
   }
   [data-interface='rift'] .da-pill:hover:not(:disabled) {
-    border-color: var(--rift-ink);
+    border-color: var(--rift-silver-edge);
   }
   [data-interface='rift'] .da-pill[aria-pressed='true'],
   [data-interface='rift'] .da-pill[aria-current='page'] {
-    background: var(--rift-ink);
-    border-color: var(--rift-ink);
-    color: var(--rift-page-bg);
+    background: var(--rift-pill-on-bg);
+    border-color: var(--rift-pill-on-edge);
+    color: var(--rift-pill-on-ink);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--rift-gold) 30%, transparent);
+  }
+  /* Cosmos mode: switch keys with a lip; the pressed one is a cobalt inlay sunk into the steel. */
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-pill {
+    background: var(--rift-pill-face);
+    background-color: var(--rift-pill-bg);
+    box-shadow: inset 0 1px 0 var(--rift-silver-hi), 0 2px 0 var(--rift-line-strong);
+  }
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-pill[aria-pressed='true'],
+  [data-interface='rift'][data-rift-mode='cosmos'] .da-pill[aria-current='page'] {
+    background: var(--rift-pill-on-face);
+    background-color: var(--rift-pill-on-bg);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45);
+    transform: translateY(2px);
+  }
+  /* A pill with a crest in front of its label (the Rift game switcher) */
+  [data-interface='rift'] .da-pill--crest {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 36px;
+    padding-left: 0.3rem;
+    font-size: 0.8125rem;
+  }
+  [data-interface='rift'] :is(.da-pill[aria-pressed='true'], .da-pill[aria-current='page']) .da-crest {
+    --rift-frame-top: var(--rift-frame-top-on);
+    --rift-frame-bottom: var(--rift-frame-bottom-on);
+    --rift-crest-ink: var(--rift-crest-ink-on);
   }
   [data-interface='classic'] .da-pill {
     border-color: var(--win-inner);
@@ -278,12 +412,12 @@ body,
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.18em;
-    color: var(--rift-gold-text);
+    color: var(--rift-gold);
     text-transform: uppercase;
   }
+  /* Flavour text: the body font, a touch heavier */
   .da-lore {
-    font-family: var(--rift-font-lore);
-    font-style: italic;
+    font-family: var(--rift-font-body);
     font-weight: 500;
   }
   /* Gold corner brackets on Rift cards */
@@ -298,29 +432,38 @@ body,
     height: 14px;
     pointer-events: none;
   }
+  .da-brackets {
+    --bracket: var(--rift-gold);
+  }
+  /* Classic keeps the brackets it had before Rift's modes */
+  [data-interface='classic'] .da-brackets {
+    --bracket: var(--classic-bracket);
+  }
   .da-brackets::before {
     top: 8px;
     left: 8px;
-    border-top: 1px solid var(--rift-gold);
-    border-left: 1px solid var(--rift-gold);
+    border-top: 1px solid var(--bracket);
+    border-left: 1px solid var(--bracket);
   }
   .da-brackets::after {
     bottom: 8px;
     right: 8px;
-    border-bottom: 1px solid var(--rift-gold);
-    border-right: 1px solid var(--rift-gold);
+    border-bottom: 1px solid var(--bracket);
+    border-right: 1px solid var(--bracket);
   }
   /* Thin progress bar (reward progress, lock panel) */
   .da-progress {
     flex: 1;
     height: 10px;
     padding: 2px;
-    border: 1px solid var(--rift-ink);
+    border: 1px solid var(--rift-line-strong);
+    background: var(--rift-bg);
   }
+  /* The next-unlock bar: one colour, Cosmos blue */
   .da-progress > span {
     display: block;
     height: 100%;
-    background: var(--rift-meter-cosmos);
+    background: var(--rift-cosmos);
   }
   [data-interface='classic'] .da-progress {
     border: 0;
@@ -344,11 +487,56 @@ body,
   outline-offset: -2px;
 }
 
-/* Rift headings use Cinzel; Classic keeps the menu font */
-[data-interface='rift'] h1,
+/* Rift's three font roles: Marcellus SC for the page title (it has one weight), Chakra Petch for the rest of the
+   headings, Barlow for body text. Classic keeps the menu font. */
+[data-interface='rift'] h1 {
+  font-family: var(--rift-font-display);
+  font-weight: 400;
+}
 [data-interface='rift'] h2,
 [data-interface='rift'] h3 {
   font-family: var(--rift-font-heading);
+}
+/* Marcellus SC has one weight: never let a bold utility fake a heavier one in Rift */
+[data-interface='rift'] .font-display {
+  font-weight: 400;
+}
+
+/* ------------------------------------------------------------------ Rift crests and the mode toggle */
+.da-crest {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--rift-crest-ink);
+}
+.da-crest > svg {
+  position: absolute;
+  inset: 0;
+}
+.da-crest__icon {
+  position: relative;
+  display: flex;
+}
+.da-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--rift-muted);
+  font-family: var(--rift-font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.da-mode-toggle:hover {
+  color: var(--rift-ink);
+  background: var(--rift-raised);
 }
 
 /* ------------------------------------------------------------------ interface switcher */
@@ -366,7 +554,7 @@ body,
   color: var(--rift-muted);
 }
 [data-interface='rift'] .da-switch__group {
-  border: 1px solid var(--rift-ink);
+  border: 1px solid var(--rift-line-strong);
 }
 [data-interface='rift'] .da-switch__btn {
   font-family: var(--rift-font-heading);
@@ -374,8 +562,9 @@ body,
   color: var(--rift-ink);
 }
 [data-interface='rift'] .da-switch__btn[aria-pressed='true'] {
-  background: var(--rift-ink);
-  color: var(--rift-page-bg);
+  background: var(--rift-pill-on-bg);
+  box-shadow: inset 0 0 0 1px var(--rift-pill-on-edge);
+  color: var(--rift-pill-on-ink);
 }
 [data-interface='classic'] .da-switch__label {
   color: var(--win-muted);
@@ -433,7 +622,7 @@ body,
 }
 
 /* Rift display fonts fall back to the menu font inside Classic */
-[data-interface='classic'] .font-brand,
+[data-interface='classic'] .font-display,
 [data-interface='classic'] .font-heading {
   font-family: var(--menu-family);
 }

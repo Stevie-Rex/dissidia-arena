@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-interface="rift" data-window="classic" data-cursor="glove">
+<html lang="en" data-interface="rift" data-window="classic" data-cursor="glove" data-rift-mode="chaos">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -18,6 +18,7 @@
           if (ok(p.interface)) root.setAttribute('data-interface', p.interface);
           if (ok(p.window_theme)) root.setAttribute('data-window', p.window_theme);
           if (ok(p.cursor)) root.setAttribute('data-cursor', p.cursor);
+          if (p.rift_mode === 'chaos' || p.rift_mode === 'cosmos') root.setAttribute('data-rift-mode', p.rift_mode);
           if (ok(p.menu_font) && p.menu_font !== 'auto') root.setAttribute('data-menu-font', p.menu_font);
           if (p.window_theme === 'custom' && Array.isArray(p.window_rgb) && p.window_rgb.length === 3) {
             /* customWindow(): each 0-31 channel x3, then top x1.2, bot x0.45, track x0.25 */

@@ -87,7 +87,7 @@ export default function Queue() {
       >
         {searching ? (
           <>
-            <span className="font-mono text-2xl">{fmtTime(elapsed)}</span>
+            <span className="font-heading text-2xl tabular-nums">{fmtTime(elapsed)}</span>
             <Sub>searching · click to cancel</Sub>
           </>
         ) : (

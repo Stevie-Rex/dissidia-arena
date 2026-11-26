@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { DISCORD_SUGGESTIONS, FRIENDS, GAMES, playerById, type FriendStatus, type GameId } from '../data/mock'
 import { useApp } from '../state/AppState'
+import { GameCrest } from './rift/crests'
 import { Avatar, Btn, Card, DiscordButton, Gem, Modal, Pill, Sub } from './ui'
 import { cx, fmtTime } from '../lib/format'
 
-export function GameSwitcher({ className }: { className?: string }) {
+/** The current-game toggle. `crests` (Rift) shows each game's emblem in a diamond crest. */
+export function GameSwitcher({ className, crests }: { className?: string; crests?: boolean }) {
   const { game, setGame } = useApp()
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -18,7 +20,8 @@ export function GameSwitcher({ className }: { className?: string }) {
   return (
     <div className={cx('flex gap-1.5', className)}>
       {(['012', 'nt'] as GameId[]).map((g) => (
-        <Pill key={g} active={game === g} onClick={() => pick(g)}>
+        <Pill key={g} active={game === g} onClick={() => pick(g)} className={crests ? 'da-pill--crest' : undefined}>
+          {crests && <GameCrest game={g} size={26} />}
           {GAMES[g].short}
         </Pill>
       ))}
@@ -115,7 +118,7 @@ export function QueueBar() {
             Searching · {info.short} {queue.mode} Bo{queue.bestOf}
           </b>
           <span className="flex-1" />
-          <span className="font-mono text-sm">{fmtTime(elapsed)}</span>
+          <span className="font-heading text-sm tabular-nums">{fmtTime(elapsed)}</span>
         </div>
         <div className="flex items-center">
           <Sub>

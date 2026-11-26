@@ -16,7 +16,7 @@ export function RewardCard({ reward, wins, headingLevel = 3 }: { reward: RewardS
       )}
       <div className="flex items-baseline justify-between gap-3">
         <Heading className="m-0 text-xl font-semibold">{reward.name}</Heading>
-        <span className="font-brand text-lg font-bold text-gold">{reward.goal}</span>
+        <span className="font-display text-lg font-bold text-gold">{reward.goal}</span>
       </div>
       {copy && <p className="m-0 text-[15px] leading-normal text-muted">{copy.text}</p>}
       <div className="mt-auto flex items-center gap-3">
@@ -45,7 +45,7 @@ export function RewardRows({ rewards, wins }: { rewards: RewardStatus[]; wins: n
     <ul className="m-0 flex list-none flex-col gap-3 p-0">
       {rewards.map((r) => (
         <li key={r.key} className="da-card flex-row flex-wrap items-center gap-4 px-5 py-4">
-          <span className="w-10 font-brand text-xl font-bold text-gold">{r.goal}</span>
+          <span className="w-10 font-display text-xl font-bold text-gold">{r.goal}</span>
           <span className="flex min-w-[180px] flex-1 flex-col">
             <span className="font-semibold">{r.name}</span>
             <span className="text-sm text-muted">{REWARD_COPY[r.key]?.text}</span>

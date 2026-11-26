@@ -255,7 +255,7 @@ function ScoreBar({ match }: { match: Match }) {
     <Card className="flex-row flex-wrap items-center gap-4 px-5 py-4">
       {side('you')}
       <div className="flex flex-col items-center px-2">
-        <span className="font-brand text-3xl font-bold tabular-nums">
+        <span className="font-display text-3xl font-bold tabular-nums">
           {match.score.you}–{match.score.opponent}
         </span>
         <Sub>

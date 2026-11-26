@@ -8,6 +8,7 @@ type Prefs = {
   menu_font: string
   cursor: string
   window_rgb: number[]
+  rift_mode: string
 }
 
 const DEFAULTS: Prefs = {
@@ -16,6 +17,7 @@ const DEFAULTS: Prefs = {
   menu_font: 'auto',
   cursor: 'glove',
   window_rgb: [6, 10, 26],
+  rift_mode: 'chaos',
 }
 
 const REWARDS = tokens.rewards as { key: string; name: string; goal: number; unlocks: Record<string, string[]> }[]

@@ -40,10 +40,10 @@ function Hero() {
   const navigate = useNavigate()
   const fight = () => (signedIn ? navigate('/queue') : startQueue())
   return (
-    <section aria-label="Choose your side" className="relative overflow-hidden bg-[var(--rift-cosmos-bg)]">
-      <div aria-hidden className="da-rift-chaos absolute inset-0 bg-[var(--rift-chaos-bg)]" />
+    <section aria-label="Choose your side" className="relative overflow-hidden bg-[var(--rift-hero-cosmos-bg)]">
+      <div aria-hidden className="da-rift-chaos absolute inset-0 bg-[var(--rift-hero-chaos-bg)]" />
       <svg aria-hidden viewBox="0 0 400 260" fill="none" className="absolute left-[4%] top-[72px] h-[44%] w-[34%] opacity-85">
-        <g style={{ stroke: 'var(--rift-cosmos-line)', fill: 'var(--rift-cosmos-line)' }}>
+        <g style={{ stroke: 'var(--rift-hero-cosmos-line)', fill: 'var(--rift-hero-cosmos-line)' }}>
           <path d="M30 200 L95 140 L160 168 L230 92 L300 120 L360 40 M95 140 L120 60 L230 92 M160 168 L190 230 M230 78 V106 M216 92 H244" fill="none" strokeWidth="1" />
           {[[30, 200, 3], [95, 140, 4], [160, 168, 3], [230, 92, 5], [300, 120, 3], [360, 40, 4], [120, 60, 3], [190, 230, 2.5]].map(([cx, cy, r]) => (
             <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} stroke="none" />
@@ -51,7 +51,7 @@ function Hero() {
         </g>
       </svg>
       <svg aria-hidden viewBox="0 0 400 260" fill="none" className="absolute right-[4%] top-[72px] h-[44%] w-[34%] opacity-70">
-        <g style={{ stroke: 'var(--rift-chaos-line)', fill: 'var(--rift-chaos-line)' }}>
+        <g style={{ stroke: 'var(--rift-hero-chaos-line)', fill: 'var(--rift-hero-chaos-line)' }}>
           <path d="M380 20 L320 70 L340 110 L270 150 L290 190 L210 240 M320 70 L260 50 L230 90 M340 110 L390 150 M270 150 L220 140" fill="none" strokeWidth="1.2" />
           {[[240, 200, 2], [360, 200, 1.5], [200, 60, 1.5], [300, 230, 2.5], [380, 90, 2]].map(([cx, cy, r]) => (
             <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} stroke="none" />
@@ -62,31 +62,31 @@ function Hero() {
         THE XIII CYCLE OF WAR
       </p>
       <div className="da-rift-halves relative min-h-[640px]">
-        <div data-hero="cosmos" className="da-rift-half flex min-h-80 flex-col justify-end gap-4 px-[clamp(24px,5vw,72px)] pb-16 pt-32 text-[var(--rift-cosmos-ink)]">
+        <div data-hero="cosmos" className="da-rift-half flex min-h-80 flex-col justify-end gap-4 px-[clamp(24px,5vw,72px)] pb-16 pt-32 text-[var(--rift-hero-cosmos-ink)]">
           <p data-side="cosmos" className="m-0 flex items-center gap-2.5 font-heading text-[13px] font-semibold tracking-[0.18em]">
             <SideGlyph side="cosmos" /> CHAMPIONS OF COSMOS
           </p>
           <h1 className="m-0 max-w-[460px] text-[clamp(42px,5vw,72px)] font-semibold leading-[1.04]">Light shall endure.</h1>
-          <p className="da-lore m-0 max-w-[400px] text-[22px] leading-[1.4] text-[var(--rift-cosmos-muted)]">
+          <p className="da-lore m-0 max-w-[400px] text-[22px] leading-[1.4] text-[var(--rift-hero-cosmos-muted)]">
             Stand with the goddess of harmony. Guard the crystals and end the war in her name.
           </p>
           <button type="button" onClick={fight} className="da-btn min-h-12 self-start px-6 py-4 text-sm">
             Fight for Cosmos <span aria-hidden>◆</span>
           </button>
         </div>
-        <div className="da-rift-half flex min-h-80 flex-col items-end justify-end gap-4 px-[clamp(24px,5vw,72px)] pb-16 pt-32 text-right text-[var(--rift-chaos-ink)] max-[760px]:pt-16">
+        <div className="da-rift-half flex min-h-80 flex-col items-end justify-end gap-4 px-[clamp(24px,5vw,72px)] pb-16 pt-32 text-right text-[var(--rift-hero-chaos-ink)] max-[760px]:pt-16">
           <p data-side="chaos" className="m-0 flex items-center gap-2.5 font-heading text-[13px] font-semibold tracking-[0.18em]">
             CHAMPIONS OF CHAOS <SideGlyph side="chaos" />
           </p>
           {/* Same style as the Cosmos h1; the page keeps a single h1. */}
           <h2 className="m-0 max-w-[460px] text-[clamp(42px,5vw,72px)] font-semibold leading-[1.04]">Discord reigns.</h2>
-          <p className="da-lore m-0 max-w-[400px] text-[22px] leading-[1.4] text-[var(--rift-chaos-muted)]">
+          <p className="da-lore m-0 max-w-[400px] text-[22px] leading-[1.4] text-[var(--rift-hero-chaos-muted)]">
             Serve the god of discord. Shatter the crystals and let the cycle burn.
           </p>
           <button
             type="button"
             onClick={fight}
-            className="da-btn min-h-12 border-[var(--rift-chaos-accent)]! bg-[var(--rift-chaos-accent)]! px-6 py-4 text-sm text-[var(--rift-chaos-btn-ink)]!"
+            className="da-btn da-btn--chaos min-h-12 px-6 py-4 text-sm"
           >
             <span aria-hidden>◆</span> Fight for Chaos
           </button>
@@ -94,11 +94,11 @@ function Hero() {
       </div>
       <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2.5 max-[760px]:hidden">
         <svg width="104" height="190" viewBox="0 0 104 190" fill="none">
-          <path d="M52 2 L52 188 L4 150 L4 40 Z" strokeWidth="1.5" style={{ fill: 'var(--rift-cosmos-bg)', stroke: 'var(--rift-gold)' }} />
-          <path d="M52 2 L100 40 L100 150 L52 188 Z" strokeWidth="1.5" style={{ fill: 'var(--rift-chaos-bg)', stroke: 'var(--rift-chaos-accent)' }} />
+          <path d="M52 2 L52 188 L4 150 L4 40 Z" strokeWidth="1.5" style={{ fill: 'var(--rift-hero-cosmos-bg)', stroke: 'var(--rift-gold)' }} />
+          <path d="M52 2 L100 40 L100 150 L52 188 Z" strokeWidth="1.5" style={{ fill: 'var(--rift-hero-chaos-bg)', stroke: 'var(--rift-hero-chaos-accent)' }} />
           <path d="M4 40 L52 62 L100 40 M4 150 L52 128 L100 150 M52 62 L52 128" strokeWidth="1" opacity="0.7" style={{ stroke: 'var(--rift-gold)' }} />
         </svg>
-        <span className="border border-line bg-ink px-3.5 py-1.5 font-brand text-lg font-bold">VS</span>
+        <span className="border border-line bg-ink px-3.5 py-1.5 font-display text-lg">VS</span>
       </div>
     </section>
   )
@@ -135,7 +135,7 @@ function RiftHome() {
             {trials.map((t) => {
               const body = (
                 <>
-                  <span className="font-brand text-2xl font-bold text-gold" aria-hidden>
+                  <span className="font-display text-2xl text-gold" aria-hidden>
                     {t.numeral}
                   </span>
                   <span className="font-heading text-xl font-semibold">{t.title}</span>
@@ -190,12 +190,12 @@ function RiftHome() {
         </section>
       </div>
 
-      <section className="-mb-16 bg-[var(--rift-chaos-bg)] text-[var(--rift-chaos-ink)]">
+      <section className="-mb-16 bg-[var(--rift-hero-chaos-bg)] text-[var(--rift-hero-chaos-ink)]">
         <div className="mx-auto box-border flex max-w-[860px] flex-col items-center gap-5 px-[clamp(20px,4vw,56px)] py-20 text-center">
           <p className="da-lore m-0 text-[clamp(26px,3vw,36px)] leading-[1.35]">
             “Twelve times the war has ended. Twelve times it began again. This cycle, the arena remembers every victory.”
           </p>
-          <p className="m-0 font-heading text-[13px] font-semibold tracking-[0.18em] text-[var(--rift-chaos-muted)]">THE CHRONICLE OF THE ARENA</p>
+          <p className="m-0 font-heading text-[13px] font-semibold tracking-[0.18em] text-[var(--rift-hero-chaos-muted)]">THE CHRONICLE OF THE ARENA</p>
         </div>
       </section>
     </>

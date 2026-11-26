@@ -25,18 +25,21 @@ export function Pill({
   )
 }
 
+/** `main` marks the one action on a screen that gets the player into a game: the Cosmos blue key in Cosmos mode. */
 export function Btn({
   className,
   size = 'md',
   variant = 'primary',
+  main,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { size?: 'md' | 'lg'; variant?: 'primary' | 'chaos' | 'ghost' }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { size?: 'md' | 'lg'; variant?: 'primary' | 'chaos' | 'ghost'; main?: boolean }) {
   return (
     <button
       type="button"
       className={cx(
         'da-btn transition-colors',
         variant !== 'primary' && `da-btn--${variant}`,
+        main && 'da-btn--main',
         size === 'lg' ? 'min-h-11 px-6 py-3 text-sm' : 'px-3 py-1 text-xs',
         className,
       )}
@@ -235,7 +238,7 @@ export function Logo() {
   return (
     <Link to="/" className="flex min-h-11 items-center gap-3">
       <CrystalMark />
-      <span className="font-brand text-xl font-bold">Dissidia Arena</span>
+      <span className="font-display text-xl font-bold">Dissidia Arena</span>
     </Link>
   )
 }

@@ -12,6 +12,9 @@ export type WindowTheme = 'classic' | 'crystal' | 'magitek' | 'midgar' | 'garden
 export type MenuFont = 'auto' | 'bit16' | 'bit8' | 'story' | 'modern'
 export type Cursor = 'glove' | 'arrow'
 export type Rgb = [number, number, number]
+/** Rift's mode: Chaos mode (dark, the default) or Cosmos mode (light). Free for everyone. */
+export type RiftMode = 'chaos' | 'cosmos'
+export const RIFT_MODES: RiftMode[] = ['chaos', 'cosmos']
 
 export interface Preferences {
   interface: Interface
@@ -19,6 +22,7 @@ export interface Preferences {
   menu_font: MenuFont
   cursor: Cursor
   window_rgb: Rgb
+  rift_mode: RiftMode
 }
 export type PreferenceField = keyof Preferences
 
@@ -63,6 +67,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   menu_font: 'auto',
   cursor: 'glove',
   window_rgb: tokens.classic.customWindow.default as Rgb,
+  rift_mode: 'chaos',
 }
 
 export const WINDOWS = Object.entries(tokens.classic.windows).map(([key, w]) => ({
@@ -139,6 +144,8 @@ export function applyAppearance(p: Preferences, opts: { preview?: boolean } = {}
   if (font === 'auto') el.removeAttribute('data-menu-font')
   else el.setAttribute('data-menu-font', font)
   el.setAttribute('data-cursor', p.cursor)
+  // A cache written before modes existed has no rift_mode: that means Chaos mode.
+  el.setAttribute('data-rift-mode', RIFT_MODES.includes(p.rift_mode) ? p.rift_mode : DEFAULT_PREFERENCES.rift_mode)
   if (win === 'custom') {
     const c = customWindow(...p.window_rgb)
     el.style.setProperty('--win-top', c.top)
