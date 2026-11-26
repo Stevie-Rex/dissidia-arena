@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { GAMES, type GameId } from '../data/mock'
 import { useAppearance } from '../state/Appearance'
@@ -38,6 +39,13 @@ export default function Queue() {
   const { queue, setQueue, phase, elapsed, startQueue, cancelQueue, region, searching: counts, queueError } = useApp()
   const { ui } = useAppearance()
   const info = GAMES[queue.game]
+  // Rift doesn't offer 3v3 yet. A party invite can still pick it, so move the queue to a format Rift offers, or
+  // Queue would send one the page doesn't show.
+  const riftModes: (typeof queue.mode)[] = info.modes.filter((mode) => mode !== '3v3')
+  const hiddenMode = ui === 'rift' && !riftModes.includes(queue.mode) ? riftModes[0] : null
+  useEffect(() => {
+    if (hiddenMode) setQueue({ mode: hiddenMode })
+  }, [hiddenMode, setQueue])
   const searching = phase === 'searching'
   const found = phase === 'found'
 
@@ -65,7 +73,7 @@ export default function Queue() {
         </fieldset>
         <fieldset className="min-w-0">
           <legend className="mb-1 font-heading">Format</legend>
-          <Group disabled={searching} items={info.modes.filter((mode) => mode !== '3v3')} value={queue.mode}
+          <Group disabled={searching} items={riftModes} value={queue.mode}
             set={(mode) => setQueue({ mode })} />
         </fieldset>
         <fieldset className="min-w-0">

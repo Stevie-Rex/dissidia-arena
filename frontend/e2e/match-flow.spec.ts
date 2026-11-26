@@ -211,3 +211,18 @@ test('in Classic, a new chat message scrolls the page to it', async ({ page }) =
   await box.press('Enter')
   await expect(page.getByText('Good games.', { exact: true })).toBeInViewport()
 })
+
+test('after joining a party invite, Rift queues a format it offers', async ({ page }) => {
+  await page.clock.install()
+  const sent = await server(page)
+  await page.goto('/queue')
+  await expect(page.getByRole('heading', { level: 1, name: 'Queue' })).toBeVisible()
+  // The party invite arrives shortly after sign-in; joining it picks NT 3v3, which Rift doesn't offer yet.
+  await page.clock.fastForward(26_000)
+  await page.getByRole('button', { name: 'Join', exact: true }).click()
+  await page.getByRole('complementary', { name: 'Sidebar' }).getByRole('link', { name: 'Queue', exact: true }).click()
+  const queue = page.getByRole('main')
+  await expect(queue.getByRole('group', { name: 'Format' }).getByRole('button', { name: '1v1' })).toHaveAttribute('aria-pressed', 'true')
+  await queue.getByRole('button', { name: 'Queue', exact: true }).click()
+  await expect.poll(() => sent.find((s) => s.path === '/api/queue')?.body).toMatchObject({ game: 'nt', mode: '1v1' })
+})
