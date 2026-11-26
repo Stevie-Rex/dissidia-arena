@@ -1,10 +1,9 @@
 import { Link } from 'react-router-dom'
 import ConfigWindow from '../components/appearance/ConfigWindow'
 import InterfaceSwitcher from '../components/appearance/InterfaceSwitcher'
-import WorldsPicker from '../components/appearance/WorldsPicker'
 import { useAppearance } from '../state/Appearance'
 
-/** Appearance settings. Classic gets its Config window; Rift gets the interface and world choices. */
+/** Appearance settings. Classic gets its Config window; Rift gets the interface choice. */
 export default function Config() {
   const { ui } = useAppearance()
   if (ui === 'classic') return <ConfigWindow asPage />
@@ -26,12 +25,6 @@ export default function Config() {
           Interface
         </h2>
         <InterfaceSwitcher />
-      </section>
-      <section aria-labelledby="cfg-world" className="flex flex-col gap-3">
-        <h2 id="cfg-world" className="m-0 text-xl font-semibold">
-          World
-        </h2>
-        <WorldsPicker />
       </section>
     </div>
   )

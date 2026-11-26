@@ -48,7 +48,7 @@ const Ctx = createContext<AppearanceState | null>(null)
 function signedOut(a: Appearance): Appearance {
   const base = lockedAppearance()
   const p = a.preferences
-  return { ...base, preferences: { ...DEFAULT_PREFERENCES, world: p.world, cursor: p.cursor } }
+  return { ...base, preferences: { ...DEFAULT_PREFERENCES, cursor: p.cursor } }
 }
 
 export function AppearanceProvider({ children }: { children: ReactNode }) {

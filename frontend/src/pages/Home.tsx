@@ -2,7 +2,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import ConfigWindow from '../components/appearance/ConfigWindow'
 import { upcomingRewards } from '../components/appearance/copy'
 import RewardCards, { RewardRows } from '../components/appearance/RewardCards'
-import WorldsPicker from '../components/appearance/WorldsPicker'
 import { SideGlyph } from '../components/ui'
 import { GAMES, type GameId } from '../data/mock'
 import { useApp } from '../state/AppState'
@@ -153,13 +152,6 @@ function RiftHome() {
                 </button>
               )
             })}
-          </div>
-        </section>
-
-        <section className="py-10">
-          <SectionHead eyebrow="WORLDS" title="Choose a world" lore="Each crystal holds the colours of a different world. Choose one and the whole arena changes." />
-          <div className="mt-9">
-            <WorldsPicker />
           </div>
         </section>
 

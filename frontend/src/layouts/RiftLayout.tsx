@@ -7,8 +7,6 @@ import { Avatar, Btn, Logo, Pill } from '../components/ui'
 import { OPEN_STATUSES, roleLinks } from '../lib/api'
 import { cx } from '../lib/format'
 import { useApp } from '../state/AppState'
-import { useAppearance } from '../state/Appearance'
-import { WORLDS } from '../theme/appearance'
 
 function RiftHeader() {
   const { game, signedIn, startQueue, phase, live, requireSignIn, user } = useApp()
@@ -73,9 +71,7 @@ function RiftHeader() {
 }
 
 function RiftFooter() {
-  const { prefs } = useAppearance()
   const { user } = useApp()
-  const world = WORLDS.find((w) => w.key === prefs.world)?.name ?? 'Dissidia'
   return (
     <footer className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-line px-[clamp(20px,4vw,56px)] py-7 text-[13px] text-muted">
       <span>Dissidia Arena — a fan project</span>
@@ -99,7 +95,7 @@ function RiftFooter() {
           </Link>
         ))}
       </nav>
-      <span className="font-heading tracking-[0.1em]">INTERFACE: RIFT · WORLD: {world.toUpperCase()}</span>
+      <span className="font-heading tracking-[0.1em]">INTERFACE: RIFT</span>
     </footer>
   )
 }

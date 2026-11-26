@@ -8,7 +8,6 @@
 import tokens from './tokens.json'
 
 export type Interface = 'rift' | 'classic'
-export type World = 'dissidia' | 'crystal' | 'magitek' | 'mako' | 'gaia' | 'ivalice'
 export type WindowTheme = 'classic' | 'crystal' | 'magitek' | 'midgar' | 'garden' | 'gaia' | 'spira' | 'ivalice' | 'custom'
 export type MenuFont = 'auto' | 'bit16' | 'bit8' | 'story' | 'modern'
 export type Cursor = 'glove' | 'arrow'
@@ -16,7 +15,6 @@ export type Rgb = [number, number, number]
 
 export interface Preferences {
   interface: Interface
-  world: World
   window_theme: WindowTheme
   menu_font: MenuFont
   cursor: Cursor
@@ -61,19 +59,11 @@ export const REWARDS_BY_KEY: Record<string, RewardDef> = Object.fromEntries(REWA
 
 export const DEFAULT_PREFERENCES: Preferences = {
   interface: 'rift',
-  world: 'dissidia',
   window_theme: 'classic',
   menu_font: 'auto',
   cursor: 'glove',
   window_rgb: tokens.classic.customWindow.default as Rgb,
 }
-
-export const WORLDS = Object.entries(tokens.rift.worlds).map(([key, w]) => ({
-  key: key as World,
-  name: w.name,
-  numeral: w.numeral,
-  after: w.after,
-}))
 
 export const WINDOWS = Object.entries(tokens.classic.windows).map(([key, w]) => ({
   key: key as WindowTheme,
@@ -142,7 +132,6 @@ export function applyAppearance(p: Preferences, opts: { preview?: boolean } = {}
   el.setAttribute('data-interface', opts.preview ? 'classic' : p.interface)
   if (opts.preview) el.setAttribute('data-preview', 'classic')
   else el.removeAttribute('data-preview')
-  el.setAttribute('data-world', p.world)
   // A previewing player only has the base Classic window.
   const win = opts.preview ? 'classic' : p.window_theme
   el.setAttribute('data-window', win)

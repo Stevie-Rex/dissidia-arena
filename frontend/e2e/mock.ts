@@ -4,7 +4,6 @@ import tokens from '../src/theme/tokens.json' with { type: 'json' }
 
 type Prefs = {
   interface: string
-  world: string
   window_theme: string
   menu_font: string
   cursor: string
@@ -13,7 +12,6 @@ type Prefs = {
 
 const DEFAULTS: Prefs = {
   interface: 'rift',
-  world: 'dissidia',
   window_theme: 'classic',
   menu_font: 'auto',
   cursor: 'glove',
@@ -96,5 +94,4 @@ export async function mockApi(
   return server
 }
 
-export const WORLD_KEYS = Object.keys(tokens.rift.worlds)
 export const WINDOW_KEYS = Object.keys(tokens.classic.windows)

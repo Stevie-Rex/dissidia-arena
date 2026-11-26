@@ -3,7 +3,7 @@
 @import "tailwindcss";
 
 /*
- * Theme bridge. The colours live in theme/css/dissidia-theme.css (--rift-* per world, --win-* per window).
+ * Theme bridge. The colours live in theme/css/dissidia-theme.css (--rift-* for Rift, --win-* per window).
  * The --ui-* layer below picks one set per interface, and the Tailwind names the components already use
  * (ink, card, line, fg, gold, crystal, chaos, ...) point at --ui-*. No hex values here or in components.
  */
@@ -271,7 +271,7 @@ body,
     border-color: var(--win-border);
   }
 
-  /* Rift section eyebrow ("WORLDS", "REWARDS") and headings */
+  /* Rift section eyebrow ("APPEARANCE", "REWARDS") and headings */
   .da-eyebrow {
     margin: 0;
     font-family: var(--rift-font-heading);

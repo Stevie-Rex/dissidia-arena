@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { mockApi, WINDOW_KEYS, WORLD_KEYS } from './mock'
+import { mockApi, WINDOW_KEYS } from './mock'
 
 const html = (page: Page) => page.locator('html')
 
@@ -30,11 +30,10 @@ async function cosmosHeroRatios(page: Page): Promise<[string, number][]> {
 const classicButton = (page: Page) => page.getByRole('group', { name: 'Interface' }).getByRole('button', { name: /classic/i })
 
 test.describe('Rift for a new player', () => {
-  test('sees Rift with the Dissidia world, and Classic shows a lock', async ({ page }) => {
+  test('sees Rift, and Classic shows a lock', async ({ page }) => {
     await mockApi(page, { wins: null })
     await page.goto('/')
     await expect(html(page)).toHaveAttribute('data-interface', 'rift')
-    await expect(html(page)).toHaveAttribute('data-world', 'dissidia')
     await expect(page.getByRole('heading', { level: 1, name: 'Light shall endure.' })).toBeVisible()
     await expect(page.locator('h1')).toHaveCount(1)
     await expect(classicButton(page).getByRole('img', { name: 'Locked' })).toBeVisible()
@@ -52,12 +51,32 @@ test.describe('Rift for a new player', () => {
     await expect(panel).toBeHidden()
   })
 
-  test('choosing a world applies it at once and saves it', async ({ page }) => {
-    const server = await mockApi(page, { wins: 0 })
-    await page.goto('/')
-    await page.getByRole('button', { name: /Mako/ }).click()
-    await expect(html(page)).toHaveAttribute('data-world', 'mako')
-    await expect.poll(() => server.patches).toContainEqual({ world: 'mako' })
+  test('has no world picker on Home or Config', async ({ page }) => {
+    await mockApi(page, { wins: 0 })
+    for (const url of ['/', '/config']) {
+      await page.goto(url)
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      await expect(page.getByRole('heading', { name: /world/i })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: /Mako|Gaia|Ivalice/ })).toHaveCount(0)
+      await expect(html(page)).not.toHaveAttribute('data-world', /.*/)
+    }
+  })
+
+  test('an old cached world is ignored and the rest of the cached look still paints first', async ({ page }) => {
+    await mockApi(page, { wins: 0, getDelayMs: 3000 })
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'da-appearance',
+        JSON.stringify({
+          preferences: { interface: 'rift', window_theme: 'classic', menu_font: 'auto', cursor: 'arrow', window_rgb: [6, 10, 26] },
+          unlocks: [], rewards: [], ranked_wins: 0, ranked_losses: 0, next: null,
+        }),
+      )
+    })
+    await page.goto('/', { waitUntil: 'commit' })
+    await page.waitForSelector('html[data-cursor="arrow"]', { timeout: 2000 })
+    await expect(html(page)).not.toHaveAttribute('data-world', /.*/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Light shall endure.' })).toBeVisible()
   })
 })
 
@@ -125,14 +144,14 @@ test.describe('Classic for a player with 10 wins', () => {
       localStorage.setItem(
         'da-appearance',
         JSON.stringify({
-          preferences: { interface: 'rift', world: 'gaia', window_theme: 'classic', menu_font: 'auto', cursor: 'glove', window_rgb: [6, 10, 26] },
+          preferences: { interface: 'rift', window_theme: 'classic', menu_font: 'auto', cursor: 'glove', window_rgb: [6, 10, 26] },
           unlocks: ['classic_interface'], rewards: [], ranked_wins: 3, ranked_losses: 0, next: null,
         }),
       )
     })
     await page.goto('/', { waitUntil: 'commit' })
     // The cached look is on <html> before React renders (no flash).
-    await page.waitForSelector('html[data-world="gaia"]', { timeout: 2000 })
+    await page.waitForSelector('html[data-cursor="glove"][data-interface="rift"]', { timeout: 2000 })
     await classicButton(page).click()
     await expect.poll(() => server.patches).toContainEqual({ interface: 'classic' })
     await expect(html(page)).toHaveAttribute('data-interface', 'rift')
@@ -174,11 +193,11 @@ test.describe('Classic command menu', () => {
 })
 
 test.describe('Look and accessibility', () => {
-  for (const world of WORLD_KEYS) {
-    test(`Rift home passes colour contrast in the ${world} world`, async ({ page }) => {
-      await mockApi(page, { wins: 12, losses: 5, prefs: { world } })
+  for (const [label, size] of [['desktop', { width: 1280, height: 800 }], ['phone', { width: 375, height: 812 }]] as const) {
+    test(`Rift home passes colour contrast at ${label} width`, async ({ page }) => {
+      await page.setViewportSize(size)
+      await mockApi(page, { wins: 12, losses: 5 })
       await page.goto('/')
-      await expect(html(page)).toHaveAttribute('data-world', world)
       await page.waitForLoadState('networkidle')
       // axe ignores clip-path, so it reads the full-size Chaos layer as the Cosmos half's background.
       // Scan everything else with axe, and check the Cosmos half's colour pairs directly.
