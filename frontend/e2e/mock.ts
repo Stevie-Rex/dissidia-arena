@@ -1,4 +1,4 @@
-import type { Page, Request } from '@playwright/test'
+import { expect, type APIRequestContext, type Page, type Request } from '@playwright/test'
 import type { Role } from '../src/lib/api'
 import tokens from '../src/theme/tokens.json' with { type: 'json' }
 
@@ -100,3 +100,19 @@ export const WINDOW_KEYS = Object.keys(tokens.classic.windows)
 
 /** "Chaos mode" or "Cosmos mode", as GLOSSARY.md writes them, for test titles. */
 export const modeName = (mode: string) => `${mode[0].toUpperCase()}${mode.slice(1)} mode`
+
+/**
+ * The Discord feedback URL the suite expects the dev server to have been started with.
+ * playwright.config.ts sets it, but a dev server already running on the port is reused as it is,
+ * so check that server's build has the URL and fail with the cause if it doesn't.
+ */
+export async function feedbackUrlServed(request: APIRequestContext): Promise<string> {
+  const url = process.env.VITE_DISCORD_FEEDBACK_URL!
+  const source = await (await request.get('/src/lib/links.ts')).text()
+  expect(
+    source.includes(JSON.stringify(url)),
+    `The dev server on this port was started without VITE_DISCORD_FEEDBACK_URL=${url}. ` +
+      'Playwright reused it, so its environment was not set. Stop that server, or start it with the variable.',
+  ).toBe(true)
+  return url
+}

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { Role } from '../src/lib/api'
-import { mockApi, modeName } from './mock'
+import { feedbackUrlServed, mockApi, modeName } from './mock'
 
 const sidebar = (page: Page) => page.getByRole('complementary', { name: 'Sidebar' })
 const nav = (page: Page) => sidebar(page).getByRole('navigation', { name: 'Main' })
@@ -76,10 +76,11 @@ test.describe('Rift sidebar on desktop', () => {
     await expect(sidebar(page).getByRole('link', { name: 'game-icons.net' })).toBeVisible()
   })
 
-  test('the foot links to Discord for feedback', async ({ page }) => {
+  test('the foot links to Discord for feedback', async ({ page, request }) => {
+    const feedbackUrl = await feedbackUrlServed(request)
     await mockApi(page, { wins: 12 })
     await page.goto('/012')
-    await expect(sidebar(page).getByRole('link', { name: 'Feedback on Discord' })).toHaveAttribute('href', process.env.VITE_DISCORD_FEEDBACK_URL!)
+    await expect(sidebar(page).getByRole('link', { name: 'Feedback on Discord' })).toHaveAttribute('href', feedbackUrl)
   })
 
   test('the help strip shows what the hovered item does', async ({ page }) => {
