@@ -148,16 +148,16 @@
   padding: 7px 20px;
   background: var(--rift-helpstrip-face, none) var(--rift-helpstrip-bg);
   border-top: 1px solid var(--rift-helpstrip-edge);
-  box-shadow: inset 0 -1px 0 #000000;
+  box-shadow: inset 0 -1px 0 var(--rift-helpstrip-shade);
   clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px);
   color: var(--rift-helpstrip-ink);
-  text-shadow: 0 -1px 0 #000000;
+  text-shadow: 0 -1px 0 var(--rift-helpstrip-shade);
 }
 [data-rift-mode='cosmos'] .rift-banner__big {
   padding: 2px 14px;
   border-radius: 3px;
-  background: #1A2130;
-  color: #E9EDF3;
+  background: var(--rift-helpstrip-bg);
+  color: var(--rift-helpstrip-ink);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 

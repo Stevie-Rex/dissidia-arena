@@ -81,6 +81,7 @@
   --rift-helpstrip-ink: #EEEAE1;
   --rift-helpstrip-edge: #B4BDD0;
   --rift-helpstrip-mark: transparent;
+  --rift-scrim: rgba(4,5,10,0.82);
 }
 /* Cosmos mode: Burnished Steel (#55). Keys whose name ends in -face are gradients over the -bg colour. */
 [data-rift-mode="cosmos"] {
@@ -188,6 +189,8 @@
   --rift-helpstrip-ink: #DCE3EE;
   --rift-helpstrip-edge: transparent;
   --rift-helpstrip-mark: #7FA6EC;
+  --rift-helpstrip-shade: #000000;
+  --rift-scrim: rgba(146,154,168,0.92);
 }
 
 :root {

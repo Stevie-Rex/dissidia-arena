@@ -7,12 +7,9 @@
   place-items: center;
   overflow: hidden;
   padding: 1rem;
-  background: rgba(4, 5, 10, 0.82);
-}
-/* Cosmos mode: a neutral steel scrim, a shade darker than the lab's so the page underneath reads as set aside
-   (review fix 3 on #42). */
-[data-rift-mode='cosmos'] .rift-found {
-  background: rgba(146, 154, 168, 0.92);
+  /* Cosmos mode's is a neutral steel, a shade darker than the lab's so the page underneath reads as set aside
+     (review fix 3 on #42). */
+  background: var(--rift-scrim);
 }
 
 .rift-found__fx {
