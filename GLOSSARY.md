@@ -81,3 +81,21 @@ _Avoid_: Cancel, annul, null
 **Admin log**:
 The permanent record of every Admin and Master action, plus system actions such as auto-confirm: who acted (no one, for a system action), when, and the reason they gave. No one can edit or delete it.
 _Avoid_: Audit trail, history
+
+## Interface
+
+**Chaos mode**:
+The dark mode of the Rift interface, and the one the site opens in.
+_Avoid_: Dark mode, dark theme, Chaos (on its own)
+
+**Cosmos mode**:
+The light mode of the Rift interface.
+_Avoid_: Light mode, light theme, Cosmos (on its own)
+
+**Cosmos side**:
+The side a player always sees themselves on in a match, shown in blue, whichever mode they use.
+_Avoid_: Cosmos (on its own), team, player A
+
+**Chaos side**:
+The side a player always sees their opponent on in a match, shown in red, whichever mode they use.
+_Avoid_: Chaos (on its own), team, player B
