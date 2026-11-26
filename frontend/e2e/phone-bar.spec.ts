@@ -90,3 +90,21 @@ test('players can reach Settings through More without seeing Admin links', async
   await page.getByRole('link', { name: 'Settings' }).click()
   await expect(page).toHaveURL(/\/config$/)
 })
+
+for (const mode of ['chaos', 'cosmos'] as const) {
+  test(`the signed-out phone header fits a 320px screen in ${modeName(mode)}`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 640 })
+    await mockApi(page, { wins: null, prefs: { rift_mode: mode } })
+    await page.goto('/')
+    const header = page.getByRole('banner')
+    const signIn = header.getByRole('button', { name: 'Sign in' })
+    await expect(signIn).toBeVisible()
+    const controls = [signIn, ...(await header.getByRole('group', { name: 'Game' }).getByRole('button').all())]
+    for (const control of controls) {
+      const box = (await control.boundingBox())!
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width).toBeLessThanOrEqual(320)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+  })
+}
