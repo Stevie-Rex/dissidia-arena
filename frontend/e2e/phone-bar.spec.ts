@@ -94,8 +94,19 @@ test('players can reach Settings through More without seeing Admin links', async
 for (const mode of ['chaos', 'cosmos'] as const) {
   test(`the signed-out phone header fits a 320px screen in ${modeName(mode)}`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 640 })
-    await mockApi(page, { wins: null, prefs: { rift_mode: mode } })
+    await mockApi(page, { wins: null })
+    // Signed out, the mode comes from the cached appearance, not from the API.
+    await page.addInitScript((riftMode) => {
+      localStorage.setItem(
+        'da-appearance',
+        JSON.stringify({
+          preferences: { interface: 'rift', window_theme: 'classic', menu_font: 'auto', cursor: 'glove', window_rgb: [6, 10, 26], rift_mode: riftMode },
+          unlocks: [], rewards: [], ranked_wins: 0, ranked_losses: 0, next: null,
+        }),
+      )
+    }, mode)
     await page.goto('/')
+    await expect(page.locator('html')).toHaveAttribute('data-rift-mode', mode)
     const header = page.getByRole('banner')
     const signIn = header.getByRole('button', { name: 'Sign in' })
     await expect(signIn).toBeVisible()
