@@ -644,3 +644,74 @@
   .lab.lab[data-light="c"] .lab-hero__copy { position: relative; left: auto; bottom: auto; padding: 4px 16px 0; }
   .lab.lab[data-light="c"] .lab-glass-row { margin-top: 20px; }
 }
+
+/* =====================================================================================================
+   C · pass 6 (#58): Cosmos mode. The Cosmos blue key (decided), and the Cosmos accent and Cosmos plates
+   switches (data-accent and data-plates on the lab root). Chaos mode is not touched: every rule is scoped to C.
+   ===================================================================================================== */
+
+/* The Cosmos blue key: the one action per screen that gets the player into a game. Deeper than the selection
+   blue, with a gem-like sheen, white lettering, and the same lip and press as the silver keys. It replaces the
+   old "match" colours, which were the selection blue. */
+.lab.lab[data-light="c"] {
+  --key-cosmos-face: linear-gradient(180deg, #3C5BBB 0%, #1C388F 34%, #102668 66%, #0C1D55 100%);
+  --key-cosmos-gleam: radial-gradient(120% 70% at 28% 0%, rgba(176, 204, 255, 0.34), transparent 55%);
+  --key-cosmos-sheen: linear-gradient(115deg, transparent 0 38%, rgba(255, 255, 255, 0.15) 45%, transparent 52%);
+  --key-cosmos-lip: #06123A;
+  --btn-match-bg: var(--key-cosmos-face);
+  --btn-match-ink: #FFFFFF;
+}
+.lab.lab[data-light="c"] :is(.lab-btn--main, .lab-btn--match) {
+  background: var(--key-cosmos-sheen), var(--key-cosmos-gleam), var(--key-cosmos-face);
+  color: #FFFFFF !important;
+  border-color: var(--key-cosmos-lip);
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(206, 222, 255, 0.75),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+    inset 0 0 0 1px rgba(120, 160, 255, 0.22),
+    0 3px 0 var(--key-cosmos-lip),
+    0 5px 10px rgba(6, 18, 58, 0.45) !important;
+}
+.lab.lab[data-light="c"] :is(.lab-btn--main, .lab-btn--match):hover { filter: brightness(1.12) saturate(1.05); }
+.lab.lab[data-light="c"] :is(.lab-btn--main, .lab-btn--match):active {
+  filter: brightness(0.92);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5), 0 0 0 var(--key-cosmos-lip) !important;
+}
+/* Focus: a dark ring clear of the lip, so it never blends into the blue. */
+.lab.lab[data-light="c"] :is(.lab-btn--main, .lab-btn--match):focus-visible { outline: 2px solid var(--ink); outline-offset: 5px; }
+/* Reduced motion is covered by the C rules above: every key's press loses its lip without moving. */
+
+/* Cosmos accent. Olive is direction C's own value (--gold above). Each candidate passes 4.5:1 for normal text on
+   the ground (#B8BFCA), the plates (down to #C9CFD9), the wells (#BEC4CE) and the sidebar rail (down to #A9B1BD). */
+.lab.lab[data-light="c"][data-accent="warm"] { --gold: #62390F; }
+.lab.lab[data-light="c"][data-accent="copper"] { --gold: #6E3017; }
+.lab.lab[data-light="c"][data-accent="antique"] { --gold: #524006; }
+
+/* Cosmos plates: Glass. Home's panels and the Hub's banner plates turn to frosted glass, keeping the steel set's
+   border, bevel and corners. The match room and More keep steel. */
+.lab.lab[data-light="c"][data-plates="glass"] :is(.lab-home .lab-glass, .lab-hub .lab-banner__inner) {
+  background: linear-gradient(180deg, rgba(244, 246, 249, 0.62), rgba(214, 219, 227, 0.52));
+  border-color: rgba(62, 71, 87, 0.85);
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.9),
+    inset -1px -1px 0 rgba(110, 119, 136, 0.55),
+    inset 0 0 0 3px rgba(255, 255, 255, 0.1),
+    0 1px 0 rgba(238, 241, 245, 0.55),
+    var(--shadow);
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+}
+.lab.lab[data-light="c"][data-plates="glass"] .lab-hub .lab-banner--blade2:is(:hover, :focus-within) .lab-banner__inner {
+  background: linear-gradient(180deg, rgba(250, 251, 253, 0.74), rgba(226, 230, 236, 0.64));
+}
+/* Home: the hero fades out later, so the panels that sit over its foot frost the art, not bare ground. */
+.lab.lab[data-light="c"][data-plates="glass"] .lab-home .lab-hero::after {
+  background: linear-gradient(180deg, transparent 72%, color-mix(in srgb, var(--bg) 55%, transparent) 100%);
+}
+
+/* Hub with Glass: the facet backdrop in dimmed steel. */
+.lab-facets-steel { position: absolute; inset: 0; pointer-events: none; }
+.lab.lab[data-light="c"] .lab-facets-steel path { fill: var(--steel-lo); opacity: 0.16; stroke: var(--steel-hi); stroke-opacity: 0.55; }
+.lab.lab[data-light="c"] .lab-facets-steel path:nth-child(3n + 2) { fill: var(--steel-hi); opacity: 0.45; }
+.lab.lab[data-light="c"] .lab-facets-steel path:nth-child(3n) { fill: #4E5768; opacity: 0.12; }

@@ -1,5 +1,5 @@
 /*
- * Lab (#40), design pass 5. A dev-only page for choosing the Rift redesign by eye. Fixed sample data, no API,
+ * Lab (#40), design pass 6 (Cosmos mode, #58). A dev-only page for choosing the Rift redesign by eye. Fixed sample data, no API,
  * no sign-in. This branch never merges. Decisions so far are recorded on #40.
  */
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type SyntheticEvent } from 'react'
@@ -24,7 +24,7 @@ import {
 import { HelpStrip, MenuBars, PickerList, TabTitle, type MenuItem, type PickerSpec } from './menus'
 import { GAMES, MATCH, OPPONENT, PLAYER, nextUnlock, type LabGame } from './sample'
 import { loadMuted, playMatchFound, saveMuted, unlockAudio } from './sound'
-import { LIGHT_VARIANTS, LightBackdrop, LightHero, LightSwitcher, readLightVariant, type LightVariant } from './LightVariants'
+import { LIGHT_VARIANTS, LightBackdrop, LightHero, LightSwitcher, SteelFacets, readLightVariant, type LightVariant } from './LightVariants'
 import './lab.css'
 import './lab-light.css'
 
@@ -45,6 +45,31 @@ type UnlockBar = 'duo' | 'blue' | 'gold' | 'shift' | 'sweep'
 type LightFrame = 'silver' | 'navy' | 'gold' | 'line'
 /** Pass 5: button colours in the light theme. */
 type BtnSet = 'current' | 'navy' | 'silver' | 'blue' | 'ink'
+/** Pass 6 (#58): Cosmos mode's accent, in direction C only. */
+type CosmosAccent = 'olive' | 'warm' | 'copper' | 'antique'
+/** Pass 6 (#58): steel or frosted glass plates on Home and Hub, in direction C only. */
+type CosmosPlates = 'steel' | 'glass'
+/** Pass 6 (#58): the size of direction C's hero medallion and its Chaos slab. */
+type MedallionSize = 'current' | '80' | '65'
+
+/** Each accent passes WCAG AA for normal text on Cosmos mode's ground, plates and wells. Values in lab-light.css. */
+const COSMOS_ACCENTS: { value: CosmosAccent; label: string; detail: string }[] = [
+  { value: 'olive', label: 'Olive · Current', detail: 'What direction C uses now' },
+  { value: 'warm', label: 'Warm bronze · New', detail: 'A warm, golden bronze' },
+  { value: 'copper', label: 'Copper bronze · New', detail: 'A redder bronze, close to copper' },
+  { value: 'antique', label: 'Antique gold · New', detail: 'A dark, aged gold' },
+]
+
+const COSMOS_PLATES: { value: CosmosPlates; label: string; detail: string }[] = [
+  { value: 'steel', label: 'Steel · Current', detail: 'Solid brushed-steel plates everywhere' },
+  { value: 'glass', label: 'Glass · New', detail: 'Frosted glass on Home and Hub; the match room and More keep steel' },
+]
+
+const MEDALLIONS: { value: MedallionSize; label: string; scale: number }[] = [
+  { value: 'current', label: 'Current', scale: 1 },
+  { value: '80', label: '80% · New', scale: 0.8 },
+  { value: '65', label: '65% · New', scale: 0.65 },
+]
 
 const LIGHT_FRAMES: { value: LightFrame; label: string; detail: string }[] = [
   { value: 'silver', label: 'Silver', detail: 'What it uses now: silver rim, pale fill' },
@@ -118,21 +143,31 @@ function Choice<T extends string>({
   )
 }
 
+/**
+ * `main` marks the one action per screen that gets the player into a game (Queue, Accept, Go to match). Cosmos
+ * mode draws it as the Cosmos blue key; everywhere else it keeps the look of its variant.
+ */
 function Button({
   children,
   variant = 'primary',
   size = 'md',
+  main,
   onClick,
   className,
 }: {
   children: ReactNode
   variant?: 'primary' | 'ghost' | 'chaos' | 'match'
   size?: 'md' | 'lg'
+  main?: boolean
   onClick?: () => void
   className?: string
 }) {
   return (
-    <button type="button" className={cx('lab-btn', `lab-btn--${variant}`, size === 'lg' && 'lab-btn--lg', className)} onClick={onClick}>
+    <button
+      type="button"
+      className={cx('lab-btn', `lab-btn--${variant}`, size === 'lg' && 'lab-btn--lg', main && 'lab-btn--main', className)}
+      onClick={onClick}
+    >
       <span>{children}</span>
     </button>
   )
@@ -207,7 +242,7 @@ function StatusContent({
         <span style={{ width: `${(left / ACCEPT_SECONDS) * 100}%` }} />
       </div>
       <div className="lab-status__actions">
-        <Button size="lg" onClick={onAccept}>
+        <Button size="lg" main onClick={onAccept}>
           Accept
         </Button>
         <Button variant="ghost" onClick={onCancel}>
@@ -445,7 +480,7 @@ function Banner({ style, tone, kicker, big, text, action, onAction }: BannerProp
           </div>
         </div>
         {action && (
-          <Button variant={tone === 'match' ? 'match' : 'primary'} onClick={onAction}>
+          <Button variant={tone === 'match' ? 'match' : 'primary'} main onClick={onAction}>
             {action}
           </Button>
         )}
@@ -489,7 +524,9 @@ function Home({ game, hero, onQueue, onMatch }: { game: LabGame; hero: ReactNode
           <h1 className="lab-display">Dissidia Arena</h1>
           <p className="lab-hero__lede">Ranked 1v1 for Dissidia 012 and NT. Queue, fight a Bo3, climb.</p>
           <div className="lab-hero__actions">
-            <Button onClick={onQueue}>Queue</Button>
+            <Button main onClick={onQueue}>
+              Queue
+            </Button>
             <Button variant="ghost">Read the rules</Button>
           </div>
         </div>
@@ -499,13 +536,15 @@ function Home({ game, hero, onQueue, onMatch }: { game: LabGame; hero: ReactNode
         <div className="lab-glass">
           <span className="lab-glass__label">Searching now · {game}</span>
           <strong className="lab-stat">{gameInfo(game).searching}</strong>
-          <Button onClick={onQueue}>Queue</Button>
+          <Button main onClick={onQueue}>
+            Queue
+          </Button>
         </div>
         <div className="lab-glass lab-glass--chaos">
           <span className="lab-glass__label">Your match</span>
           <strong className="lab-stat">1–1</strong>
           <span className="lab-glass__text">vs {OPPONENT.name}</span>
-          <Button variant="match" onClick={onMatch}>
+          <Button variant="match" main onClick={onMatch}>
             Go to match
           </Button>
         </div>
@@ -554,7 +593,7 @@ function Hub({
 }) {
   const banners = hubBanners(game, onQueue, onMatch)
   return (
-    <div className="lab-page">
+    <div className="lab-page lab-hub">
       <p className="lab-kicker">{gameInfo(game).name}</p>
       <h1 className="lab-h1">Hub</h1>
       <div className="lab-banners">
@@ -1029,6 +1068,7 @@ function MatchFound({
         <div className="lab-actions lab-actions--center">
           <Button
             size="lg"
+            main
             onClick={() => {
               accepted.current = true
               onAccept()
@@ -1065,6 +1105,9 @@ export default function Lab() {
   const [unlockBar, setUnlockBar] = useState<UnlockBar>('blue')
   const [lightFrame, setLightFrame] = useState<LightFrame>('navy')
   const [btnSet, setBtnSet] = useState<BtnSet>('silver')
+  const [cosmosAccent, setCosmosAccent] = useState<CosmosAccent>('olive')
+  const [cosmosPlates, setCosmosPlates] = useState<CosmosPlates>('steel')
+  const [medallion, setMedallion] = useState<MedallionSize>('current')
   const [muted, setMutedState] = useState(loadMuted)
   /** Bumped to replay the match-found overlay; 0 means it is closed. */
   const [foundRun, setFoundRun] = useState(0)
@@ -1132,7 +1175,14 @@ export default function Lab() {
     status === 'none' ? null : { status, game, onCancel: () => setStatus('none'), onAccept: accept }
 
   const content = {
-    home: <Home game={game} hero={<LightHero variant={mode === 'light' ? lightVariant : 'p5'} />} onQueue={queue} onMatch={() => setPage('match')} />,
+    home: (
+      <Home
+        game={game}
+        hero={<LightHero variant={mode === 'light' ? lightVariant : 'p5'} medallion={MEDALLIONS.find((m) => m.value === medallion)!.scale} />}
+        onQueue={queue}
+        onMatch={() => setPage('match')}
+      />
+    ),
     hub: <Hub style={banner} unlockBar={unlockBar} game={game} onQueue={queue} onMatch={() => setPage('match')} />,
     match: <MatchRoom game={game} scoreFont={scoreFont} onFound={findMatch} />,
     menus: <Menus muted={muted} setMuted={setMuted} />,
@@ -1140,11 +1190,15 @@ export default function Lab() {
     light: <LightTests lightFrame={lightFrame} btnSet={btnSet} />,
   }[page]
   const backdrop = page !== 'match'
+  /** The pass 6 switches only mean something in Cosmos mode, direction C. */
+  const cosmosC = mode === 'light' && lightVariant === 'c'
+  const stageBackdrop =
+    mode === 'dark' ? <FacetBackdrop /> : cosmosC && cosmosPlates === 'glass' && page === 'hub' ? <SteelFacets /> : <LightBackdrop variant={lightVariant} />
 
   return (
-    <div className={cx('lab', still && 'lab--still', clean && 'lab--clean')} data-fontset={fontSet} data-mode={mode} data-screen={screen} data-lightframe={lightFrame} data-btnset={btnSet} data-light={mode === 'light' && lightVariant !== 'p5' ? lightVariant : undefined}>
+    <div className={cx('lab', still && 'lab--still', clean && 'lab--clean')} data-fontset={fontSet} data-mode={mode} data-screen={screen} data-lightframe={lightFrame} data-btnset={btnSet} data-light={mode === 'light' && lightVariant !== 'p5' ? lightVariant : undefined} data-accent={cosmosAccent} data-plates={cosmosPlates}>
       <header className="lab-toolbar" aria-label="Lab controls">
-        <strong className="lab-toolbar__title">Lab · light variants (#55)</strong>
+        <strong className="lab-toolbar__title">Lab · Cosmos mode pass 6 (#58)</strong>
         <button type="button" className="lab-toolbar__hide" onClick={() => setClean(true)} title="Hide the lab controls (H)">
           Hide controls · H
         </button>
@@ -1184,8 +1238,8 @@ export default function Lab() {
           value={mode}
           onChange={setMode}
           options={[
-            { value: 'dark', label: 'Dark' },
-            { value: 'light', label: 'Light' },
+            { value: 'dark', label: 'Chaos' },
+            { value: 'light', label: 'Cosmos' },
           ]}
         />
         <Choice
@@ -1272,6 +1326,31 @@ export default function Lab() {
           }}
           options={BTN_SETS.map((b) => ({ value: b.value, label: b.label, title: b.detail }))}
         />
+        {cosmosC && (
+          <>
+            <Choice
+              label="Cosmos accent · New"
+              value={cosmosAccent}
+              onChange={setCosmosAccent}
+              options={COSMOS_ACCENTS.map((a) => ({ value: a.value, label: a.label, title: a.detail }))}
+            />
+            <Choice
+              label="Cosmos plates · New"
+              value={cosmosPlates}
+              onChange={setCosmosPlates}
+              options={COSMOS_PLATES.map((p) => ({ value: p.value, label: p.label, title: p.detail }))}
+            />
+            <Choice
+              label="Medallion · New"
+              value={medallion}
+              onChange={(m) => {
+                setMedallion(m)
+                setPage('home')
+              }}
+              options={MEDALLIONS.map((m) => ({ value: m.value, label: m.label }))}
+            />
+          </>
+        )}
         <Choice
           label="Match found"
           value={anim}
@@ -1313,7 +1392,7 @@ export default function Lab() {
 
       <div className="lab-stage-wrap">
         <div className="lab-stage">
-          {backdrop && (mode === 'light' ? <LightBackdrop variant={lightVariant} /> : <FacetBackdrop />)}
+          {backdrop && stageBackdrop}
           <div className="lab-shell" onMouseOver={readHint} onFocus={readHint} inert={foundRun > 0}>
             <Sidebar
               page={page}

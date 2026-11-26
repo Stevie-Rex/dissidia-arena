@@ -98,6 +98,15 @@ function PearlBackdrop() {
   )
 }
 
+/** C with glass plates, on the Hub only: the facet backdrop in dimmed steel, so the frosted plates have something to sit on. */
+export function SteelFacets() {
+  return (
+    <div className="lab-facets-steel" aria-hidden>
+      <FacetBackdrop />
+    </div>
+  )
+}
+
 export function LightBackdrop({ variant }: { variant: LightVariant }) {
   if (variant === 'a') return <PearlBackdrop />
   if (variant === 'p5') return <FacetBackdrop />
@@ -259,8 +268,15 @@ function CodexHero() {
 /**
  * C · Burnished Steel. Brushed steel for Cosmos, blackened steel for Chaos, and a machined medallion across the
  * seam with a cut gem set in it. One specular sweep crosses the polished side.
+ *
+ * `scale` (pass 6, #58) shrinks the medallion and the Chaos slab together: the slab keeps its seam angle and is
+ * `scale` times as wide, and the medallion stays centred on the seam at `scale` times its size.
  */
-function SteelHero() {
+function SteelHero({ scale = 1 }: { scale?: number }) {
+  // At full size the seam runs from 860,0 to 660,520 and the medallion sits on it at 760,260, 440 from the edge.
+  const cx = +(1200 - 440 * scale).toFixed(1)
+  const top = cx + 100
+  const bottom = cx - 100
   // Eight small cut stones set into the rim, at the compass points and between them.
   const studs = Array.from({ length: 8 }, (_, i) => {
     const a = ((i * 45 - 90) * Math.PI) / 180
@@ -295,10 +311,10 @@ function SteelHero() {
           <stop offset="1" stopColor="var(--hero-sun)" stopOpacity="0" />
         </linearGradient>
         <clipPath id="lv-c-chaos">
-          <path d="M860 0 L1200 0 L1200 520 L660 520 Z" />
+          <path d={`M${top} 0 L1200 0 L1200 520 L${bottom} 520 Z`} />
         </clipPath>
         <clipPath id="lv-c-cosmos">
-          <path d="M0 0 L860 0 L660 520 L0 520 Z" />
+          <path d={`M0 0 L${top} 0 L${bottom} 520 L0 520 Z`} />
         </clipPath>
       </defs>
 
@@ -317,7 +333,7 @@ function SteelHero() {
         </g>
       </g>
 
-      <g transform="translate(760 260)">
+      <g transform={`translate(${cx} 260) scale(${scale})`}>
         <circle r="236" fill="none" stroke="var(--steel-lo)" strokeWidth="2" opacity="0.6" />
         <circle r="224" fill="none" stroke="url(#lv-c-rim)" strokeWidth="16" />
         <circle r="200" fill="none" stroke="var(--steel-lo)" strokeWidth="1" opacity="0.7" />
@@ -341,9 +357,9 @@ function SteelHero() {
   )
 }
 
-export function LightHero({ variant }: { variant: LightVariant }) {
+export function LightHero({ variant, medallion = 1 }: { variant: LightVariant; medallion?: number }) {
   if (variant === 'a') return <PearlHero />
   if (variant === 'b') return <CodexHero />
-  if (variant === 'c') return <SteelHero />
+  if (variant === 'c') return <SteelHero scale={medallion} />
   return <HeroComposition />
 }
