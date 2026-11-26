@@ -2,11 +2,11 @@
  * Lab (#40), design pass 5. A dev-only page for choosing the Rift redesign by eye. Fixed sample data, no API,
  * no sign-in. This branch never merges. Decisions so far are recorded on #40.
  */
-import { useEffect, useState, type CSSProperties, type ReactNode, type SyntheticEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type SyntheticEvent } from 'react'
 
 import { Avatar } from '../components/ui'
 import { cx } from '../lib/format'
-import { FacetBackdrop, FramedCrest, FramedIcon, GameEmblem, HeroComposition, MoonGlyph, SoundGlyph, SunGlyph, type Frame } from './crests'
+import { FacetBackdrop, FramedCrest, FramedIcon, GameEmblem, MoonGlyph, SoundGlyph, SunGlyph, type Frame } from './crests'
 import {
   GiCrenulatedShield,
   GiCrossedSwords,
@@ -24,7 +24,9 @@ import {
 import { HelpStrip, MenuBars, PickerList, TabTitle, type MenuItem, type PickerSpec } from './menus'
 import { GAMES, MATCH, OPPONENT, PLAYER, nextUnlock, type LabGame } from './sample'
 import { loadMuted, playMatchFound, saveMuted, unlockAudio } from './sound'
+import { LIGHT_VARIANTS, LightBackdrop, LightHero, LightSwitcher, readLightVariant, type LightVariant } from './LightVariants'
 import './lab.css'
+import './lab-light.css'
 
 type FontSet = 'a' | 'b' | 'c'
 type Mode = 'dark' | 'light'
@@ -392,7 +394,7 @@ function Credits() {
 
 /* ---------- phone bottom bar: five equal tiles ---------- */
 
-function BottomBar({ page, setPage, frame }: { page: Page; setPage: (p: Page) => void; frame: Frame }) {
+function BottomBar({ page, setPage, frame, inert }: { page: Page; setPage: (p: Page) => void; frame: Frame; inert?: boolean }) {
   const tiles: { key: string; label: string; glyph: Glyph; page?: Page }[] = [
     { key: 'hub', label: 'Hub', glyph: (s) => <GiStoneTower size={s} />, page: 'hub' },
     { key: 'ladder', label: 'Ladder', glyph: (s) => <GiLaurels size={s} /> },
@@ -402,7 +404,7 @@ function BottomBar({ page, setPage, frame }: { page: Page; setPage: (p: Page) =>
   ]
   const active = NAV_KEY[page]
   return (
-    <nav className="lab-bottombar" aria-label="Phone navigation">
+    <nav className="lab-bottombar" aria-label="Phone navigation" inert={inert}>
       {tiles.map((t) => (
         <button
           key={t.key}
@@ -477,11 +479,11 @@ function hubBanners(game: LabGame, onQueue: () => void, onMatch: () => void): Om
 
 /* ---------- pages ---------- */
 
-function Home({ game, onQueue, onMatch }: { game: LabGame; onQueue: () => void; onMatch: () => void }) {
+function Home({ game, hero, onQueue, onMatch }: { game: LabGame; hero: ReactNode; onQueue: () => void; onMatch: () => void }) {
   return (
     <div className="lab-home">
       <section className="lab-hero" aria-label="Hero">
-        <HeroComposition />
+        {hero}
         <div className="lab-hero__copy">
           <p className="lab-kicker">The Rift is open</p>
           <h1 className="lab-display">Dissidia Arena</h1>
@@ -924,8 +926,50 @@ function MatchFound({
   onAccept: () => void
   onDecline: () => void
 }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const accepted = useRef(false)
+
+  // Focus moves into the dialog on open. On close it goes back where it came from, or to the match room heading
+  // after Accept.
+  useEffect(() => {
+    const dialog = ref.current
+    const opener = document.activeElement instanceof HTMLElement && !dialog?.contains(document.activeElement) ? document.activeElement : null
+    dialog?.querySelector<HTMLElement>('.lab-found__card button')?.focus()
+    return () => {
+      requestAnimationFrame(() => {
+        // Still on the page: a dev-mode effect re-run, not a real close.
+        if (dialog?.isConnected) return
+        const heading = document.querySelector<HTMLElement>('.lab-main :is(h1, h2)')
+        const target = accepted.current || !opener?.isConnected ? heading : opener
+        if (target === heading) heading?.setAttribute('tabindex', '-1')
+        target?.focus()
+      })
+    }
+  }, [])
+
+  // Tab and Shift+Tab stay inside the dialog. Escape declines, the same as the Decline key.
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      onDecline()
+      return
+    }
+    if (e.key !== 'Tab' || !ref.current) return
+    const keys = [...ref.current.querySelectorAll<HTMLElement>('button:not([disabled])')]
+    if (keys.length === 0) return
+    const first = keys[0]
+    const last = keys[keys.length - 1]
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
+
   return (
-    <div className={cx('lab-found', `lab-found--${anim}`)} role="dialog" aria-modal aria-label="Match found">
+    <div ref={ref} className={cx('lab-found', `lab-found--${anim}`)} role="dialog" aria-modal aria-label="Match found" onKeyDown={onKeyDown}>
       <div className="lab-found__fx" aria-hidden>
         {anim === 'shatter' && (
           <>
@@ -983,7 +1027,13 @@ function MatchFound({
           {game} · 1v1 Bo3 · {PLAYER.region}
         </p>
         <div className="lab-actions lab-actions--center">
-          <Button size="lg" onClick={onAccept}>
+          <Button
+            size="lg"
+            onClick={() => {
+              accepted.current = true
+              onAccept()
+            }}
+          >
             Accept
           </Button>
           <Button variant="ghost" onClick={onDecline}>
@@ -999,7 +1049,8 @@ function MatchFound({
 
 export default function Lab() {
   const [fontSet, setFontSet] = useState<FontSet>('c')
-  const [mode, setMode] = useState<Mode>('dark')
+  const [lightVariant, setLightVariant] = useState<LightVariant>(() => readLightVariant() ?? 'a')
+  const [mode, setMode] = useState<Mode>(() => (readLightVariant() ? 'light' : 'dark'))
   const [statusSpot, setStatusSpot] = useState<StatusSpot>('floating')
   const [status, setStatus] = useState<Status>('searching')
   const [banner, setBanner] = useState<BannerStyle>('blade2')
@@ -1018,6 +1069,21 @@ export default function Lab() {
   /** Bumped to replay the match-found overlay; 0 means it is closed. */
   const [foundRun, setFoundRun] = useState(0)
   const [hint, setHint] = useState(DEFAULT_HINT)
+  /** Hides the lab toolbar and the variant bar so the design can be seen on its own. H toggles it. */
+  const [clean, setClean] = useState(() => localStorage.getItem('lab-clean') === '1')
+  useEffect(() => {
+    localStorage.setItem('lab-clean', clean ? '1' : '0')
+  }, [clean])
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'h' || e.metaKey || e.ctrlKey || e.altKey) return
+      const el = document.activeElement as HTMLElement | null
+      if (el && (el.matches('input, textarea, select, [contenteditable]') || el.isContentEditable)) return
+      setClean((c) => !c)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   useEffect(() => {
     const prev = document.title
@@ -1066,7 +1132,7 @@ export default function Lab() {
     status === 'none' ? null : { status, game, onCancel: () => setStatus('none'), onAccept: accept }
 
   const content = {
-    home: <Home game={game} onQueue={queue} onMatch={() => setPage('match')} />,
+    home: <Home game={game} hero={<LightHero variant={mode === 'light' ? lightVariant : 'p5'} />} onQueue={queue} onMatch={() => setPage('match')} />,
     hub: <Hub style={banner} unlockBar={unlockBar} game={game} onQueue={queue} onMatch={() => setPage('match')} />,
     match: <MatchRoom game={game} scoreFont={scoreFont} onFound={findMatch} />,
     menus: <Menus muted={muted} setMuted={setMuted} />,
@@ -1076,9 +1142,12 @@ export default function Lab() {
   const backdrop = page !== 'match'
 
   return (
-    <div className={cx('lab', still && 'lab--still')} data-fontset={fontSet} data-mode={mode} data-screen={screen} data-lightframe={lightFrame} data-btnset={btnSet}>
+    <div className={cx('lab', still && 'lab--still', clean && 'lab--clean')} data-fontset={fontSet} data-mode={mode} data-screen={screen} data-lightframe={lightFrame} data-btnset={btnSet} data-light={mode === 'light' && lightVariant !== 'p5' ? lightVariant : undefined}>
       <header className="lab-toolbar" aria-label="Lab controls">
-        <strong className="lab-toolbar__title">Lab · pass 5</strong>
+        <strong className="lab-toolbar__title">Lab · light variants (#55)</strong>
+        <button type="button" className="lab-toolbar__hide" onClick={() => setClean(true)} title="Hide the lab controls (H)">
+          Hide controls · H
+        </button>
         <Choice
           label="Page"
           value={page}
@@ -1174,7 +1243,19 @@ export default function Lab() {
           options={UNLOCK_BARS.map((u) => ({ value: u.value, label: u.label, title: u.detail }))}
         />
         <Choice
-          label="Light frames"
+          label="Light variant"
+          value={lightVariant}
+          onChange={(v) => {
+            setLightVariant(v)
+            setMode('light')
+            const url = new URL(window.location.href)
+            url.searchParams.set('light', v)
+            window.history.replaceState(null, '', url)
+          }}
+          options={LIGHT_VARIANTS.map((v) => ({ value: v.key, label: v.key === 'p5' ? '0 · Pass 5' : `${v.key.toUpperCase()} · ${v.name}`, title: v.idea }))}
+        />
+        <Choice
+          label="Light frames (0 only)"
           value={lightFrame}
           onChange={(f) => {
             setLightFrame(f)
@@ -1183,7 +1264,7 @@ export default function Lab() {
           options={LIGHT_FRAMES.map((f) => ({ value: f.value, label: f.label, title: f.detail }))}
         />
         <Choice
-          label="Light buttons"
+          label="Light buttons (0 only)"
           value={btnSet}
           onChange={(b) => {
             setBtnSet(b)
@@ -1224,10 +1305,16 @@ export default function Lab() {
         <p className="lab-toolbar__fonts">{FONT_SETS.find((f) => f.value === fontSet)!.detail}</p>
       </header>
 
+      {clean && (
+        <button type="button" className="lab-showcontrols" onClick={() => setClean(false)} title="Show the lab controls (H)">
+          Lab · H
+        </button>
+      )}
+
       <div className="lab-stage-wrap">
         <div className="lab-stage">
-          {backdrop && <FacetBackdrop />}
-          <div className="lab-shell" onMouseOver={readHint} onFocus={readHint}>
+          {backdrop && (mode === 'light' ? <LightBackdrop variant={lightVariant} /> : <FacetBackdrop />)}
+          <div className="lab-shell" onMouseOver={readHint} onFocus={readHint} inert={foundRun > 0}>
             <Sidebar
               page={page}
               setPage={setPage}
@@ -1262,16 +1349,26 @@ export default function Lab() {
                 statusSpot === 'sidebar' && 'lab-status--phone-only',
               )}
               role="status"
+              inert={foundRun > 0}
             >
               <StatusContent key={status} {...statusProps} />
             </div>
           )}
 
-          <BottomBar page={page} setPage={setPage} frame={frame} />
+          <BottomBar page={page} setPage={setPage} frame={frame} inert={foundRun > 0} />
 
           {foundRun > 0 && <MatchFound key={foundRun} anim={anim} game={game} frame={frame} onAccept={accept} onDecline={decline} />}
         </div>
       </div>
+
+      {mode === 'light' && (
+        <LightSwitcher
+          value={lightVariant}
+          onChange={(v) => {
+            setLightVariant(v)
+          }}
+        />
+      )}
     </div>
   )
 }

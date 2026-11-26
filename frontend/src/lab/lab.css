@@ -146,6 +146,24 @@
 }
 .lab-toolbar__title { align-self: center; font-size: 13px; }
 .lab-toolbar__fonts { width: 100%; margin: 0; color: #A8ABB4; }
+.lab-toolbar__hide { align-self: center; padding: 4px 10px; border: 1px solid #4A4D57; border-radius: 4px; background: #2E3038; color: #E8E8EA; font-size: 12px; }
+.lab-toolbar__hide:hover { background: #3A3D47; }
+/* Clean view: no toolbar and no variant bar, just a small tab in the corner to bring them back. */
+.lab--clean .lab-toolbar, .lab--clean .lab-lv-switch { display: none !important; }
+.lab-showcontrols {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 1001;
+  padding: 4px 10px;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  background: rgba(34, 36, 42, 0.85);
+  color: #E8E8EA;
+  font: 12px/1.3 system-ui, sans-serif;
+  opacity: 0.6;
+}
+.lab-showcontrols:hover, .lab-showcontrols:focus-visible { opacity: 1; }
 .lab-choice { display: flex; flex-direction: column; gap: 3px; }
 .lab-choice__label { color: #A8ABB4; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
 .lab-choice__opts { display: flex; }

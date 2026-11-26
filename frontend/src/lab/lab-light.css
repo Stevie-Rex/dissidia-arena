@@ -1,0 +1,646 @@
+/* PROTOTYPE (#55): three light-mode directions. Throwaway; this branch never merges. See LightVariants.tsx.
+   The lab root carries data-light="a|b|c" only in light mode. Every rule is scoped .lab.lab[data-light=…],
+   which outranks lab.css's light rules, so each variant can throw out the shapes as well as the colours. */
+
+/* ---------- the floating switcher (not part of any design) ---------- */
+.lab-lv-switch {
+  position: fixed;
+  left: 50%;
+  bottom: 66px;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 999px;
+  background: #111216;
+  color: #F4F4F6;
+  font: 13px/1.2 system-ui, sans-serif;
+  box-shadow: 0 0 0 1px #3A3D46, 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.lab-lv-switch button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: #2A2C33;
+  color: #F4F4F6 !important;
+  font: 13px system-ui, sans-serif !important;
+}
+.lab-lv-switch button:hover { background: #454852; }
+.lab-lv-switch__label { min-width: 240px; padding: 0 10px; text-align: center; }
+.lab-lv-switch__label b { margin-right: 8px; padding: 1px 7px; border-radius: 4px; background: #F4F4F6; color: #111216; }
+.lab-lv-switch__label small { display: block; margin-top: 3px; color: #A8ABB4; font-size: 11px; }
+.lab[data-screen="phone"] .lab-lv-switch { left: 24px; bottom: 24px; transform: none; }
+
+/* =====================================================================================================
+   A · PEARL RIFT
+   Cool pearl ground with a lattice of light. Every container turns into a dark sapphire plate with a white
+   hairline, so the menus float on the bright field the way 012's do. Title tabs go white.
+   ===================================================================================================== */
+.lab.lab[data-light="a"] {
+  --bg: #E3E7EE;
+  --bg-2: #D3D9E3;
+  --surface: #F3F5F9;
+  --raised: #E8ECF2;
+  --line: #B7C0D0;
+  --line-strong: #8995AB;
+  --ink: #111A30;
+  --muted: #3D4760;
+  --gold: #755310;
+  --gold-ink: #FFFFFF;
+  --cosmos: #1C4597;
+  --cosmos-deep: #1C4597;
+  --chaos: #8C1D33;
+  --chaos-ink: #FFFFFF;
+  --win: #16643A;
+  --glass: rgba(15, 26, 56, 0.86);
+  --glass-line: rgba(255, 255, 255, 0.55);
+  --shadow: 0 14px 34px rgba(17, 26, 48, 0.24);
+  --silver-hi: #FFFFFF;
+  --silver-edge: #A3AFC4;
+  --silver-lo: #56627C;
+  --select: #2A62E6;
+  --select-ink: #FFFFFF;
+  --crystal-wash: #8DB2F2;
+  --lv-lattice: rgba(255, 255, 255, 0.75);
+  --lv-mote: rgba(255, 255, 255, 0.95);
+
+  --hero-cosmos-hi: #FFFFFF;
+  --hero-cosmos-lo: #BCCEEE;
+  --hero-chaos-hi: #5A4C6E;
+  --hero-chaos-lo: #1F1A2C;
+  --hero-sun: #FFFFFF;
+  --hero-crack: #E58A9C;
+  --hero-seam: #6F7FA0;
+  --hero-dim: rgba(227, 231, 238, 0);
+
+  /* The dark plate: containers redefine the palette to this, so their contents read light on dark. */
+  --plate: linear-gradient(180deg, rgba(30, 46, 92, 0.93), rgba(12, 21, 46, 0.94));
+  --plate-solid: #0E1834;
+
+  --frame-hi: #FFFFFF; --frame-mid: #A3AFC4; --frame-lo: #3A4560;
+  --frame-top: #2B4378; --frame-bottom: #101A35; --crest-ink: #EBC66C;
+  --btn-primary-bg: linear-gradient(180deg, #2A4078, #101B3A); --btn-primary-ink: #F3E2B0;
+  --btn-match-bg: linear-gradient(180deg, #4F86FF, #2052D6); --btn-match-ink: #FFFFFF;
+  --btn-danger-bg: rgba(140, 29, 51, 0.1); --btn-danger-ink: #8C1D33;
+  --btn-ghost-bg: rgba(17, 26, 48, 0.08); --btn-ghost-ink: #111A30;
+}
+.lab.lab[data-light="a"] .lab-stage {
+  background:
+    radial-gradient(1100px 700px at 30% 0%, #FFFFFF, transparent 70%),
+    radial-gradient(900px 600px at 100% 100%, #C4CFE4, transparent 70%),
+    linear-gradient(180deg, #EEF1F6, #D7DDE8);
+}
+
+/* The plates. */
+.lab.lab[data-light="a"] :is(.lab-panel, .lab-glass, .lab-player, .lab-status, .lab-versus, .lab-found__card,
+  .lab-scorefonts__item, .lab-unlocks__row, .lab-switch button, .lab-bar-item, .lab-picker, .lab-helpstrip,
+  .lab-bottombar, .lab-banner--blade2 .lab-banner__inner, .lab-banner--blade .lab-banner__inner, .lab-banner--ribbon .lab-banner__inner) {
+  --ink: #F3F6FC;
+  --muted: #B9C5DF;
+  --gold: #EBC66C;
+  --gold-ink: #17120A;
+  --cosmos: #9EC2FF;
+  --chaos: #FF8FA0;
+  --win: #85E3AE;
+  --line: rgba(196, 212, 242, 0.24);
+  --line-strong: rgba(196, 212, 242, 0.45);
+  --bg: #0A1230;
+  --raised: rgba(255, 255, 255, 0.07);
+  --surface: rgba(255, 255, 255, 0.02);
+  --btn-primary-bg: linear-gradient(180deg, #FFFFFF, #D3DBEA 55%, #B5C1D6); --btn-primary-ink: #0E1834;
+  --btn-ghost-bg: rgba(255, 255, 255, 0.1); --btn-ghost-ink: #F3F6FC;
+  --btn-danger-bg: rgba(255, 143, 160, 0.14); --btn-danger-ink: #FFB3BF;
+  color: var(--ink);
+}
+.lab.lab[data-light="a"] :is(.lab-panel, .lab-glass, .lab-player, .lab-status, .lab-versus, .lab-found__card,
+  .lab-scorefonts__item, .lab-unlocks__row) {
+  background: var(--plate);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(17, 26, 48, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25), var(--shadow);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.lab.lab[data-light="a"] .lab-status--alert {
+  background: linear-gradient(180deg, rgba(235, 198, 108, 0.28), transparent 60%), var(--plate-solid);
+  border: 2px solid #EBC66C;
+}
+.lab.lab[data-light="a"] .lab-versus {
+  background: linear-gradient(90deg, rgba(42, 98, 230, 0.55), transparent 42%, transparent 58%, rgba(140, 29, 51, 0.6)), var(--plate);
+}
+
+/* Headings on the pearl ground: navy ink with a white lift under it. */
+.lab.lab[data-light="a"] :is(.lab-h1, .lab-display) { color: #13224A; text-shadow: 0 1px 0 #FFFFFF; }
+.lab.lab[data-light="a"] .lab-hero__copy .lab-display { color: #13224A; text-shadow: 0 1px 0 #FFFFFF, 0 0 30px #FFFFFF; }
+.lab.lab[data-light="a"] .lab-hero__lede { color: #1E2A48; text-shadow: 0 0 12px #FFFFFF; }
+.lab.lab[data-light="a"] .lab-hero::after { background: linear-gradient(180deg, transparent 55%, var(--bg) 100%); }
+
+/* Title tabs: white and silver on the dark plates, navy text. */
+.lab.lab[data-light="a"] .lab-tabtitle span,
+.lab.lab[data-light="a"] .lab-banner--blade2 .lab-banner__kicker {
+  background: linear-gradient(180deg, #FFFFFF, #D8E0EE);
+  border-top: 1px solid #FFFFFF;
+  box-shadow: inset 0 -2px 0 #8995AB;
+  color: #13224A;
+}
+.lab.lab[data-light="a"] .lab-tabtitle { color: #13224A; }
+
+/* Sidebar: a pale frosted column; its contents are plates. */
+.lab.lab[data-light="a"] .lab-sidebar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.35));
+  border-right: 1px solid #FFFFFF;
+  box-shadow: 1px 0 0 #B7C0D0;
+}
+.lab.lab[data-light="a"] .lab-brand { color: #13224A !important; text-shadow: 0 1px 0 #FFFFFF; }
+.lab.lab[data-light="a"] .lab-switch button {
+  background: var(--plate);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #B9C5DF !important;
+}
+.lab.lab[data-light="a"] .lab-switch button[aria-pressed="true"] {
+  border-color: #EBC66C;
+  color: #EBC66C !important;
+  box-shadow: inset 0 0 0 1px #EBC66C, 0 0 14px rgba(235, 198, 108, 0.45);
+}
+.lab.lab[data-light="a"] .lab-sidebar__foot { border-top-color: #B7C0D0; }
+
+/* Menu bars: dark glass rods with a white top edge. The selected one glows selection blue. */
+.lab.lab[data-light="a"] :is(.lab-bar-item, .lab-picker) {
+  background: linear-gradient(180deg, rgba(42, 62, 112, 0.94), rgba(14, 24, 52, 0.94));
+  border-top: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.45);
+}
+.lab.lab[data-light="a"] :is(.lab-bar-item, .lab-picker).is-selected {
+  background: linear-gradient(180deg, #86AEFF 0%, #3A72F0 40%, #1E4BC4 100%);
+  border-top-color: #FFFFFF;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55), inset 0 0 18px rgba(255, 255, 255, 0.25);
+}
+.lab.lab[data-light="a"] .lab-bar-item.is-current:not(.is-selected) { box-shadow: inset 3px 0 0 #EBC66C, inset 0 -1px 0 rgba(0, 0, 0, 0.45); }
+.lab.lab[data-light="a"] .lab-bar-item__badge { background: #C4283F; color: #FFFFFF; }
+
+/* Help strip: a dark bar across the foot, like 012's. */
+.lab.lab[data-light="a"] .lab-helpstrip {
+  background: linear-gradient(180deg, rgba(30, 46, 92, 0.96), rgba(10, 18, 40, 0.98));
+  border-top: 1px solid #FFFFFF;
+  box-shadow: 0 -1px 0 #8995AB;
+}
+
+/* Banners: Blade v2, as dark plates; the left edge carries the accent. */
+.lab.lab[data-light="a"] .lab-banner--blade2 .lab-banner__inner {
+  background: var(--plate);
+  border-top: 1px solid #FFFFFF;
+  box-shadow: 0 0 0 1px rgba(17, 26, 48, 0.4), var(--shadow);
+}
+.lab.lab[data-light="a"] .lab-banner--blade2:hover .lab-banner__inner,
+.lab.lab[data-light="a"] .lab-banner--blade2:focus-within .lab-banner__inner {
+  background: linear-gradient(180deg, #86AEFF 0%, #3A72F0 40%, #1E4BC4 100%);
+}
+
+.lab.lab[data-light="a"] .lab-chat__form input { background: #F3F5F9; color: #111A30; border-color: rgba(255, 255, 255, 0.8); }
+.lab.lab[data-light="a"] .lab-bottombar { background: var(--plate); border-top: 1px solid #FFFFFF; }
+.lab.lab[data-light="a"] .lab-tile[aria-current="page"] { color: #EBC66C !important; }
+.lab.lab[data-light="a"] .lab-found { background: rgba(227, 231, 238, 0.9); }
+.lab.lab[data-light="a"] .lab-found__card { border: 1px solid #FFFFFF; box-shadow: 0 0 0 1px #8995AB, 0 0 60px rgba(42, 98, 230, 0.35); }
+.lab.lab[data-light="a"] .lab-score__you,
+.lab.lab[data-light="a"] .lab-score__them { text-shadow: 0 0 14px currentColor; }
+
+/* =====================================================================================================
+   B · VELLUM CODEX
+   Warm vellum and iron-gall ink, lapis for Cosmos, oxblood for Chaos, gilt for rules. Nothing is slanted or
+   glassy: containers are plates with an ink rule and a gilt inner rule, menus are ledger rows, title tabs
+   become centred headings between rules, and the hero sits inside a frame like a plate in a book.
+   ===================================================================================================== */
+.lab.lab[data-light="b"] {
+  --bg: #EDE4D0;
+  --bg-2: #E1D6BE;
+  --surface: #F7F1E3;
+  --raised: #EFE6D2;
+  --line: #CDB98F;
+  --line-strong: #8A7550;
+  --ink: #1E170F;
+  --muted: #54463A;
+  --gold: #76530F;
+  --gold-ink: #FFF8E8;
+  --cosmos: #1E3E88;
+  --cosmos-deep: #1E3E88;
+  --chaos: #7A1C22;
+  --chaos-ink: #FFF8E8;
+  --win: #2C5B27;
+  --gilt: #B48C3C;
+  --glass: #F7F1E3;
+  --glass-line: #1E170F;
+  --shadow: none;
+  --silver-hi: #FFF8E8;
+  --silver-edge: #B48C3C;
+  --silver-lo: #76530F;
+  --select: #1E3E88;
+  --select-ink: #FFF8E8;
+  --crystal-wash: #C9B27A;
+
+  --hero-paper: #F1E8D4;
+  --hero-lapis: #2A4FA0;
+  --hero-ox: #8A2028;
+  --hero-ink: #1E170F;
+  --hero-seam: #B48C3C;
+  --hero-sun: #E9C978;
+  --hero-crystal-fill: #FFF8E8;
+
+  --frame-hi: #1E170F; --frame-mid: #B48C3C; --frame-lo: #1E170F;
+  --frame-top: #F7F1E3; --frame-bottom: #EFE6D2; --crest-ink: #1E3E88;
+  --btn-primary-bg: #1E170F; --btn-primary-ink: #F7F1E3;
+  --btn-match-bg: #1E3E88; --btn-match-ink: #FFF8E8;
+  --btn-danger-bg: transparent; --btn-danger-ink: #7A1C22;
+  --btn-ghost-bg: transparent; --btn-ghost-ink: #1E170F;
+  --btn-ghost-hover: rgba(30, 23, 15, 0.08);
+}
+.lab.lab[data-light="b"] .lab-stage {
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .26 0 0 0 0 .14 0 0 0 .1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    radial-gradient(1300px 900px at 45% 25%, #F6EFDF, #E4D8BD 100%);
+}
+
+/* Nothing slants. */
+.lab.lab[data-light="b"] :is(.lab-btn, .lab-bar-item, .lab-player, .lab-tabtitle span, .lab-banner__inner, .lab-banner__kicker) { clip-path: none; }
+.lab.lab[data-light="b"] :is(.lab-tabtitle span, .lab-banner__inner, .lab-banner__inner > *) { transform: none; }
+
+/* Plates: an ink rule, a gap of paper, a gilt rule, and a small diamond at each corner. */
+.lab.lab[data-light="b"] :is(.lab-panel, .lab-glass, .lab-player, .lab-status, .lab-versus, .lab-found__card,
+  .lab-scorefonts__item, .lab-unlocks__row, .lab-banner__inner) {
+  background: var(--surface);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  box-shadow: inset 0 0 0 4px var(--surface), inset 0 0 0 5px var(--gilt);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.lab.lab[data-light="b"] :is(.lab-panel, .lab-glass, .lab-versus, .lab-banner__inner) { position: relative; }
+.lab.lab[data-light="b"] :is(.lab-panel, .lab-glass, .lab-versus, .lab-found__card, .lab-banner__inner)::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  pointer-events: none;
+  --d: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><path d='M5 0 L10 5 L5 10 L0 5 Z' fill='%231E170F'/><path d='M5 2.5 L7.5 5 L5 7.5 L2.5 5 Z' fill='%23B48C3C'/></svg>");
+  background: var(--d) top left / 10px no-repeat, var(--d) top right / 10px no-repeat, var(--d) bottom left / 10px no-repeat, var(--d) bottom right / 10px no-repeat;
+}
+.lab.lab[data-light="b"] .lab-status--alert { border: 2px solid var(--chaos); box-shadow: inset 0 0 0 4px var(--surface), inset 0 0 0 5px var(--chaos); }
+.lab.lab[data-light="b"] .lab-player { box-shadow: inset 0 0 0 3px var(--surface), inset 0 0 0 4px var(--gilt); }
+
+/* Type: ink headings in the display face, generous tracking, gilt kickers. */
+.lab.lab[data-light="b"] .lab-h1 { letter-spacing: 0.06em; }
+.lab.lab[data-light="b"] .lab-h2 { font-family: var(--f-display); font-weight: var(--f-display-weight); letter-spacing: 0.12em; }
+.lab.lab[data-light="b"] .lab-kicker { color: var(--gold); letter-spacing: 0.24em; }
+
+/* Title tabs become a centred heading between double rules, with a diamond either side. */
+.lab.lab[data-light="b"] .lab-tabtitle { display: flex; align-items: center; gap: 14px; font-size: 19px; letter-spacing: 0.14em; color: var(--ink); }
+.lab.lab[data-light="b"] .lab-tabtitle::before,
+.lab.lab[data-light="b"] .lab-tabtitle::after { content: ""; flex: 1; height: 3px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--gilt); }
+.lab.lab[data-light="b"] .lab-tabtitle span { padding: 0; background: none; border: 0; box-shadow: none; }
+.lab.lab[data-light="b"] .lab-tabtitle span::before,
+.lab.lab[data-light="b"] .lab-tabtitle span::after { content: "◆"; margin: 0 10px; font-size: 0.5em; vertical-align: 0.35em; color: var(--gilt); }
+.lab.lab[data-light="b"] .lab-panel--tabbed > .lab-tabtitle:first-child { margin: 2px 0 16px; }
+
+/* Menus: ledger rows. A rule under each, the display face, and a lapis band for the selection. */
+.lab.lab[data-light="b"] .lab-bars { gap: 0; }
+.lab.lab[data-light="b"] .lab-bars--sub { margin-top: 0; }
+.lab.lab[data-light="b"] :is(.lab-bar-item, .lab-picker) {
+  background: transparent;
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+  box-shadow: none;
+}
+.lab.lab[data-light="b"] .lab-bars > li:first-child > .lab-bar-item { border-top: 1px solid var(--line); }
+.lab.lab[data-light="b"] .lab-bar-item { font-family: var(--f-display) !important; font-weight: var(--f-display-weight); letter-spacing: 0.08em; }
+.lab.lab[data-light="b"] .lab-bars--compact .lab-bar-item { text-transform: none; font-size: 17px; letter-spacing: 0.1em; }
+.lab.lab[data-light="b"] :is(.lab-bar-item, .lab-picker).is-selected { background: var(--select); border-bottom-color: var(--select); color: var(--select-ink) !important; }
+.lab.lab[data-light="b"] .lab-bar-item.is-current:not(.is-selected) { box-shadow: inset 3px 0 0 var(--gilt); }
+.lab.lab[data-light="b"] .lab-bar-item__badge { border-radius: 0; background: var(--chaos); color: var(--chaos-ink); }
+.lab.lab[data-light="b"] .lab-picker__label { color: var(--gold); }
+
+/* Buttons: plain ink-ruled rectangles in small caps. A press darkens; no lift and no sheen. */
+.lab.lab[data-light="b"] .lab-btn {
+  border: 1.5px solid var(--ink);
+  font-family: var(--f-display) !important;
+  font-weight: var(--f-display-weight);
+  letter-spacing: 0.12em;
+  box-shadow: inset 0 0 0 2px var(--surface) !important;
+}
+.lab.lab[data-light="b"] .lab-btn--primary { border-color: var(--ink); box-shadow: inset 0 0 0 2px #1E170F, inset 0 0 0 3px #B48C3C !important; }
+.lab.lab[data-light="b"] .lab-btn--match { border-color: #1E3E88; box-shadow: inset 0 0 0 2px #1E3E88, inset 0 0 0 3px #C9B27A !important; }
+.lab.lab[data-light="b"] .lab-btn--chaos { border-color: #7A1C22; }
+.lab.lab[data-light="b"] .lab-btn::after { display: none; }
+.lab.lab[data-light="b"] .lab-btn:hover { transform: none; filter: none; }
+.lab.lab[data-light="b"] .lab-btn--primary:hover { background: #3A2E20; }
+.lab.lab[data-light="b"] .lab-btn--chaos:hover { background: rgba(122, 28, 34, 0.08); }
+.lab.lab[data-light="b"] .lab-btn:active { transform: translateY(1px); }
+
+/* Sidebar: bare paper with a double rule down its edge. */
+.lab.lab[data-light="b"] .lab-sidebar { background: transparent; border-right: 1px solid var(--ink); box-shadow: inset -4px 0 0 transparent, inset -5px 0 0 var(--gilt); }
+.lab.lab[data-light="b"] .lab-brand { color: var(--ink) !important; text-align: center; font-size: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--gilt); }
+.lab.lab[data-light="b"] .lab-switch button { border: 1px solid var(--line-strong); border-radius: 0; background: transparent; }
+.lab.lab[data-light="b"] .lab-switch button[aria-pressed="true"] { border-color: var(--ink); color: var(--ink) !important; background: var(--surface); box-shadow: inset 0 0 0 2px var(--surface), inset 0 0 0 3px var(--gilt); }
+.lab.lab[data-light="b"] .lab-sidebar__foot { border-top: 1px solid var(--gilt); }
+.lab.lab[data-light="b"] .lab-foot-btn { border-radius: 0; }
+.lab.lab[data-light="b"] .lab-bar { height: 5px; border-radius: 0; background: transparent; border: 1px solid var(--line-strong); }
+.lab.lab[data-light="b"] .lab-bar span { box-shadow: none; }
+
+/* Help strip: a centred italic line between rules. */
+.lab.lab[data-light="b"] .lab-helpstrip {
+  justify-content: center;
+  background: var(--surface);
+  border-top: 1px solid var(--ink);
+  box-shadow: inset 0 3px 0 var(--surface), inset 0 4px 0 var(--gilt);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--ink);
+}
+.lab.lab[data-light="b"] .lab-helpstrip__text::before,
+.lab.lab[data-light="b"] .lab-helpstrip__text::after { content: "◆"; margin: 0 14px; font-size: 9px; vertical-align: 3px; font-style: normal; color: var(--gilt); }
+
+/* Hero: a framed plate set into the page, not full-bleed. The plates below sit under it, not over it. */
+.lab.lab[data-light="b"] .lab-hero { margin: 28px clamp(16px, 4cqi, 48px) 0; }
+.lab.lab[data-light="b"] .lab-hero::after { background: none; border: 1px solid var(--ink); box-shadow: inset 0 0 0 6px var(--bg), inset 0 0 0 7px var(--gilt); }
+.lab.lab[data-light="b"] .lab-hero__copy .lab-display { color: var(--ink); text-shadow: none; letter-spacing: 0.04em; }
+.lab.lab[data-light="b"] .lab-hero__lede { color: var(--ink); text-shadow: none; font-style: italic; }
+.lab.lab[data-light="b"] .lab-glass-row { margin-top: 24px; }
+
+/* Banners: straight plates; the kicker sits above the number, the accent is the number's colour. */
+.lab.lab[data-light="b"] .lab-banner--blade2 { margin-top: 0; }
+.lab.lab[data-light="b"] .lab-banner__inner { margin: 0; border-left: 1px solid var(--ink) !important; border-top: 1px solid var(--ink) !important; }
+.lab.lab[data-light="b"] .lab-banner__kicker { position: static !important; padding: 0 !important; background: none !important; border: 0 !important; color: var(--accent) !important; }
+.lab.lab[data-light="b"] .lab-banner__big { font-family: var(--f-display); font-weight: var(--f-display-weight); color: var(--accent); }
+.lab.lab[data-light="b"] .lab-banner--blade2:hover .lab-banner__inner,
+.lab.lab[data-light="b"] .lab-banner--blade2:focus-within .lab-banner__inner { background: var(--raised); color: var(--ink); }
+.lab.lab[data-light="b"] .lab-banner:hover { transform: none; }
+
+.lab.lab[data-light="b"] .lab-versus { background: var(--surface); }
+.lab.lab[data-light="b"] .lab-versus__name { font-family: var(--f-display); font-weight: var(--f-display-weight); }
+.lab.lab[data-light="b"] :is(.lab-score__you, .lab-score__them) { text-shadow: none; }
+.lab.lab[data-light="b"] .lab-chat li { border-radius: 0; border: 1px solid var(--line); background: var(--raised); }
+.lab.lab[data-light="b"] .lab-chat li.is-you { background: rgba(30, 62, 136, 0.07); border-color: rgba(30, 62, 136, 0.35); }
+.lab.lab[data-light="b"] .lab-chat__form input { border-radius: 0; border-color: var(--ink); background: var(--surface); }
+.lab.lab[data-light="b"] .lab-bottombar { background: var(--surface); border-top: 1px solid var(--ink); box-shadow: inset 0 3px 0 var(--surface), inset 0 4px 0 var(--gilt); backdrop-filter: none; }
+.lab.lab[data-light="b"] .lab-tile[aria-current="page"] { color: var(--cosmos) !important; }
+.lab.lab[data-light="b"] .lab-found { background: rgba(237, 228, 208, 0.94); }
+
+/* =====================================================================================================
+   C · BURNISHED STEEL
+   Mid-tone brushed metal. Containers are bevelled plates; lists, numbers and the help strip sit in recessed
+   wells; title tabs are dark engraved name plates; buttons are keys that press down; the selection is an
+   enamel inlay. Corners are chamfered, not slanted.
+   ===================================================================================================== */
+.lab.lab[data-light="c"] {
+  --bg: #B8BFCA;
+  --bg-2: #A8B0BC;
+  --surface: #D5DAE2;
+  --raised: #C8CED8;
+  --line: #8F98A7;
+  --line-strong: #687183;
+  --ink: #0C111E;
+  --muted: #2C3444;
+  --gold: #5A400A;
+  --gold-ink: #FFFFFF;
+  --cosmos: #15388A;
+  --cosmos-deep: #15388A;
+  --chaos: #86132A;
+  --chaos-ink: #FFFFFF;
+  --win: #0C4A28;
+  --glass: #D5DAE2;
+  --glass-line: #687183;
+  --shadow: 0 6px 16px rgba(20, 26, 40, 0.32);
+  --silver-hi: #FFFFFF;
+  --silver-edge: #9AA3B2;
+  --silver-lo: #4E5768;
+  --select: #1B3FA6;
+  --select-ink: #FFFFFF;
+  --crystal-wash: #7FA6EC;
+  --steel-hi: #F4F6F9;
+  --steel-lo: #6E7788;
+  --well: #BEC4CE;
+  --chamfer: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px);
+
+  --hero-cosmos-hi: #EEF1F5;
+  --hero-cosmos-lo: #A3ACBA;
+  --hero-chaos-hi: #3D414C;
+  --hero-chaos-lo: #14161C;
+  --hero-sun: #FFFFFF;
+  --hero-crack: #D2475D;
+  --hero-gem-hi: #CFE0FF;
+  --hero-gem-lo: #15388A;
+  --hero-dim: rgba(184, 191, 202, 0);
+
+  --frame-hi: #FFFFFF; --frame-mid: #9AA3B2; --frame-lo: #3E4757;
+  --frame-top: #E6E9EE; --frame-bottom: #A9B1BE; --crest-ink: #15388A;
+  --btn-primary-bg: linear-gradient(180deg, #FDFEFF, #DCE1E8 46%, #BCC4CF 54%, #CFD5DD); --btn-primary-ink: #0C111E;
+  --btn-match-bg: linear-gradient(180deg, #3D67D6, #1B3FA6 52%, #142F82); --btn-match-ink: #FFFFFF;
+  --btn-danger-bg: linear-gradient(180deg, #E6D3D7, #CDB3B9); --btn-danger-ink: #6E0F22;
+  --btn-ghost-bg: transparent; --btn-ghost-ink: #0C111E;
+  --btn-ghost-hover: rgba(255, 255, 255, 0.35);
+}
+.lab.lab[data-light="c"] .lab-stage {
+  background:
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.13) 0 1px, rgba(0, 0, 0, 0.03) 1px 2px, transparent 2px 4px),
+    linear-gradient(160deg, #CDD3DC, #AFB7C3 60%, #A2AAB7);
+}
+
+/* Plates: brushed face, light top-left bevel, dark bottom-right bevel, a ledge of light under them. */
+.lab.lab[data-light="c"] :is(.lab-panel, .lab-glass, .lab-player, .lab-status, .lab-versus, .lab-found__card,
+  .lab-scorefonts__item, .lab-unlocks__row, .lab-banner__inner) {
+  background:
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #E4E8EE, #C9CFD9);
+  border: 1px solid #4E5768;
+  border-radius: 4px;
+  box-shadow: inset 1px 1px 0 #FFFFFF, inset -1px -1px 0 #8E97A6, inset 0 0 0 3px rgba(255, 255, 255, 0.12), 0 1px 0 #EEF1F5, var(--shadow);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.lab.lab[data-light="c"] .lab-player { clip-path: none; }
+.lab.lab[data-light="c"] .lab-status--alert {
+  border: 2px solid #1B3FA6;
+  background: linear-gradient(180deg, #DDE6FA, #C4CEE2);
+  box-shadow: inset 1px 1px 0 #FFFFFF, 0 0 0 3px rgba(27, 63, 166, 0.25), var(--shadow);
+}
+
+/* Engraved type: dark ink with a light edge below. */
+.lab.lab[data-light="c"] :is(.lab-h1, .lab-h2, .lab-display, .lab-brand, .lab-kicker, .lab-stat, .lab-versus__name, .lab-banner__text, .lab-empty__title) { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.75); }
+.lab.lab[data-light="c"] .lab-h1 { text-transform: uppercase; letter-spacing: 0.06em; }
+.lab.lab[data-light="c"] .lab-hero__copy .lab-display { color: #0C111E; text-shadow: 0 1px 0 #FFFFFF; }
+.lab.lab[data-light="c"] .lab-hero__lede { color: #0C111E; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7); }
+.lab.lab[data-light="c"] .lab-hero::after { background: linear-gradient(180deg, transparent 60%, var(--bg) 100%); }
+
+/* Title tabs: dark name plates with chamfered corners and light lettering. */
+.lab.lab[data-light="c"] .lab-tabtitle span,
+.lab.lab[data-light="c"] .lab-banner--blade2 .lab-banner__kicker {
+  transform: none;
+  padding: 7px 20px;
+  background: linear-gradient(180deg, #343D52, #161C2A);
+  border-top: 1px solid #7C879C;
+  box-shadow: inset 0 -1px 0 #000000;
+  clip-path: var(--chamfer);
+  color: #E9EDF3 !important;
+  text-shadow: 0 -1px 0 #000000;
+}
+.lab.lab[data-light="c"] .lab-panel--tabbed > .lab-tabtitle:first-child { margin: -30px 0 16px -4px; }
+.lab.lab[data-light="c"] .lab-panel--tabbed { margin-top: 14px; }
+
+/* Wells: lists, chat and numbers sit recessed into the plate. */
+.lab.lab[data-light="c"] :is(.lab-games, .lab-chat, .lab-pickers) {
+  padding: 6px 12px;
+  border-radius: 3px;
+  background: var(--well);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.6);
+}
+.lab.lab[data-light="c"] .lab-pickers { padding: 6px; }
+.lab.lab[data-light="c"] .lab-chat { padding: 10px; }
+.lab.lab[data-light="c"] .lab-games li { border-bottom-color: rgba(78, 87, 104, 0.35); }
+.lab.lab[data-light="c"] .lab-chat li { border-radius: 3px; background: #D9DEE5; box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); }
+.lab.lab[data-light="c"] .lab-chat li.is-you { background: #CBD7EE; }
+.lab.lab[data-light="c"] .lab-chat__form input { border-radius: 3px; background: #EEF1F5; border-color: #4E5768; box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.2); }
+.lab.lab[data-light="c"] .lab-banner__big {
+  padding: 2px 14px;
+  border-radius: 3px;
+  background: #1A2130;
+  color: #E9EDF3;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+.lab.lab[data-light="c"] .lab-bar { height: 8px; border-radius: 2px; background: var(--well); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35); }
+.lab.lab[data-light="c"] .lab-bar span { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+
+/* Menu bars: polished rods with chamfered ends; the selection is a recessed cobalt enamel inlay. */
+.lab.lab[data-light="c"] :is(.lab-bar-item, .lab-picker) {
+  background: linear-gradient(180deg, #FAFBFD 0%, #DCE1E8 45%, #BFC7D2 55%, #D3D9E1 100%);
+  border-top: 0;
+  box-shadow: inset 0 0 0 1px #6E7788, inset 0 2px 0 rgba(255, 255, 255, 0.9);
+  clip-path: var(--chamfer);
+}
+.lab.lab[data-light="c"] :is(.lab-bar-item, .lab-picker).is-selected {
+  background: linear-gradient(180deg, #122C78, #1B3FA6 35%, #2D58CC 100%);
+  box-shadow: inset 0 0 0 1px #0A1A4A, inset 0 3px 5px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(255, 255, 255, 0.35);
+}
+.lab.lab[data-light="c"] .lab-bar-item.is-current:not(.is-selected) { box-shadow: inset 0 0 0 1px #6E7788, inset 4px 0 0 #1B3FA6, inset 0 2px 0 rgba(255, 255, 255, 0.9); }
+.lab.lab[data-light="c"] .lab-bar-item__badge { border-radius: 2px; background: #86132A; color: #FFFFFF; }
+.lab.lab[data-light="c"] .lab-picker__arrow { color: #15388A !important; }
+
+/* Buttons: physical keys. A lip under each; pressing sinks the key onto it. */
+.lab.lab[data-light="c"] .lab-btn {
+  clip-path: none;
+  overflow: visible;
+  border: 1px solid #3E4757;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 3px 0 #4E5768, 0 5px 8px rgba(0, 0, 0, 0.25) !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.lab.lab[data-light="c"] .lab-btn--match { border-color: #0A1A4A; text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.4); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 3px 0 #0A1A4A, 0 5px 8px rgba(0, 0, 0, 0.3) !important; }
+.lab.lab[data-light="c"] .lab-btn--chaos { border-color: #6E0F22; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 3px 0 #6E0F22, 0 5px 8px rgba(0, 0, 0, 0.25) !important; }
+.lab.lab[data-light="c"] .lab-btn--ghost { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 3px 0 #687183 !important; }
+.lab.lab[data-light="c"] .lab-btn::after { display: none; }
+.lab.lab[data-light="c"] .lab-btn:hover { transform: none; filter: brightness(1.05); }
+.lab.lab[data-light="c"] .lab-btn:active {
+  transform: translateY(3px);
+  filter: brightness(0.95);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.25), 0 0 0 #4E5768 !important;
+}
+
+/* Sidebar: a darker steel rail with its own bevel. */
+.lab.lab[data-light="c"] .lab-sidebar {
+  background:
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 3px),
+    linear-gradient(90deg, #A9B1BD, #C2C9D3 45%, #ACB4C0);
+  border-right: 1px solid #4E5768;
+  box-shadow: inset -1px 0 0 #E6E9EE;
+}
+.lab.lab[data-light="c"] .lab-brand { color: #0C111E !important; text-transform: uppercase; letter-spacing: 0.08em; font-size: 20px; }
+.lab.lab[data-light="c"] .lab-switch button {
+  border: 1px solid #4E5768;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #F4F6F9, #C9CFD8);
+  box-shadow: inset 0 1px 0 #FFFFFF, 0 2px 0 #687183;
+}
+.lab.lab[data-light="c"] .lab-switch button[aria-pressed="true"] {
+  color: #FFFFFF !important;
+  border-color: #0A1A4A;
+  background: linear-gradient(180deg, #122C78, #2D58CC);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  transform: translateY(2px);
+}
+.lab.lab[data-light="c"] .lab-switch button[aria-pressed="true"] .lab-crest { --crest-ink: #FFFFFF; --frame-top: #2D58CC; --frame-bottom: #122C78; }
+.lab.lab[data-light="c"] .lab-sidebar__foot { border-top: 1px solid #687183; box-shadow: inset 0 1px 0 #E6E9EE; }
+.lab.lab[data-light="c"] .lab-foot-btn:hover { background: rgba(255, 255, 255, 0.35); }
+
+/* Help strip: a recessed readout across the foot. */
+.lab.lab[data-light="c"] .lab-helpstrip {
+  margin: 0 12px 10px;
+  height: 42px;
+  border: 0;
+  border-radius: 4px;
+  background: #1A2130;
+  color: #DCE3EE;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.7);
+  font-family: var(--f-head);
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+.lab.lab[data-light="c"] .lab-helpstrip__text::before { content: "▶"; margin-right: 12px; font-size: 10px; vertical-align: 2px; color: #7FA6EC; }
+
+/* Banners: straight chamfered plates with an enamel stripe; the kicker is a name plate. */
+.lab.lab[data-light="c"] .lab-banner__inner { transform: none; margin: 0; border-left: 8px solid var(--accent) !important; clip-path: none; }
+.lab.lab[data-light="c"] .lab-banner__inner > * { transform: none; }
+.lab.lab[data-light="c"] .lab-banner--blade2 .lab-banner__kicker { top: -40px; left: 0; clip-path: var(--chamfer); }
+.lab.lab[data-light="c"] .lab-banner--blade2:hover .lab-banner__inner,
+.lab.lab[data-light="c"] .lab-banner--blade2:focus-within .lab-banner__inner {
+  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0 1px, transparent 1px 3px), linear-gradient(180deg, #EEF1F6, #D3D9E2);
+  color: var(--ink);
+}
+.lab.lab[data-light="c"] .lab-banner:hover { transform: none; }
+
+.lab.lab[data-light="c"] .lab-versus { background: linear-gradient(90deg, rgba(27, 63, 166, 0.22), transparent 40%, transparent 60%, rgba(134, 19, 42, 0.22)), linear-gradient(180deg, #E4E8EE, #C9CFD9); }
+.lab.lab[data-light="c"] :is(.lab-score__you, .lab-score__them) { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8); }
+.lab.lab[data-light="c"] .lab-bottombar {
+  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 3px), linear-gradient(180deg, #CDD3DC, #A9B1BD);
+  border-top: 1px solid #4E5768;
+  box-shadow: inset 0 1px 0 #F4F6F9;
+  backdrop-filter: none;
+}
+.lab.lab[data-light="c"] .lab-tile[aria-current="page"] { color: #15388A !important; }
+.lab.lab[data-light="c"] .lab-found { background: rgba(184, 191, 202, 0.9); }
+
+/* Phone width. */
+@container stage (max-width: 760px) {
+  .lab.lab[data-light="b"] .lab-hero { margin: 12px 10px 0; }
+  .lab.lab[data-light="c"] .lab-helpstrip { display: none; }
+}
+.lab.lab[data-light="c"] .lab-games__pending { opacity: 0.85; }
+
+/* ---------- C · review pass 1 (P1 fixes) ---------- */
+
+/* Selected picker rows: the generic steel arrow colour was winning over the white one. */
+.lab.lab[data-light="c"] .lab-picker.is-selected .lab-picker__arrow { color: var(--select-ink) !important; }
+.lab.lab[data-light="c"] .lab-chat__form input::placeholder { color: var(--muted); opacity: 1; }
+
+/* Keyboard focus: an inner stroke kept clear of the chamfer, dark on steel and white on the cobalt inlay. */
+.lab.lab[data-light="c"] :is(.lab-bar-item, .lab-picker__value):focus-visible { outline: 2px solid var(--ink); outline-offset: -6px; }
+.lab.lab[data-light="c"] .lab-picker__value:focus-visible { outline-offset: 0; }
+.lab.lab[data-light="c"] .lab-bar-item.is-selected:focus-visible,
+.lab.lab[data-light="c"] .lab-picker.is-selected .lab-picker__value:focus-visible { outline-color: var(--select-ink); }
+.lab.lab[data-light="c"] :is(.lab-switch button, .lab-foot-btn, .lab-tile, .lab-picker__arrow):focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.lab.lab[data-light="c"] .lab-tile:focus-visible { outline-offset: -4px; }
+.lab.lab[data-light="c"] .lab-picker.is-selected .lab-picker__arrow:focus-visible { outline-color: var(--select-ink); }
+
+/* Reduced motion: the key still darkens and loses its lip when pressed, but no longer moves. */
+.lab.lab--still[data-light="c"] .lab-btn:active { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .lab.lab[data-light="c"] .lab-btn:active { transform: none; }
+}
+
+/* Phone Home: the medallion gets its own band and the copy sits below it on plain steel, not across the seam. */
+@container stage (max-width: 760px) {
+  .lab.lab[data-light="c"] .lab-hero { height: auto; display: flex; flex-direction: column; }
+  .lab.lab[data-light="c"] .lab-hero__art { position: relative; inset: auto; height: 190px; flex: none; }
+  .lab.lab[data-light="c"] .lab-hero::after { inset: 0 0 auto 0; height: 190px; }
+  .lab.lab[data-light="c"] .lab-hero__copy { position: relative; left: auto; bottom: auto; padding: 4px 16px 0; }
+  .lab.lab[data-light="c"] .lab-glass-row { margin-top: 20px; }
+}
