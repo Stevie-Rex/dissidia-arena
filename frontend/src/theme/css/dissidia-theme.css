@@ -168,6 +168,9 @@
   --rift-hero-chaos-muted: #B9BFCB;
   --rift-hero-chaos-line: #D2475D;
   --rift-hero-chaos-accent: #F0596A;
+  --rift-phone-bar-face: repeating-linear-gradient(180deg, rgba(255,255,255,0.12) 0 1px, transparent 1px 3px), linear-gradient(180deg, #CDD3DC, #A9B1BD);
+  --rift-phone-bar-edge: #4E5768;
+  --rift-phone-bar-bevel: #F4F6F9;
   --rift-rail-face: repeating-linear-gradient(180deg, rgba(255,255,255,0.12) 0 1px, transparent 1px 3px), linear-gradient(90deg, #A9B1BD, #C2C9D3 45%, #ACB4C0);
   --rift-rail-edge: #4E5768;
   --rift-rail-bevel: #E6E9EE;

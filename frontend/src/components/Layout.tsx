@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { DISCORD_SUGGESTIONS, FRIENDS, GAMES, playerById, type FriendStatus, type GameId } from '../data/mock'
 import { useApp } from '../state/AppState'
 import { usePickGame } from '../usePickGame'
@@ -104,7 +104,7 @@ export function QueueBar() {
   if (phase !== 'searching') return null
   const info = GAMES[queue.game]
   return (
-    <div className="fixed inset-x-0 bottom-14 z-40 px-3 md:bottom-4">
+    <div className="fixed inset-x-0 bottom-[max(3.5rem,calc(var(--rift-phone-bar)+1rem))] z-40 px-3 md:bottom-4">
       <Card tone="gold" className="mx-auto max-w-md shadow-2xl">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 animate-pulse rounded-full bg-gold" />
@@ -219,14 +219,14 @@ export function ChatDock() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-16 right-4 z-40 rounded-full border-[1.5px] border-muted bg-card px-3 py-1.5 text-sm shadow-lg md:bottom-4"
+        className="fixed bottom-[max(4rem,calc(var(--rift-phone-bar)+1rem))] right-4 z-40 rounded-full border-[1.5px] border-muted bg-card px-3 py-1.5 text-sm shadow-lg md:bottom-4"
       >
         💬 {opp}
       </button>
     )
   const last = live.messages.slice(-3)
   return (
-    <Card className="fixed bottom-16 right-4 z-40 w-64 border-muted shadow-2xl md:bottom-4">
+    <Card className="fixed bottom-[max(4rem,calc(var(--rift-phone-bar)+1rem))] right-4 z-40 w-64 border-muted shadow-2xl md:bottom-4">
       <div className="flex items-center gap-2">
         <Link to="/match/live" className="font-semibold hover:text-crystal-soft">
           {opp}
@@ -312,32 +312,6 @@ export function AuthErrorBanner() {
         <Pill onClick={dismiss}>Dismiss</Pill>
       </Card>
     </div>
-  )
-}
-
-/** 1f — mobile tab bar. */
-export function MobileTabs() {
-  const { game } = useApp()
-  const tab = ({ isActive }: { isActive: boolean }) =>
-    cx('flex-1 py-3 text-center text-xs', isActive ? 'text-crystal-soft' : 'text-muted')
-  return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t-[1.5px] border-line bg-ink/95 backdrop-blur md:hidden">
-      <NavLink to={`/${game}`} end className={tab}>
-        Hub
-      </NavLink>
-      <NavLink to={`/${game}/ladder`} className={tab}>
-        Ladder
-      </NavLink>
-      <NavLink to="/queue" className={tab}>
-        Queue
-      </NavLink>
-      <NavLink to="/tournaments" className={tab}>
-        Events
-      </NavLink>
-      <NavLink to="/players/me" className={tab}>
-        Profile
-      </NavLink>
-    </nav>
   )
 }
 

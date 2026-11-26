@@ -15,6 +15,7 @@ Icons from [game-icons.net](https://game-icons.net), licensed under [CC BY 3.0](
 | `trophy` | Lorc | Rewards, in the Rift sidebar |
 | `crenulated-shield` | Lorc | Admin, in the Rift sidebar |
 | `gears` | Lorc | Settings, in the Rift sidebar |
+| `hamburger-menu` | Delapouite | More, in the Rift phone bottom bar |
 
 ## Fonts
 

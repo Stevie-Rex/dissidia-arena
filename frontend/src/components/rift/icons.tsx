@@ -95,3 +95,12 @@ export function GiGears({ size = 24 }: P) {
     </Icon>
   )
 }
+
+/** More, in the phone bar: `hamburger-menu` by Delapouite, game-icons.net, CC BY 3.0 */
+export function GiHamburgerMenu({ size = 24 }: P) {
+  return (
+    <Icon size={size}>
+      <path d="M32 96v64h448V96zm0 128v64h448v-64zm0 128v64h448v-64z" />
+    </Icon>
+  )
+}

@@ -1,46 +1,23 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import InterfaceSwitcher from '../components/appearance/InterfaceSwitcher'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import LockPanel from '../components/appearance/LockPanel'
-import ModeToggle from '../components/appearance/ModeToggle'
-import { AuthErrorBanner, DisputeNotice, GameSwitcher, MobileTabs, Overlays } from '../components/Layout'
+import { AuthErrorBanner, DisputeNotice, GameSwitcher, Overlays } from '../components/Layout'
+import BottomBar from '../components/rift/BottomBar'
 import HelpStrip from '../components/rift/HelpStrip'
 import { useHelpText } from '../components/rift/hints'
 import Sidebar from '../components/rift/Sidebar'
-import { Avatar, Btn, Logo, Pill } from '../components/ui'
-import { OPEN_STATUSES, roleLinks } from '../lib/api'
+import { Btn, Logo } from '../components/ui'
 import { useApp } from '../state/AppState'
 
-/** Phones only, until the bottom bar (#45). Desktop has the sidebar. */
+/** Phones only: the brand and the game switcher. The bottom bar does the rest; desktop has the sidebar. */
 function RiftHeader() {
-  const { signedIn, startQueue, phase, live, requireSignIn, user } = useApp()
-  const navigate = useNavigate()
+  const { user, requireSignIn } = useApp()
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-ink/95 backdrop-blur md:hidden">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-[clamp(20px,4vw,56px)] py-2.5">
-        <div className="flex items-center gap-4">
-          <Logo />
+      <div className="flex items-center justify-between gap-3 px-4 py-1.5">
+        <Logo />
+        <div className="flex items-center gap-2">
           <GameSwitcher crests />
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <ModeToggle />
-          <InterfaceSwitcher />
-          {live && OPEN_STATUSES.includes(live.status) && (
-            <Link to="/match/live">
-              <Pill active className="hidden sm:inline-block">
-                ● In match vs {live.opponent.displayName}
-              </Pill>
-            </Link>
-          )}
-          {phase === 'idle' && (
-            <Btn main className="hidden sm:inline-flex" onClick={() => (signedIn ? navigate('/queue') : startQueue())}>
-              Queue
-            </Btn>
-          )}
-          {signedIn ? (
-            <Link to="/players/me" aria-label="Your profile" className="flex min-h-11 items-center">
-              <Avatar name={user?.displayName ?? 'You'} src={user?.avatarUrl} ring="you" size={30} />
-            </Link>
-          ) : (
+          {user === null && (
             <Btn variant="ghost" onClick={() => requireSignIn('Sign in')}>
               Sign in
             </Btn>
@@ -51,13 +28,12 @@ function RiftHeader() {
   )
 }
 
-/** Links that aren't in the sidebar yet. The fan-project line and the icon credit sit in the sidebar foot on desktop. */
+/** Links that aren't in the sidebar or the phone bar. The fan-project line and the icon credit sit in the sidebar foot on desktop. */
 function RiftFooter() {
-  const { user } = useApp()
   return (
     <footer className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-line px-[clamp(20px,4vw,56px)] py-7 text-[13px] text-muted">
       <span className="md:hidden">Dissidia Arena — a fan project</span>
-      <nav aria-label="More" className="flex flex-wrap gap-4">
+      <nav aria-label="Site links" className="flex flex-wrap gap-4">
         <Link to="/tournaments" className="hover:text-fg">
           Tournaments
         </Link>
@@ -70,12 +46,9 @@ function RiftFooter() {
         <Link to="/discord" className="hover:text-fg">
           Discord bot
         </Link>
-        {/* Phones have no sidebar yet, so the role links live here. */}
-        {roleLinks(user?.role).map((l) => (
-          <Link key={l.to} to={l.to} className="hover:text-fg md:hidden">
-            {l.label}
-          </Link>
-        ))}
+        <Link to="/credits" className="hover:text-fg">
+          Credits
+        </Link>
       </nav>
       <p className="m-0 w-full text-xs md:hidden">
         Icons by Lorc and Delapouite from{' '}
@@ -94,7 +67,7 @@ function RiftFooter() {
 
 /**
  * The default interface, in Chaos mode (dark) or Cosmos mode (light). Desktop: the sidebar, then a column with the
- * page and the help strip. Phones: the header and the tab bar (until #45).
+ * page and the help strip. Phones: a compact header and the bottom bar.
  */
 export default function RiftLayout() {
   const { pathname } = useLocation()
@@ -104,7 +77,7 @@ export default function RiftLayout() {
   return (
     <div className="rift-shell" {...help.handlers}>
       <Sidebar className="hidden md:flex" />
-      <div className="rift-column pb-20 md:pb-0">
+      <div className="rift-column">
         <RiftHeader />
         <LockPanel />
         <AuthErrorBanner />
@@ -121,7 +94,7 @@ export default function RiftLayout() {
         <RiftFooter />
         <HelpStrip text={help.text} className="hidden md:flex" />
       </div>
-      <MobileTabs />
+      <BottomBar />
       <Overlays />
     </div>
   )

@@ -875,6 +875,103 @@ body,
   color: var(--rift-helpstrip-mark);
 }
 
+/* ------------------------------------------------------------------ Rift phone bottom bar (#45)
+   Below md the sidebar and help strip hide and five equal emblem tiles take over. --rift-phone-bar is the bar's
+   height with the safe area (0 elsewhere): pad the page with it, and float things above it. */
+:root {
+  --rift-phone-bar: 0px;
+}
+@media (width < 48rem) {
+  [data-interface='rift'] {
+    --rift-phone-bar: calc(78px + env(safe-area-inset-bottom, 0px));
+  }
+}
+.rift-column {
+  padding-bottom: var(--rift-phone-bar);
+}
+.rift-bottombar {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 30;
+  display: none;
+  align-items: center;
+  height: var(--rift-phone-bar);
+  padding: 0 6px env(safe-area-inset-bottom, 0px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rift-surface) 92%, transparent), var(--rift-bg));
+  border-top: 1px solid var(--rift-silver-edge);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+@media (width < 48rem) {
+  .rift-bottombar {
+    display: flex;
+  }
+}
+.rift-tile {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 72px;
+  color: var(--rift-muted);
+  text-decoration: none;
+  transition: transform 0.1s, color 0.15s;
+}
+.rift-tile:active {
+  transform: scale(0.92);
+}
+.rift-tile__label {
+  font-family: var(--rift-font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* The current tile keeps a shape, not only a colour (review fix 4): the crest sits in its pressed seat, and a 3px
+   edge in the current-page colour runs under the label, like the sidebar's current bar. */
+.rift-tile[aria-current='page'] {
+  color: var(--rift-crest-ink);
+}
+.rift-tile[aria-current='page'] .da-crest {
+  --rift-frame-top: var(--rift-frame-top-on);
+  --rift-frame-bottom: var(--rift-frame-bottom-on);
+  --rift-crest-ink: var(--rift-crest-ink-on);
+}
+.rift-tile[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 32px;
+  height: 3px;
+  margin-left: -16px;
+  border-radius: 2px;
+  background: var(--rift-current-edge);
+}
+.rift-tile:focus-visible {
+  outline: 2px solid var(--rift-silver-hi);
+  outline-offset: -4px;
+}
+[data-rift-mode='cosmos'] .rift-bottombar {
+  background: var(--rift-phone-bar-face);
+  border-top-color: var(--rift-phone-bar-edge);
+  box-shadow: inset 0 1px 0 var(--rift-phone-bar-bevel);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+[data-rift-mode='cosmos'] .rift-tile:focus-visible {
+  outline-color: var(--rift-ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rift-tile:active {
+    transform: none;
+  }
+}
+
 /* ------------------------------------------------------------------ interface switcher */
 .da-switch__btn {
   min-height: 44px;
