@@ -11,7 +11,7 @@ When the owner asks for a prototype, or a feature's look or behaviour isn't sett
 
 ## Checks
 
-Backend: `cd backend && .venv/bin/python -m pytest` (on Windows, `.venv\Scripts\python`; setup in `backend/README.md`). Frontend: `cd frontend && npm run lint && npm run build && npm run test:e2e`.
+Run these in a POSIX shell (Git Bash on Windows; Windows PowerShell 5.1 has no `&&`). Backend: `cd backend && .venv/bin/python -m pytest` (on Windows, `.venv/Scripts/python`; setup in `backend/README.md`). Frontend: `cd frontend && npm run lint && npm run build && npm run test:e2e`.
 
 ## Research documents
 
