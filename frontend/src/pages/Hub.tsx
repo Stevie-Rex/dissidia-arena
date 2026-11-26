@@ -1,12 +1,12 @@
 import { useId, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { GAMES, MATCHES, ladder, playerById, type GameId } from '../data/mock'
+import { GAMES, type GameId } from '../data/mock'
 import { OPEN_STATUSES } from '../lib/api'
 import { cx } from '../lib/format'
 import { useApp } from '../state/AppState'
 import { useAppearance } from '../state/Appearance'
 import { useGameParam } from '../useGameParam'
-import { Art, Avatar, Btn, Card, Stat, Sub, TextLink } from '../components/ui'
+import { Art, Btn, Card, Sub, TextLink } from '../components/ui'
 import { FacetBackdrop } from '../components/rift/FacetBackdrop'
 import { Panel } from '../components/rift/menus'
 import '../theme/css/rift-hub.css'
@@ -107,15 +107,15 @@ function RiftHub() {
 
 /* ------------------------------------------------------------------ Classic */
 
-/** 1d — per-game hub. On mobile the Find match button sticks to the bottom (1f). */
+/** 1d — per-game hub, built only from real data (the queue poll, your open match, the season).
+ *  On mobile the Find match button sticks to the bottom (1f). */
 function ClassicHub() {
   const game = useGameParam()
   const info = GAMES[game]
-  const { signedIn, startQueue, setQueue, region } = useApp()
+  const { signedIn, startQueue, setQueue, searching, live } = useApp()
   const navigate = useNavigate()
-  const top = ladder(game).slice(0, 5)
-  const me = playerById('me')!
-  const recent = MATCHES.filter((m) => m.game === game)
+  const open = live && OPEN_STATUSES.includes(live.status) ? live : null
+  const count = searching[game]
 
   const findMatch = () => {
     setQueue({ game })
@@ -129,9 +129,7 @@ function ClassicHub() {
       <div className="flex flex-wrap items-end gap-2">
         <div>
           <h1 className="text-xl font-semibold">{info.name}</h1>
-          <Sub>
-            Season {info.season} · {info.seasonDaysLeft} days left · {info.online} online
-          </Sub>
+          <Sub>Pre-season: wins still count before Season 1</Sub>
         </div>
         <span className="flex-1" />
         <Btn className="hidden md:inline-block" onClick={findMatch}>
@@ -139,59 +137,30 @@ function ClassicHub() {
         </Btn>
       </div>
 
-      <div className="flex gap-3">
-        <Stat label="online" value={info.online} />
-        <Stat label="searching" value={info.searching} />
-        <Stat label={`Season ${info.season} ends`} value={`${info.seasonDaysLeft} days`} />
-      </div>
+      <Card>
+        {signedIn ? (
+          <span>
+            <b>{count}</b> {count === 1 ? 'player' : 'players'} searching now
+          </span>
+        ) : (
+          <Sub>Sign in to queue and see who is searching</Sub>
+        )}
+      </Card>
 
-      {signedIn && (
+      {open && (
         <Card tone="cosmos">
-          <div className="flex items-center gap-2">
-            <b>You</b>
-            <span className="flex-1" />
-            <span className="text-crystal-soft">
-              #{me.stats[game].rank} {region} · {me.stats[game].rating}
+          <div className="flex flex-wrap items-center gap-2">
+            <b>
+              Open match #{open.id} · {GAMES[open.game].short}
+            </b>
+            <span>
+              {open.score.you}–{open.score.opponent} vs {open.opponent.displayName}
             </span>
+            <span className="flex-1" />
+            <TextLink to="/match/live">Go to match</TextLink>
           </div>
         </Card>
       )}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <div className="flex items-center">
-            <b>Ladder · {region}</b>
-            <span className="flex-1" />
-            <TextLink to={`/${game}/ladder`}>full →</TextLink>
-          </div>
-          {top.map((p) => (
-            <Link key={p.id} to={`/players/${p.id}`} className="flex items-center gap-2 text-sm hover:text-crystal-soft">
-              <b className="w-5 text-muted">{p.stats[game].rank}</b>
-              <Avatar name={p.name} ring={p.id === 'me' ? 'you' : 'default'} />
-              <span>{p.name}</span>
-              <span className="flex-1" />
-              <span>{p.stats[game].rating}</span>
-            </Link>
-          ))}
-        </Card>
-        <Card>
-          <b>Recent matches</b>
-          {recent.map((m) => {
-            const aw = m.games.filter((g) => g.winner === 'A').length
-            return (
-              <Link key={m.id} to={`/matches/${m.id}`} className="flex items-center gap-2 text-sm hover:text-crystal-soft">
-                <Sub className="w-16">
-                  {m.mode} Bo{m.bestOf}
-                </Sub>
-                <span>
-                  {m.a.name} {aw}–{m.games.length - aw} {m.b.name}
-                </span>
-              </Link>
-            )
-          })}
-          {recent.length === 0 && <Sub>No matches yet this season</Sub>}
-        </Card>
-      </div>
 
       <Card>
         <b>Rules &amp; ruleset</b>

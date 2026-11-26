@@ -23,7 +23,7 @@ function useCommands(): Command[] {
   const { game, user } = useApp()
   return [
     { id: 'battle', label: 'Battle', to: '/queue', match: /^\/($|queue|match)/, help: 'Find a ranked match. Bo3, your region first.' },
-    { id: 'hub', label: 'Hub', to: `/${game}`, match: /^\/(012|nt)$/, help: "This game's hub: who's online, recent matches and news." },
+    { id: 'hub', label: 'Hub', to: `/${game}`, match: /^\/(012|nt)$/, help: "This game's hub: who is searching, your open match and the season." },
     { id: 'fighters', label: 'Fighters', to: `/${game}/meta`, match: /^\/(012|nt)\/(meta|characters)/, help: 'Characters, picks and the meta for this game.' },
     { id: 'rankings', label: 'Rankings', to: `/${game}/ladder`, match: /^\/(012|nt)\/ladder/, help: 'See who leads the ladder.' },
     { id: 'tournaments', label: 'Tournaments', to: '/tournaments', match: /^\/tournaments/, help: 'Brackets and check-ins.' },
