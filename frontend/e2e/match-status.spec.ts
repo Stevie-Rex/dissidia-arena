@@ -109,6 +109,18 @@ test('the match found sound setting survives a reload', async ({ page }) => {
   await expect(sound).not.toBeChecked()
 })
 
+test('a found match opens the dialog over the room of a different match', async ({ page }) => {
+  await withQueue(page, { queue: null, match: match() })
+  await page.route('**/api/matches/17', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(match({ id: 17, status: 'disputed' })) }),
+  )
+  await page.goto('/match/live?match=17')
+  await expect(page.getByRole('dialog', { name: 'Match found' })).toBeVisible()
+  await page.goto('/match/live?match=42')
+  await expect(page.getByRole('main').getByRole('button', { name: 'Accept', exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Match found' })).toBeHidden()
+})
+
 test('the Match found dialog scrolls when the screen is too short for it', async ({ page }) => {
   await page.setViewportSize({ width: 640, height: 300 })
   await withQueue(page, { queue: null, match: match() })

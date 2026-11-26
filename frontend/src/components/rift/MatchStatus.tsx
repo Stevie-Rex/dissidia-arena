@@ -38,9 +38,13 @@ export default function MatchStatus() {
 
   const match = pending ?? (live && OPEN_STATUSES.includes(live.status) ? live : null)
   const linkedId = new URLSearchParams(search).get('match')
-  // A found match takes over the screen, except in its own room, which shows the same Accept and Decline. The
-  // card stays hidden while the dialog is open, so the two never show at once.
-  if (pending && pathname !== '/match/live')
+  // A found match takes over the screen, except in its own room, which shows the same Accept and Decline. The room
+  // shows it at /match/live, or when linked to it or to the current match; linked to another match, the room shows
+  // that one, so the dialog opens over it. The card stays hidden while the dialog is open, so the two never show at once.
+  // Read the link the way MatchRoom does, so the two agree on which match the room shows.
+  const roomId = Number(linkedId) || null
+  const inPendingRoom = pathname === '/match/live' && (roomId === null || roomId === pending?.id || roomId === live?.id)
+  if (pending && !inPendingRoom)
     return <MatchFoundDialog key={pending.id} match={pending} acceptLeft={acceptLeft} onAccept={acceptMatch} onDecline={declineMatch} />
   if (match && pathname === '/match/live' && (!linkedId || linkedId === String(match.id))) return null
 
