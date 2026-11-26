@@ -267,6 +267,19 @@ body,
     filter: brightness(0.92);
     transition-duration: 0.05s;
   }
+  /* Chaos mode: a sheen runs across the key on hover. */
+  [data-interface='rift']:not([data-rift-mode='cosmos']) .da-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 0.45s ease-out;
+  }
+  [data-interface='rift']:not([data-rift-mode='cosmos']) .da-btn:hover:not(:disabled)::after {
+    transform: translateX(120%);
+  }
   /* The clip-path cuts anything drawn outside the key, so the focus ring sits inside it. */
   [data-interface='rift'] .da-btn:focus-visible {
     outline: 2px solid var(--btn-ink);
@@ -319,6 +332,16 @@ body,
     outline: 2px solid var(--rift-ink);
     outline-offset: 5px;
   }
+  /* Reduced motion: keys still brighten, darken and lose their lip when pressed, but never move. */
+  @media (prefers-reduced-motion: reduce) {
+    [data-interface='rift'] .da-btn:is(:hover, :active):not(:disabled),
+    [data-interface='rift'][data-rift-mode='cosmos'] .da-btn:is(:hover, :active):not(:disabled) {
+      transform: none;
+    }
+    [data-interface='rift'] .da-btn::after {
+      display: none;
+    }
+  }
   [data-interface='classic'] .da-btn {
     border: 1px solid var(--win-border);
     border-radius: 4px;
@@ -327,6 +350,7 @@ body,
     text-shadow: var(--win-shadow);
     font-family: var(--menu-family);
     font-weight: var(--menu-weight);
+    transition: color 150ms, background-color 150ms, border-color 150ms;
   }
   [data-interface='classic'] .da-btn:hover:not(:disabled) {
     background: var(--win-sel);

@@ -37,7 +37,7 @@ export function Btn({
     <button
       type="button"
       className={cx(
-        'da-btn transition-colors',
+        'da-btn',
         variant !== 'primary' && `da-btn--${variant}`,
         main && 'da-btn--main',
         size === 'lg' ? 'min-h-11 px-6 py-3 text-sm' : 'px-3 py-1 text-xs',

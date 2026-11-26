@@ -7,11 +7,12 @@ import { playMatchFound, unlockAudio } from '../../lib/sound'
 import { useApp } from '../../state/AppState'
 import { Btn, Card, Sub } from '../ui'
 import { GameCrest } from './crests'
+import MatchFoundDialog from './MatchFoundDialog'
 import './match-status.css'
 
 export default function MatchStatus() {
   const { pathname, search } = useLocation()
-  const { pending, live, searchEntry, phase, elapsed, acceptLeft, searching, cancelQueue } = useApp()
+  const { pending, live, searchEntry, phase, elapsed, acceptLeft, searching, cancelQueue, acceptMatch, declineMatch } = useApp()
   const announced = useRef<number | null>(null)
   const pendingId = pending?.id
 
@@ -38,6 +39,10 @@ export default function MatchStatus() {
 
   const match = pending ?? (live && OPEN_STATUSES.includes(live.status) ? live : null)
   const linkedId = new URLSearchParams(search).get('match')
+  // A found match takes over the screen, except in its own room, which shows the same Accept and Decline. The
+  // card stays hidden while the dialog is open, so the two never show at once.
+  if (pending && pathname !== '/match/live')
+    return <MatchFoundDialog key={pending.id} match={pending} acceptLeft={acceptLeft} onAccept={acceptMatch} onDecline={declineMatch} />
   if (match && pathname === '/match/live' && (!linkedId || linkedId === String(match.id))) return null
 
   const entry = phase === 'searching' ? searchEntry : null
@@ -47,12 +52,7 @@ export default function MatchStatus() {
   const title = pending ? 'Match found' : match?.status === 'reported' ? 'Result reported' : match ? 'Match in progress' : 'Searching'
   return (
     <section aria-label="Match status" className="rift-status">
-      <div key={pendingId ?? 'status'} className={pending ? 'rift-status__ready' : undefined}>
-        {pending && (
-          <span className="rift-status__shatter" aria-hidden>
-            <i /><i /><i /><i /><i /><i />
-          </span>
-        )}
+      <div>
         <div className="rift-status__body">
           <GameCrest game={detail.game} size={38} />
           <div className="min-w-0">

@@ -16,51 +16,6 @@
   gap: 0.625rem;
 }
 
-.rift-status__ready {
-  position: relative;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .rift-status:has(.rift-status__ready) {
-    animation: rift-status-found 650ms ease-out;
-  }
-
-  .rift-status__shatter {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    overflow: clip;
-  }
-
-  .rift-status__shatter i {
-    position: absolute;
-    top: 1.25rem;
-    left: 1.25rem;
-    width: 0.65rem;
-    height: 0.9rem;
-    background: var(--rift-crystal-wash);
-    clip-path: polygon(50% 0, 100% 35%, 65% 100%, 0 65%);
-    opacity: 0;
-    animation: rift-status-shard 650ms ease-out;
-  }
-
-  .rift-status__shatter i:nth-child(1) { --x: -18px; --y: -21px; }
-  .rift-status__shatter i:nth-child(2) { --x: 28px; --y: -25px; }
-  .rift-status__shatter i:nth-child(3) { --x: 53px; --y: -5px; }
-  .rift-status__shatter i:nth-child(4) { --x: 40px; --y: 28px; }
-  .rift-status__shatter i:nth-child(5) { --x: 10px; --y: 45px; }
-  .rift-status__shatter i:nth-child(6) { --x: -20px; --y: 30px; }
-}
-
-@keyframes rift-status-found {
-  25% { transform: scale(1.035); box-shadow: 0 0 22px var(--rift-cosmos); }
-}
-
-@keyframes rift-status-shard {
-  12% { opacity: 1; }
-  to { transform: translate(var(--x), var(--y)) rotate(100deg); opacity: 0; }
-}
-
 @media (width < 768px) {
   /* Give the card its own row so every page action remains reachable above it. */
   .rift-shell:has(> .rift-status) {

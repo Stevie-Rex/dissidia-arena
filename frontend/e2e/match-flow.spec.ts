@@ -98,8 +98,7 @@ test.describe('the match flow at phone width', () => {
     const queue = page.getByRole('main')
     await queue.getByRole('group', { name: 'Game' }).getByRole('button', { name: '012', exact: true }).click()
     await queue.getByRole('button', { name: 'Queue', exact: true }).click()
-    await page.getByRole('region', { name: 'Match status' }).getByRole('link', { name: 'Go to match' }).click()
-    const accept = page.getByRole('main').getByRole('button', { name: 'Accept', exact: true })
+    const accept = page.getByRole('dialog', { name: 'Match found' }).getByRole('button', { name: 'Accept', exact: true })
     await expect(accept).toBeVisible()
     expect(sent[0]).toMatchObject({ method: 'POST', path: '/api/queue', body: { game: '012', mode: '1v1', bestOf: 3 } })
 

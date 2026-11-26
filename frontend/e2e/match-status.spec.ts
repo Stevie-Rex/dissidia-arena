@@ -70,17 +70,21 @@ test.describe('Match status card', () => {
   })
 })
 
-test('a found match opens the room on a phone and can be accepted there', async ({ page }) => {
+test('a found match opens the dialog on a phone and can be accepted there', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 720 })
   const { sent } = await withQueue(page, { queue: null, match: match() })
   await page.goto('/rewards')
-  await expect(card(page)).toContainText('Match found')
-  await page.getByRole('navigation').getByRole('link', { name: 'Queue', exact: true }).click()
-  await expect(page).toHaveURL(/\/queue$/)
-  const roomLink = page.getByRole('main').getByRole('link', { name: 'Go to match' })
-  await roomLink.click({ trial: true })
-  await card(page).getByRole('link', { name: 'Go to match' }).click()
-  await expect(page).toHaveURL(/\/match\/live$/)
+  const dialog = page.getByRole('dialog', { name: 'Match found' })
+  await expect(dialog).toBeVisible()
+  await expect(card(page)).toBeHidden()
+  await dialog.getByRole('button', { name: 'Accept', exact: true }).click()
+  await expect.poll(() => sent).toContain('POST /api/matches/42/accept')
+})
+
+test('a found match can still be accepted from its room', async ({ page }) => {
+  const { sent } = await withQueue(page, { queue: null, match: match() })
+  await page.goto('/match/live')
+  await expect(page.getByRole('dialog', { name: 'Match found' })).toBeHidden()
   await page.getByRole('main').getByRole('button', { name: 'Accept', exact: true }).click()
   await expect.poll(() => sent).toContain('POST /api/matches/42/accept')
 })
