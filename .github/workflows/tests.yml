@@ -41,6 +41,48 @@ jobs:
           FLASK_APP: run.py
         run: flask db upgrade && flask db check
 
+  # Production runs MariaDB, and SQLite hides what only MariaDB does: row locks
+  # (with_for_update), its DDL in the migrations, and what its indexes can enforce.
+  backend-mariadb:
+    name: Backend on MariaDB (migrations, pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci
+          MARIADB_DATABASE: arena_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt
+      # The migrations get a database of their own, so the tests start from an empty one.
+      - name: Create the migrations database
+        run: python -c "import pymysql; pymysql.connect(host='127.0.0.1', user='root', password='ci').cursor().execute('CREATE DATABASE arena_migrations CHARACTER SET utf8mb4')"
+      - name: Migrations match the models
+        env:
+          SECRET_KEY: ci
+          DATABASE_URL: mysql+pymysql://root:ci@127.0.0.1:3306/arena_migrations
+          FLASK_APP: run.py
+        run: flask db upgrade && flask db check
+      - name: Tests
+        env:
+          TEST_DATABASE_URL: mysql+pymysql://root:ci@127.0.0.1:3306/arena_test
+        run: python -m pytest -q
+
   frontend:
     name: Frontend (lint, build, browser tests)
     runs-on: ubuntu-latest

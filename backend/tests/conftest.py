@@ -17,7 +17,9 @@ MASTER_DISCORD_ID = 4242
 
 class TestConfig(Config):
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = "sqlite://"
+    # In-memory SQLite by default. CI also runs the suite on MariaDB, as production does, by setting
+    # TEST_DATABASE_URL (see .github/workflows/tests.yml).
+    SQLALCHEMY_DATABASE_URI = os.environ.get("TEST_DATABASE_URL", "sqlite://")
     SQLALCHEMY_ENGINE_OPTIONS = {}
     DISCORD_CLIENT_ID = "client-id"
     DISCORD_CLIENT_SECRET = "client-secret"

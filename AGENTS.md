@@ -7,7 +7,9 @@
 
 ## Prototype first
 
-When the owner asks for a prototype, or a feature's look or behaviour isn't settled, build it in the dev-only `/lab` route (or on a throwaway branch) and get the owner's sign-off before implementing it. See "How the work runs" in `docs/prd/beta.md`.
+Every UI change starts as a prototype: build it in the dev-only `/lab` route (or on a throwaway branch) and get the owner's sign-off before implementing it. A UI change is anything players see: a page, layout, look, copy, motion or interaction. The same goes for a feature whose behaviour isn't settled. A bug fix that restores the signed-off look can skip the prototype.
+
+The pull request for a UI change opens as a draft with before and after screenshots at desktop and phone width, and leaves draft only when the owner signs it off. See "How the work runs" in `docs/prd/beta.md`.
 
 ## Checks
 
