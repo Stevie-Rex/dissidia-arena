@@ -389,10 +389,12 @@
 .lab-btn:hover::after { transform: translateX(120%); }
 .lab-btn:active { transform: translateY(1px) scale(0.97); filter: brightness(0.92); transition-duration: 0.05s; }
 .lab-btn:focus-visible { outline: 2px solid var(--cosmos); outline-offset: 3px; }
-.lab-btn--primary { background: var(--gold); color: var(--gold-ink) !important; }
-.lab-btn--chaos { background: var(--chaos); color: var(--chaos-ink) !important; }
-.lab-btn--ghost { background: color-mix(in srgb, var(--ink) 9%, transparent); color: var(--ink) !important; }
-.lab-btn--ghost:hover { background: color-mix(in srgb, var(--gold) 22%, transparent); }
+/* Pass 5: each variant reads --btn-* variables, so a button set (data-btnset) can recolour them. */
+.lab-btn--primary { background: var(--btn-primary-bg, var(--gold)); color: var(--btn-primary-ink, var(--gold-ink)) !important; }
+.lab-btn--match { background: var(--btn-match-bg, var(--chaos)); color: var(--btn-match-ink, var(--chaos-ink)) !important; }
+.lab-btn--chaos { background: var(--btn-danger-bg, var(--chaos)); color: var(--btn-danger-ink, var(--chaos-ink)) !important; }
+.lab-btn--ghost { background: var(--btn-ghost-bg, color-mix(in srgb, var(--ink) 9%, transparent)); color: var(--btn-ghost-ink, var(--ink)) !important; }
+.lab-btn--ghost:hover { background: var(--btn-ghost-hover, color-mix(in srgb, var(--gold) 22%, transparent)); }
 .lab-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .lab-actions--center { justify-content: center; }
 .lab-link { border: 0; background: none; padding: 0; color: var(--cosmos) !important; text-decoration: underline; }
@@ -874,7 +876,7 @@
 .lab-compare--two { grid-template-columns: 1fr 1fr; gap: 24px; }
 
 /* Crests */
-.lab-crest { position: relative; display: inline-grid; place-items: center; flex: none; color: var(--gold); }
+.lab-crest { position: relative; display: inline-grid; place-items: center; flex: none; color: var(--crest-ink, var(--gold)); }
 .lab-crest > svg { position: absolute; inset: 0; }
 .lab-crest__emblem { position: relative; display: flex; }
 .lab-crest-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
@@ -1036,4 +1038,77 @@
 @container stage (max-width: 760px) {
   .lab-unlocks__row { grid-template-columns: repeat(4, 1fr); gap: 10px; }
   .lab-unlocks__row > div:first-child { grid-column: 1 / -1; }
+}
+
+/* Pass 5: light-theme crest frames and button sets. Set on the lab root, or on a compare card. */
+.lab[data-mode="light"][data-lightframe="silver"],
+.lab[data-mode="light"] [data-lightframe="silver"] {
+  --frame-hi: var(--silver-hi); --frame-mid: var(--silver-edge); --frame-lo: var(--silver-lo);
+  --frame-top: var(--raised); --frame-bottom: var(--bg); --crest-ink: var(--gold);
+}
+.lab[data-mode="light"][data-lightframe="navy"],
+.lab[data-mode="light"] [data-lightframe="navy"] {
+  --frame-hi: #F3F5F9; --frame-mid: #9AA6BD; --frame-lo: #3A4458;
+  --frame-top: #2C4377; --frame-bottom: #111B34; --crest-ink: #F0C75E;
+}
+.lab[data-mode="light"][data-lightframe="gold"],
+.lab[data-mode="light"] [data-lightframe="gold"] {
+  --frame-hi: #F4DC92; --frame-mid: #B8892A; --frame-lo: #6E4C0C;
+  --frame-top: #FBF7EC; --frame-bottom: #EEE4CB; --crest-ink: #6E4C0C;
+}
+.lab[data-mode="light"][data-lightframe="line"],
+.lab[data-mode="light"] [data-lightframe="line"] {
+  --frame-hi: #1B4489; --frame-mid: #1B4489; --frame-lo: #1B4489;
+  --frame-top: transparent; --frame-bottom: transparent; --crest-ink: #1B4489;
+}
+.lab[data-mode="light"][data-btnset="current"],
+.lab[data-mode="light"] [data-btnset="current"] {
+  --btn-primary-bg: var(--gold); --btn-primary-ink: var(--gold-ink);
+  --btn-match-bg: var(--chaos); --btn-match-ink: var(--chaos-ink);
+  --btn-danger-bg: var(--chaos); --btn-danger-ink: var(--chaos-ink);
+  --btn-ghost-bg: color-mix(in srgb, var(--ink) 9%, transparent); --btn-ghost-ink: var(--ink);
+}
+.lab[data-mode="light"][data-btnset="navy"],
+.lab[data-mode="light"] [data-btnset="navy"] {
+  --btn-primary-bg: #1B3A73; --btn-primary-ink: #FFFFFF;
+  --btn-match-bg: #D9A63A; --btn-match-ink: #1F1606;
+  --btn-danger-bg: color-mix(in srgb, #8E1F2C 14%, transparent); --btn-danger-ink: #7E1B27;
+  --btn-ghost-bg: color-mix(in srgb, #1B3A73 10%, transparent); --btn-ghost-ink: #1B3A73;
+}
+.lab[data-mode="light"][data-btnset="silver"],
+.lab[data-mode="light"] [data-btnset="silver"] {
+  --btn-primary-bg: linear-gradient(180deg, #FBFCFE, #C9D0DC 55%, #AEB7C6); --btn-primary-ink: #141824;
+  --btn-match-bg: #2349B8; --btn-match-ink: #FFFFFF;
+  --btn-danger-bg: color-mix(in srgb, #8E1F2C 14%, transparent); --btn-danger-ink: #7E1B27;
+  --btn-ghost-bg: color-mix(in srgb, #141824 8%, transparent); --btn-ghost-ink: #141824;
+}
+.lab[data-mode="light"][data-btnset="blue"],
+.lab[data-mode="light"] [data-btnset="blue"] {
+  --btn-primary-bg: #2349B8; --btn-primary-ink: #FFFFFF;
+  --btn-match-bg: #14213F; --btn-match-ink: #F0C75E;
+  --btn-danger-bg: #7A2232; --btn-danger-ink: #FFFFFF;
+  --btn-ghost-bg: color-mix(in srgb, #2349B8 10%, transparent); --btn-ghost-ink: #1B3A8F;
+}
+.lab[data-mode="light"][data-btnset="ink"],
+.lab[data-mode="light"] [data-btnset="ink"] {
+  --btn-primary-bg: #1A1F2C; --btn-primary-ink: #F0C75E;
+  --btn-match-bg: #1B4489; --btn-match-ink: #FFFFFF;
+  --btn-danger-bg: color-mix(in srgb, #8E1F2C 14%, transparent); --btn-danger-ink: #7E1B27;
+  --btn-ghost-bg: color-mix(in srgb, #1A1F2C 9%, transparent); --btn-ghost-ink: #1A1F2C;
+}
+.lab[data-mode="light"] .lab-btn--ghost:hover { --btn-ghost-hover: color-mix(in srgb, var(--btn-ghost-ink) 16%, transparent); }
+.lab[data-mode="light"] .lab-btn--primary { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+.lab-lighttests { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.lab-lighttests__item, .lab-btnrow {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.lab-lighttests__item { display: flex; flex-direction: column; gap: 10px; }
+.lab-lighttests__item.is-picked, .lab-btnrow.is-picked { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.lab-btnrow { display: grid; grid-template-columns: minmax(180px, 1fr) 3fr; align-items: center; gap: 16px; }
+.lab-btnrow__btns { display: flex; flex-wrap: wrap; gap: 10px; }
+@container stage (max-width: 760px) {
+  .lab-btnrow { grid-template-columns: 1fr; }
 }

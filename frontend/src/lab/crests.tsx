@@ -102,9 +102,9 @@ export function FramedIcon({ frame, size, icon }: { frame: Frame; size: number; 
         <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden focusable="false">
           <defs>
             <linearGradient id={`${id}-silver`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="var(--silver-hi)" />
-              <stop offset="0.5" stopColor="var(--silver-edge)" />
-              <stop offset="1" stopColor="var(--silver-lo)" />
+              <stop offset="0" stopColor="var(--frame-hi, var(--silver-hi))" />
+              <stop offset="0.5" stopColor="var(--frame-mid, var(--silver-edge))" />
+              <stop offset="1" stopColor="var(--frame-lo, var(--silver-lo))" />
             </linearGradient>
             <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stopColor="var(--frame-top, var(--raised))" />
@@ -113,7 +113,7 @@ export function FramedIcon({ frame, size, icon }: { frame: Frame; size: number; 
           </defs>
           <path d={FRAME_PATHS[frame].outer} fill={`url(#${id}-fill)`} stroke={`url(#${id}-silver)`} strokeWidth={size < 40 ? 5 : 3.5} strokeLinejoin="round" />
           {size >= 40 && (
-            <path d={FRAME_PATHS[frame].inner} fill="none" stroke="var(--silver-edge)" strokeWidth="1" opacity="0.45" strokeLinejoin="round" />
+            <path d={FRAME_PATHS[frame].inner} fill="none" stroke="var(--frame-mid, var(--silver-edge))" strokeWidth="1" opacity="0.45" strokeLinejoin="round" />
           )}
         </svg>
       )}

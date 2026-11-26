@@ -1,5 +1,5 @@
 /*
- * Lab (#40), design pass 4. A dev-only page for choosing the Rift redesign by eye. Fixed sample data, no API,
+ * Lab (#40), design pass 5. A dev-only page for choosing the Rift redesign by eye. Fixed sample data, no API,
  * no sign-in. This branch never merges. Decisions so far are recorded on #40.
  */
 import { useEffect, useState, type CSSProperties, type ReactNode, type SyntheticEvent } from 'react'
@@ -33,12 +33,31 @@ type StatusSpot = 'sidebar' | 'floating'
 type Status = 'none' | 'searching' | 'ready'
 type BannerStyle = 'blade' | 'blade2' | 'shard' | 'ribbon'
 type Anim = 'shatter' | 'split' | 'sigil'
-type Page = 'home' | 'hub' | 'match' | 'menus' | 'crests'
+type Page = 'home' | 'hub' | 'match' | 'menus' | 'crests' | 'light'
 type Screen = 'desktop' | 'phone'
 /** Pass 4: the font for the match score. */
 type ScoreFont = 'chakra' | 'cinzel' | 'marcellus' | 'teko' | 'oxanium'
 /** Pass 4: how the next-unlock bar is coloured. */
 type UnlockBar = 'duo' | 'blue' | 'gold' | 'shift' | 'sweep'
+/** Pass 5: crest frame colours in the light theme. */
+type LightFrame = 'silver' | 'navy' | 'gold' | 'line'
+/** Pass 5: button colours in the light theme. */
+type BtnSet = 'current' | 'navy' | 'silver' | 'blue' | 'ink'
+
+const LIGHT_FRAMES: { value: LightFrame; label: string; detail: string }[] = [
+  { value: 'silver', label: 'Silver', detail: 'What it uses now: silver rim, pale fill' },
+  { value: 'navy', label: 'Navy enamel', detail: 'Dark navy fill and a bright gold icon, like an enamel badge' },
+  { value: 'gold', label: 'Gold rim', detail: 'A gold rim on a cream fill' },
+  { value: 'line', label: 'Flat line', detail: 'No fill, a thin navy outline and a navy icon' },
+]
+
+const BTN_SETS: { value: BtnSet; label: string; detail: string }[] = [
+  { value: 'current', label: 'Gold and red', detail: 'What it uses now' },
+  { value: 'navy', label: 'Navy and gold', detail: 'Navy main buttons, gold for your match' },
+  { value: 'silver', label: '012 silver', detail: 'Silver bevel buttons, selection blue for your match' },
+  { value: 'blue', label: 'Selection blue', detail: 'Blue main buttons, dark navy and gold for your match' },
+  { value: 'ink', label: 'Ink and gold', detail: 'Near-black buttons with gold text, blue for your match' },
+]
 
 const SCORE_FONTS: { value: ScoreFont; label: string; detail: string }[] = [
   { value: 'chakra', label: 'Chakra Petch', detail: 'What it uses now (the font set C heading font)' },
@@ -70,7 +89,7 @@ const ACCEPT_SECONDS = 60
 const gameInfo = (game: LabGame) => GAMES.find((g) => g.id === game)!
 
 /** Which nav entry a lab page lights up in the sidebar and the bottom bar. */
-const NAV_KEY: Record<Page, string> = { home: '', hub: 'hub', match: 'queue', menus: 'more', crests: '' }
+const NAV_KEY: Record<Page, string> = { home: '', hub: 'hub', match: 'queue', menus: 'more', crests: '', light: '' }
 
 function Choice<T extends string>({
   label,
@@ -105,7 +124,7 @@ function Button({
   className,
 }: {
   children: ReactNode
-  variant?: 'primary' | 'ghost' | 'chaos'
+  variant?: 'primary' | 'ghost' | 'chaos' | 'match'
   size?: 'md' | 'lg'
   onClick?: () => void
   className?: string
@@ -424,7 +443,7 @@ function Banner({ style, tone, kicker, big, text, action, onAction }: BannerProp
           </div>
         </div>
         {action && (
-          <Button variant={tone === 'match' ? 'chaos' : 'primary'} onClick={onAction}>
+          <Button variant={tone === 'match' ? 'match' : 'primary'} onClick={onAction}>
             {action}
           </Button>
         )}
@@ -484,7 +503,7 @@ function Home({ game, onQueue, onMatch }: { game: LabGame; onQueue: () => void; 
           <span className="lab-glass__label">Your match</span>
           <strong className="lab-stat">1–1</strong>
           <span className="lab-glass__text">vs {OPPONENT.name}</span>
-          <Button variant="chaos" onClick={onMatch}>
+          <Button variant="match" onClick={onMatch}>
             Go to match
           </Button>
         </div>
@@ -786,6 +805,55 @@ const GLYPHS: { label: string; icon: (size: number) => ReactNode }[] = [
   { label: 'NT · winged-sword', icon: (s) => <GiWingedSword size={s} /> },
 ]
 
+function LightTests({ lightFrame, btnSet }: { lightFrame: LightFrame; btnSet: BtnSet }) {
+  const items: MenuItem[] = [
+    { key: 'hub', label: 'Hub', hint: 'Hub', icon: <FramedIcon frame="diamond" size={30} icon={(s) => <GiStoneTower size={s} />} /> },
+    { key: 'queue', label: 'Queue', hint: 'Queue', icon: <FramedIcon frame="diamond" size={30} icon={(s) => <GiCrossedSwords size={s} />} /> },
+    { key: 'ladder', label: 'Ladder', hint: 'Ladder', icon: <FramedIcon frame="diamond" size={30} icon={(s) => <GiLaurels size={s} />} /> },
+  ]
+  return (
+    <div className="lab-page">
+      <p className="lab-kicker">Light theme</p>
+      <h1 className="lab-h1">Light tests</h1>
+      <p className="lab-note">This page switches the lab to light. The toolbar choices apply to the whole lab in light mode.</p>
+
+      <h2 className="lab-h2 lab-compare-head">Crest frames</h2>
+      <div className="lab-lighttests">
+        {LIGHT_FRAMES.map((f) => (
+          <div key={f.value} data-lightframe={f.value} className={cx('lab-lighttests__item', lightFrame === f.value && 'is-picked')}>
+            <MenuBars label={`Frames ${f.label}`} items={items} compact />
+            <div className="lab-crest-pair">
+              <FramedCrest frame="diamond" game="012" size={56} />
+              <FramedCrest frame="diamond" game="NT" size={56} />
+            </div>
+            <p className="lab-unlocks__name">{f.label}</p>
+            <p className="lab-unlocks__detail">{f.detail}</p>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="lab-h2 lab-compare-head">Button colours</h2>
+      <p className="lab-note">Dispute stays a warning colour in every set, but quieter than now. Go to match no longer uses it.</p>
+      <div className="lab-unlocks">
+        {BTN_SETS.map((b) => (
+          <div key={b.value} data-btnset={b.value} className={cx('lab-btnrow', btnSet === b.value && 'is-picked')}>
+            <div>
+              <p className="lab-unlocks__name">{b.label}</p>
+              <p className="lab-unlocks__detail">{b.detail}</p>
+            </div>
+            <div className="lab-btnrow__btns">
+              <Button>Queue</Button>
+              <Button variant="match">Go to match</Button>
+              <Button variant="chaos">Dispute</Button>
+              <Button variant="ghost">Read the rules</Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Crests() {
   return (
     <div className="lab-page">
@@ -944,6 +1012,8 @@ export default function Lab() {
   const [frame, setFrame] = useState<Frame>('diamond')
   const [scoreFont, setScoreFont] = useState<ScoreFont>('marcellus')
   const [unlockBar, setUnlockBar] = useState<UnlockBar>('blue')
+  const [lightFrame, setLightFrame] = useState<LightFrame>('silver')
+  const [btnSet, setBtnSet] = useState<BtnSet>('current')
   const [muted, setMutedState] = useState(loadMuted)
   /** Bumped to replay the match-found overlay; 0 means it is closed. */
   const [foundRun, setFoundRun] = useState(0)
@@ -1001,23 +1071,28 @@ export default function Lab() {
     match: <MatchRoom game={game} scoreFont={scoreFont} onFound={findMatch} />,
     menus: <Menus muted={muted} setMuted={setMuted} />,
     crests: <Crests />,
+    light: <LightTests lightFrame={lightFrame} btnSet={btnSet} />,
   }[page]
   const backdrop = page !== 'match'
 
   return (
-    <div className={cx('lab', still && 'lab--still')} data-fontset={fontSet} data-mode={mode} data-screen={screen}>
+    <div className={cx('lab', still && 'lab--still')} data-fontset={fontSet} data-mode={mode} data-screen={screen} data-lightframe={lightFrame} data-btnset={btnSet}>
       <header className="lab-toolbar" aria-label="Lab controls">
-        <strong className="lab-toolbar__title">Lab · pass 4</strong>
+        <strong className="lab-toolbar__title">Lab · pass 5</strong>
         <Choice
           label="Page"
           value={page}
-          onChange={setPage}
+          onChange={(p) => {
+            setPage(p)
+            if (p === 'light') setMode('light')
+          }}
           options={[
             { value: 'home', label: 'Home' },
             { value: 'hub', label: 'Hub' },
             { value: 'match', label: 'Match room' },
             { value: 'menus', label: 'More menu' },
             { value: 'crests', label: 'Crests' },
+            { value: 'light', label: 'Light tests' },
           ]}
         />
         <Choice
@@ -1097,6 +1172,24 @@ export default function Lab() {
           value={unlockBar}
           onChange={setUnlockBar}
           options={UNLOCK_BARS.map((u) => ({ value: u.value, label: u.label, title: u.detail }))}
+        />
+        <Choice
+          label="Light frames"
+          value={lightFrame}
+          onChange={(f) => {
+            setLightFrame(f)
+            setMode('light')
+          }}
+          options={LIGHT_FRAMES.map((f) => ({ value: f.value, label: f.label, title: f.detail }))}
+        />
+        <Choice
+          label="Light buttons"
+          value={btnSet}
+          onChange={(b) => {
+            setBtnSet(b)
+            setMode('light')
+          }}
+          options={BTN_SETS.map((b) => ({ value: b.value, label: b.label, title: b.detail }))}
         />
         <Choice
           label="Match found"
