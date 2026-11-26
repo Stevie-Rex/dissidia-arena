@@ -16,6 +16,8 @@ class UserPreferences(db.Model):
     window_theme: Mapped[str] = mapped_column(String(20), default="classic", nullable=False)
     menu_font: Mapped[str] = mapped_column(String(10), default="auto", nullable=False)
     cursor_style: Mapped[str] = mapped_column(String(10), default="glove", nullable=False)
+    # Rift's mode: Chaos mode (dark, the default) or Cosmos mode (light). Free for everyone.
+    rift_mode: Mapped[str] = mapped_column(String(10), default="chaos", server_default="chaos", nullable=False)
     window_r: Mapped[int] = mapped_column(SmallInteger, default=6, nullable=False)
     window_g: Mapped[int] = mapped_column(SmallInteger, default=10, nullable=False)
     window_b: Mapped[int] = mapped_column(SmallInteger, default=26, nullable=False)
@@ -30,6 +32,7 @@ class UserPreferences(db.Model):
             "menu_font": self.menu_font,
             "cursor": self.cursor_style,
             "window_rgb": [self.window_r, self.window_g, self.window_b],
+            "rift_mode": self.rift_mode,
         }
 
 

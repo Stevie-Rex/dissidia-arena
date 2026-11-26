@@ -41,6 +41,7 @@ def test_new_player_gets_defaults(player):
     assert body["preferences"] == {
         "interface": "rift", "window_theme": "classic",
         "menu_font": "auto", "cursor": "glove", "window_rgb": [6, 10, 26],
+        "rift_mode": "chaos",
     }
     assert body["ranked_wins"] == 0 and body["unlocks"] == []
     assert len(body["rewards"]) == len(rewards.REWARDS)
@@ -143,6 +144,9 @@ def test_custom_rgb_round_trip(player):
         {"window_rgb": "6,10,26"},
         {"window_rgb": [1.5, 0, 0]},
         {"theme": "dark"},
+        {"rift_mode": "dark"},
+        {"rift_mode": "light"},
+        {"rift_mode": None},
     ],
 )
 def test_bad_values_are_400(player, body):
@@ -171,3 +175,16 @@ def test_world_is_no_longer_a_preference(player):
     res = patch(c, {"world": "dissidia"})
     assert res.status_code == 400
     assert res.get_json()["error"] == "unknown_field"
+
+
+def test_rift_mode_is_free_and_persists(player):
+    """Chaos mode is the default; Cosmos mode is free for everyone and survives a fresh session."""
+    user, c, _ = player
+    res = patch(c, {"rift_mode": "cosmos"})
+    assert res.status_code == 200
+    assert res.get_json()["preferences"]["rift_mode"] == "cosmos"
+    other = c.application.test_client()
+    with other.session_transaction() as s:
+        s["user_id"] = user.id
+    assert other.get("/api/me/appearance").get_json()["preferences"]["rift_mode"] == "cosmos"
+    assert patch(c, {"rift_mode": "chaos"}).get_json()["preferences"]["rift_mode"] == "chaos"

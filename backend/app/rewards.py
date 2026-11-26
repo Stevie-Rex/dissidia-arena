@@ -45,6 +45,7 @@ ALLOWED = {
     "window_theme": {"classic", "crystal", "magitek", "midgar", "garden", "gaia", "spira", "ivalice", "custom"},
     "menu_font": {"auto", "bit16", "bit8", "story", "modern"},
     "cursor": {"glove", "arrow"},
+    "rift_mode": {"chaos", "cosmos"},
 }
 
 DEFAULTS = {
@@ -53,6 +54,7 @@ DEFAULTS = {
     "menu_font": "auto",
     "cursor": "glove",
     "window_rgb": [6, 10, 26],
+    "rift_mode": "chaos",
 }
 
 RGB_MAX = 31

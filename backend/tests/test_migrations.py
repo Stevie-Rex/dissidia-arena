@@ -26,8 +26,24 @@ def test_drop_world_migration_runs_up_and_down(tmp_path):
         upgrade(directory=MIGRATIONS)
         assert "world" not in _preference_columns(app)
 
-        downgrade(directory=MIGRATIONS, revision="-1")
+        downgrade(directory=MIGRATIONS, revision="b3d5f7a9c1e4")
         assert "world" in _preference_columns(app)
 
         upgrade(directory=MIGRATIONS)
         assert "world" not in _preference_columns(app)
+
+
+def test_rift_mode_migration_runs_up_and_down(tmp_path):
+    class FileDb(TestConfig):
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{tmp_path / 'migrations.db'}"
+
+    app = create_app(FileDb)
+    with app.app_context():
+        upgrade(directory=MIGRATIONS)
+        assert "rift_mode" in _preference_columns(app)
+
+        downgrade(directory=MIGRATIONS, revision="-1")
+        assert "rift_mode" not in _preference_columns(app)
+
+        upgrade(directory=MIGRATIONS)
+        assert "rift_mode" in _preference_columns(app)
