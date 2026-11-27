@@ -11,7 +11,7 @@ from app import create_app
 from app.config import Config
 from app.extensions import db
 from app import clock
-from app.models import Match, MatchGame, User
+from app.models import Match, MatchGame, Settlement, User
 
 MASTER_DISCORD_ID = 4242
 
@@ -111,6 +111,13 @@ def make_match(make_player):
         if status not in ("pending", "active", "reported"):
             match.finished_at = t
         db.session.add(match)
+        db.session.flush()
+        if status in ("completed", "voided"):  # the row app.settlement would have written
+            won = status == "completed"
+            db.session.add(Settlement(
+                match_id=match.id, outcome=status, winner_id=a.id if won else None, loser_id=b.id if won else None,
+                ladder="nt/PS4", settled_at=t,
+            ))
         db.session.commit()
         return match, a, b
 

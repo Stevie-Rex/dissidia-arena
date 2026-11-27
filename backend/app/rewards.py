@@ -1,5 +1,6 @@
 """
-Ranked-win rewards and appearance validation.
+Ranked-win rewards and appearance validation: which rewards a win count unlocks, and granting them.
+Counting ranked wins and losses is app.settlement's job.
 
 Ported from the theme package (`UI Designs/dissidia-theme/python/rewards.py`) with the owner's
 reward ladder: Classic at 10 ranked wins, then one more unlock every 5 wins. The catalogue
@@ -11,9 +12,7 @@ Like matchmaking.py, nothing here commits; callers do.
 
 from __future__ import annotations
 
-import click
-from flask import Flask
-from sqlalchemy import func, insert, or_, select, update
+from sqlalchemy import insert, select
 
 from .extensions import db
 from .models import Match, User, UserPreferences, UserUnlock
@@ -165,7 +164,7 @@ def _insert_ignore():
 def grant_unlocks(user_id: int, wins: int, match_id: int | None = None) -> list[str]:
     """Insert any unlocks earned at `wins` that the player doesn't hold yet. Returns the new keys.
 
-    Call in the same transaction that updates users.ranked_wins. INSERT IGNORE means two
+    app.settlement calls this in the same transaction that updates users.ranked_wins. INSERT IGNORE means two
     results landing at once can't double-grant or fail on the primary key.
     """
     earned = rewards_for_wins(wins)
@@ -180,27 +179,6 @@ def grant_unlocks(user_id: int, wins: int, match_id: int | None = None) -> list[
         if res.rowcount:
             new.append(key)
     return new
-
-
-def record_ranked_win(match: Match) -> list[str]:
-    """A ranked match just completed: credit the winner and grant what they earned.
-    Called only by app.settlement, which owns settling a match.
-
-    Every match is ranked for now (the site only has ranked 1v1 Bo3). Only `completed`
-    counts; disputed, cancelled and abandoned matches never reach here.
-    """
-    if match.winner_id is None:
-        return []
-    # Atomic increment, so two of the same player's matches confirming at once don't lose a win.
-    db.session.execute(
-        update(User).where(User.id == match.winner_id).values(ranked_wins=User.ranked_wins + 1),
-        execution_options={"synchronize_session": False},
-    )
-    wins = db.session.scalar(select(User.ranked_wins).where(User.id == match.winner_id))
-    winner = db.session.get(User, match.winner_id)
-    if winner is not None:
-        db.session.refresh(winner, ["ranked_wins"])
-    return grant_unlocks(match.winner_id, wins, match.id)
 
 
 def rewards_from_match(match: Match, user_id: int) -> list[dict]:
@@ -235,18 +213,10 @@ def save_preferences(user_id: int, changes: dict) -> None:
             setattr(row, field, value)
 
 
-def ranked_losses(user_id: int) -> int:
-    return db.session.scalar(
-        select(func.count()).select_from(Match).where(
-            Match.completed_with_winner,
-            or_(Match.player_a_id == user_id, Match.player_b_id == user_id),
-            Match.winner_id != user_id,
-        )
-    ) or 0
-
-
 def appearance(user: User) -> dict:
     """Body of GET/PATCH /api/me/appearance."""
+    from .settlement import ranked_losses  # settlement imports this module to grant unlocks
+
     unlocked = unlocked_keys(user.id)
     status = reward_status(user.ranked_wins, unlocked)
     return {
@@ -258,33 +228,3 @@ def appearance(user: User) -> dict:
         "rewards": status,
         "next": next((r for r in status if not r["unlocked"]), None),
     }
-
-
-def backfill() -> dict[str, int]:
-    """Recount every player's ranked wins from completed matches and grant what they've earned.
-
-    Idempotent. Unlocks are never removed, even if a recount comes out lower.
-    """
-    counts = dict(db.session.execute(
-        select(Match.winner_id, func.count()).where(Match.completed_with_winner, Match.winner_id.is_not(None))
-        .group_by(Match.winner_id)
-    ).all())
-    users = granted = 0
-    for user in db.session.scalars(select(User)):
-        user.ranked_wins = counts.get(user.id, 0)
-        granted += len(grant_unlocks(user.id, user.ranked_wins))
-        users += 1
-    return {"users": users, "granted": granted}
-
-
-def register(app: Flask) -> None:
-    @app.cli.command("backfill-rewards")
-    def backfill_rewards() -> None:
-        """Recount ranked wins and grant any unlocks players have already earned."""
-        try:
-            result = backfill()
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            raise
-        click.echo(f"{result['users']} players checked, {result['granted']} unlocks granted")

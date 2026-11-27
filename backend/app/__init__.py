@@ -33,10 +33,10 @@ def create_app(config_object: object = Config) -> Flask:
     app.register_blueprint(admin_bp, url_prefix="/api")
     app.register_blueprint(screenshots_bp, url_prefix="/api")
 
-    from . import bot, rewards, worker
+    from . import bot, settlement, worker
 
     worker.register(app)
     bot.register(app)
-    rewards.register(app)
+    settlement.register(app)
 
     return app
