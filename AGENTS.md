@@ -33,6 +33,10 @@ Run these in a POSIX shell (Git Bash on Windows; Windows PowerShell 5.1 has no `
 
 Issues are tracked in GitHub Issues for Stevie-Rex/dissidia-arena, via the gh CLI. See `docs/agents/issue-tracker.md`.
 
+### Local-model run rules
+
+Writing or rewriting a ticket's Implementer notes for the local model (a `model:qwen` ticket, or when asked to use the local-model run rules): follow `docs/agents/local-model-runs.md`.
+
 ### Domain docs
 
 Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
