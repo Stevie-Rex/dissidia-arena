@@ -3,10 +3,13 @@ the next migration lands. They read each file's syntax tree, so line breaks, spa
 was imported don't matter."""
 
 import ast
+import re
 from pathlib import Path
 
 TESTS = Path(__file__).parent
 REFUSALS = {"IntegrityError", "OperationalError"}
+# What a named revision looks like here: every migration's id is 12 hex characters.
+REVISION_ID = re.compile(r"[0-9a-f]{12}")
 
 
 def calls(path: Path, name: str):
@@ -38,13 +41,14 @@ def test_database_refusals_are_expected_with_db_refuses():
 
 
 def test_migration_tests_downgrade_to_a_named_revision():
-    """A relative revision ("-1", also downgrade()'s default) moves with the head, so the next
-    migration would change what the test checks. Name the revision the test means."""
+    """A relative revision ("-1", downgrade()'s default, "head-1", "base") moves as migrations are
+    added, so the next one would change what the test checks. Name the revision id the test means."""
     offenders = []
     for call in calls(TESTS / "test_migrations.py", "downgrade"):
         kw = {k.arg: k.value for k in call.keywords}
         revision = kw.get("revision", call.args[1] if len(call.args) > 1 else None)
-        named = isinstance(revision, ast.Constant) and isinstance(revision.value, str) and revision.value[:1] not in "-+"
+        named = (isinstance(revision, ast.Constant) and isinstance(revision.value, str)
+                 and REVISION_ID.fullmatch(revision.value) is not None)
         if not named:
             offenders.append(f"test_migrations.py:{call.lineno}")
     assert offenders == []
