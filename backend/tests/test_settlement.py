@@ -1,7 +1,7 @@
 """The Settlement module: who won a series, and settling a match (completed with a winner, or Voided)."""
 
 import pytest
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import clock, rewards, settlement
 from app.errors import MatchmakingError
@@ -188,7 +188,7 @@ def test_an_undone_row_leaves_room_for_the_next_settle(make_player):
 def test_the_database_refuses_an_unknown_outcome(make_player):
     match, a, b = build(make_player, "aa")
     db.session.add(Settlement(match_id=match.id, outcome="void", ladder="nt/PS4", settled_at=clock.now()))
-    with pytest.raises(IntegrityError):
+    with pytest.raises((IntegrityError, OperationalError)):  # MariaDB reports a failed CHECK as error 4025
         db.session.commit()
     db.session.rollback()
 
