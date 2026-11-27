@@ -122,7 +122,7 @@ test('the Master does not see a step-down form', async ({ page }) => {
 test('the Master appoints and removes Admins, each with a reason', async ({ page }) => {
   const sent = await signedInAs(page, 'master')
   await page.goto('/admin/admins') // changed: the Admins tab replaced the Master panel page
-  const admins = page.getByRole('region', { name: 'Admins' })
+  const admins = page.getByRole('region', { name: 'Current Admins' }) // changed: the panel header took the page title, so the list names itself
   await expect(admins.getByText('Kefka', { exact: true })).toBeVisible()
   const search = await page.getByRole('search').boundingBox()
   expect(search!.y).toBeLessThan((await admins.boundingBox())!.y) // the appoint search sits above the list

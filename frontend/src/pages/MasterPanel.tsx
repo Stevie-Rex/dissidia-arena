@@ -1,9 +1,11 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
-import AdminTabs from '../components/AdminTabs'
 import RoleGate from '../components/RoleGate'
-import { Avatar, Btn, Card, PageTitle, Sub } from '../components/ui'
+import { Avatar, Btn, Sub } from '../components/ui'
 import { MAX_REASON, api, errorMessage, type AdminInfo, type PlayerResult } from '../lib/api'
 import { FIELD } from '../lib/format'
+
+/** A player and their action on one line; an open reason form wraps below. */
+const ROW = 'flex flex-wrap items-center justify-between gap-2 border-b border-line py-2 last:border-b-0'
 
 /** The Admin panel's Admins tab: the Master appoints and removes Admins. */
 export default function MasterPanel() {
@@ -30,13 +32,11 @@ function Panel() {
   }, [])
 
   return (
-    <div className="flex flex-col gap-8">
-      <PageTitle>Admins</PageTitle>
-      <AdminTabs />
+    <div className="flex flex-col gap-3">
       <Appoint onAppointed={setAdmins} />
-      <section aria-labelledby="admins-title" className="flex flex-col gap-3">
-        <h2 id="admins-title" className="m-0 text-lg font-semibold">
-          Admins
+      <section aria-labelledby="admins-title" className="da-card">
+        <h2 id="admins-title" className="m-0 text-base font-semibold">
+          Current Admins
         </h2>
         {error && (
           <p role="alert" className="m-0 text-sm text-chaos-soft">
@@ -46,23 +46,19 @@ function Panel() {
         {admins === null ? (
           !error && <Sub>Loading…</Sub>
         ) : admins.length === 0 ? (
-          <Card>
-            <p className="m-0 text-sm">No Admins yet. Appoint one above, so you aren't the only one handling disputes.</p>
-          </Card>
+          <p className="m-0 text-sm">No Admins yet. Appoint one above, so you aren't the only one handling disputes.</p>
         ) : (
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+          <ul className="m-0 flex list-none flex-col p-0">
             {admins.map((a) => (
-              <li key={a.id}>
-                <Card className="flex flex-col gap-2">
-                  <PlayerLine player={a} extra={`Admin since ${new Date(a.since).toLocaleDateString()}`} />
-                  <ReasonAction
-                    open="Remove"
-                    label={`Why are you removing ${a.displayName}?`}
-                    confirm={`Remove ${a.displayName}`}
-                    variant="chaos"
-                    onConfirm={async (reason) => setAdmins((await api.removeAdmin(a.id, reason)).admins)}
-                  />
-                </Card>
+              <li key={a.id} className={ROW}>
+                <PlayerLine player={a} extra={`Admin since ${new Date(a.since).toLocaleDateString()}`} />
+                <ReasonAction
+                  open="Remove"
+                  label={`Why are you removing ${a.displayName}?`}
+                  confirm={`Remove ${a.displayName}`}
+                  variant="chaos"
+                  onConfirm={async (reason) => setAdmins((await api.removeAdmin(a.id, reason)).admins)}
+                />
               </li>
             ))}
           </ul>
@@ -95,8 +91,8 @@ function Appoint({ onAppointed }: { onAppointed: (admins: AdminInfo[]) => void }
   }
 
   return (
-    <section aria-labelledby={`${id}-title`} className="flex flex-col gap-3">
-      <h2 id={`${id}-title`} className="m-0 text-lg font-semibold">
+    <section aria-labelledby={`${id}-title`} className="da-card">
+      <h2 id={`${id}-title`} className="m-0 text-base font-semibold">
         Appoint an Admin
       </h2>
       <p className="m-0 max-w-2xl text-sm text-muted">
@@ -122,22 +118,20 @@ function Appoint({ onAppointed }: { onAppointed: (admins: AdminInfo[]) => void }
         (results.length === 0 ? (
           <Sub>No players found.</Sub>
         ) : (
-          <ul aria-label="Search results" className="m-0 flex list-none flex-col gap-2 p-0">
+          <ul aria-label="Search results" className="m-0 flex list-none flex-col p-0">
             {results.map((p) => (
-              <li key={p.id}>
-                <Card className="flex flex-col gap-2">
-                  <PlayerLine player={p} />
-                  {p.role === 'player' ? (
-                    <ReasonAction
-                      open="Appoint"
-                      label={`Why are you appointing ${p.displayName}?`}
-                      confirm={`Appoint ${p.displayName}`}
-                      onConfirm={(reason) => appoint(p, reason)}
-                    />
-                  ) : (
-                    <Sub>{p.role === 'master' ? 'The Master' : 'Already an Admin'}</Sub>
-                  )}
-                </Card>
+              <li key={p.id} className={ROW}>
+                <PlayerLine player={p} />
+                {p.role === 'player' ? (
+                  <ReasonAction
+                    open="Appoint"
+                    label={`Why are you appointing ${p.displayName}?`}
+                    confirm={`Appoint ${p.displayName}`}
+                    onConfirm={(reason) => appoint(p, reason)}
+                  />
+                ) : (
+                  <Sub>{p.role === 'master' ? 'The Master' : 'Already an Admin'}</Sub>
+                )}
               </li>
             ))}
           </ul>
@@ -207,7 +201,7 @@ function ReasonAction({
   }
 
   return (
-    <form onSubmit={submit} aria-label={confirm} className="flex flex-col gap-2" noValidate>
+    <form onSubmit={submit} aria-label={confirm} className="flex w-full flex-col gap-2" noValidate>
       <label htmlFor={`${id}-reason`} className="text-sm font-semibold">
         {label}
       </label>

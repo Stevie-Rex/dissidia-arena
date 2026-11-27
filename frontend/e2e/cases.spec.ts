@@ -151,7 +151,7 @@ test('the case list shows which cases are claimed', async ({ page }) => {
   await onCase(page, 'admin', theCase({ claim: { by: ref(8, 'Kefka'), at: '2026-11-21T12:10:00Z', byYou: false } }))
   await page.goto('/admin')
   const list = page.getByRole('region', { name: 'Open cases' })
-  await expect(list.locator('tbody tr')).toContainText('Claimed by Kefka') // changed: the case list is a table
+  await expect(list.locator('tbody tr')).toContainText('Kefka') // changed: the table's Claim column shows the Admin's name
   await list.getByRole('link', { name: 'Match #42', exact: true }).click() // changed: the players have their own column
   await expect(page).toHaveURL(/\/admin\/cases\/42$/)
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
@@ -246,12 +246,13 @@ test('the filter chips show the right cases', async ({ page }) => {
   await page.goto('/admin')
   const list = page.getByRole('region', { name: 'Open cases' })
   await expect(list.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  for (const [chip, count] of [['All', 3], ['Disputes', 2], ['Help', 1], ['Unclaimed', 1], ['Mine', 1]] as const) {
+  const expected = [['All', [42, 43, 44]], ['Disputes', [42, 44]], ['Help', [43]], ['Unclaimed', [44]], ['Mine', [42]]] as const
+  for (const [chip, matches] of expected) {
     await list.getByRole('button', { name: chip, exact: true }).click()
     await expect(list.getByRole('button', { name: chip, exact: true })).toHaveAttribute('aria-pressed', 'true')
-    await expect(list.locator('tbody tr')).toHaveCount(count)
+    await expect(list.getByRole('link')).toHaveText(matches.map((id) => `Match #${id}`))
   }
-  await expect(list.locator('tbody tr')).toContainText('Claimed by you')
+  await expect(list.locator('tbody tr')).toContainText('Tester')
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 })
 
@@ -260,7 +261,41 @@ test('at phone width each case stacks, with nothing off screen', async ({ page }
   await onCase(page, 'admin', theCase({ claim: { by: ref(8, 'Kefka'), at: '2026-11-21T12:10:00Z', byYou: false } }))
   await page.goto('/admin')
   const table = page.getByRole('region', { name: 'Open cases' }).getByRole('table')
-  await expect(table.getByText('Claimed by Kefka')).toBeInViewport({ ratio: 1 })
+  await expect(table.getByRole('cell', { name: 'Claim · Kefka' })).toBeInViewport({ ratio: 1 })
   expect(await table.evaluate((t) => t.parentElement!.scrollWidth - t.parentElement!.clientWidth)).toBe(0)
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+})
+
+test('the picked chip stays while the Admin moves around the panel', async ({ page }) => {
+  await onCase(page, 'admin', theCase({}))
+  await page.route('**/api/admin/log*', (r) => r.fulfill(json({ entries: [], page: 1, hasMore: false })))
+  await page.goto('/admin')
+  const disputes = page.getByRole('button', { name: 'Disputes', exact: true })
+  const tabs = page.getByRole('navigation', { name: 'Admin area' })
+  await disputes.click()
+  await page.getByRole('link', { name: 'Match #42', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Case: Match #42' })).toBeVisible()
+  await tabs.getByRole('link', { name: 'Cases', exact: true }).click()
+  await expect(disputes).toHaveAttribute('aria-pressed', 'true')
+  await tabs.getByRole('link', { name: 'Log', exact: true }).click()
+  await expect(page).toHaveURL(/\/admin\/log$/)
+  await tabs.getByRole('link', { name: 'Cases', exact: true }).click()
+  await expect(disputes).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('on a laptop the cases stay a table, with nothing off screen', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await onCase(page, 'admin', theCase())
+  // The widest a row gets: names with no spaces to wrap at, and a Help request's message.
+  const long = {
+    kind: 'help', helpRequestId: 5, matchId: 43, game: '012', platform: 'PC', players: ['Kestrel_of_the_Northern_Reaches', 'Solstice'],
+    message: 'The room closed before game 3 and we cannot rejoin.', askedBy: ref(2, 'Solstice'), askedAt: '2026-11-21T12:00:00Z',
+    claim: { by: ref(8, 'Kefka_of_the_Southern_Reaches_'), at: '2026-11-21T12:10:00Z', byYou: false },
+  }
+  await page.route('**/api/admin/cases', (r) => r.fulfill(json({ cases: [long] })))
+  await page.goto('/admin')
+  const table = page.getByRole('region', { name: 'Open cases' }).getByRole('table')
+  await expect(table.getByRole('columnheader', { name: 'Claim' })).toBeInViewport({ ratio: 1 })
+  await expect(table.locator('tbody tr')).toHaveCSS('display', 'table-row')
+  expect(await table.evaluate((t) => t.parentElement!.scrollWidth - t.parentElement!.clientWidth)).toBe(0)
 })
