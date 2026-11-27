@@ -185,6 +185,14 @@ def test_an_undone_row_leaves_room_for_the_next_settle(make_player):
     assert sorted(r.undone_at is None for r in rows(match)) == [False, False, True]
 
 
+def test_the_database_refuses_an_unknown_outcome(make_player):
+    match, a, b = build(make_player, "aa")
+    db.session.add(Settlement(match_id=match.id, outcome="void", ladder="nt/PS4", settled_at=clock.now()))
+    with pytest.raises(IntegrityError):
+        db.session.commit()
+    db.session.rollback()
+
+
 # ---------------------------------------------------------------- ranked wins and losses
 
 

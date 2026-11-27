@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Computed, DateTime, ForeignKey, Integer, String
+from sqlalchemy import CheckConstraint, Computed, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.extensions import db
@@ -22,6 +22,7 @@ class Settlement(db.Model):
     A match has at most one row whose undone_at is empty."""
 
     __tablename__ = "settlements"
+    __table_args__ = (CheckConstraint(f"outcome IN {OUTCOMES}", name="ck_settlements_outcome"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     # No ON DELETE CASCADE: MariaDB refuses one on a column a stored generated column is built from.

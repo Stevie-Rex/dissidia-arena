@@ -34,6 +34,7 @@ def upgrade():
         sa.ForeignKeyConstraint(['match_id'], ['matches.id']),  # no CASCADE: see app.models.settlement
         sa.ForeignKeyConstraint(['winner_id'], ['users.id']),
         sa.ForeignKeyConstraint(['loser_id'], ['users.id']),
+        sa.CheckConstraint("outcome IN ('completed', 'voided', 'forfeit')", name='ck_settlements_outcome'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('live_match_id'),
     )
