@@ -33,6 +33,7 @@ function Panel() {
     <div className="flex flex-col gap-8">
       <PageTitle>Admins</PageTitle>
       <AdminTabs />
+      <Appoint onAppointed={setAdmins} />
       <section aria-labelledby="admins-title" className="flex flex-col gap-3">
         <h2 id="admins-title" className="m-0 text-lg font-semibold">
           Admins
@@ -46,7 +47,7 @@ function Panel() {
           !error && <Sub>Loading…</Sub>
         ) : admins.length === 0 ? (
           <Card>
-            <p className="m-0 text-sm">No Admins yet. Appoint one below, so you aren't the only one handling disputes.</p>
+            <p className="m-0 text-sm">No Admins yet. Appoint one above, so you aren't the only one handling disputes.</p>
           </Card>
         ) : (
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
@@ -67,7 +68,6 @@ function Panel() {
           </ul>
         )}
       </section>
-      <Appoint onAppointed={setAdmins} />
     </div>
   )
 }

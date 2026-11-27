@@ -124,6 +124,8 @@ test('the Master appoints and removes Admins, each with a reason', async ({ page
   await page.goto('/admin/admins') // changed: the Admins tab replaced the Master panel page
   const admins = page.getByRole('region', { name: 'Admins' })
   await expect(admins.getByText('Kefka', { exact: true })).toBeVisible()
+  const search = await page.getByRole('search').boundingBox()
+  expect(search!.y).toBeLessThan((await admins.boundingBox())!.y) // the appoint search sits above the list
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 
   await page.getByLabel('Search players by Discord name').fill('a')

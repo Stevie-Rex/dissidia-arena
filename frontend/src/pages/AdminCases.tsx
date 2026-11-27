@@ -104,7 +104,7 @@ function CaseList() {
     )
   const shown = cases.filter((c) => shows(c, filter))
   return (
-    <section aria-label="Open cases" className="flex flex-col gap-3">
+    <section aria-label="Open cases" className="@container flex flex-col gap-3">
       <div role="group" aria-label="Filter cases" className="flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)} className="da-pill rounded-full px-3 py-1 text-xs">
@@ -115,23 +115,29 @@ function CaseList() {
       {shown.length === 0 ? (
         <Sub>No cases match this filter.</Sub>
       ) : (
-        <div className="overflow-x-auto rounded border border-line">
-          <table className="w-full border-collapse text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-muted">
-              <tr>
+        // When the table doesn't fit, each row stacks as a card. The explicit roles keep the table
+        // semantics that changing `display` would otherwise drop.
+        <div className="overflow-x-auto rounded border border-line @max-4xl:border-0">
+          <table role="table" className="w-full border-collapse text-left text-sm @max-4xl:block">
+            <thead role="rowgroup" className="text-xs uppercase tracking-wide text-muted @max-4xl:sr-only">
+              <tr role="row">
                 {['Type', 'Match', 'Players', 'Game', 'Age', 'Claim'].map((h) => (
-                  <th key={h} scope="col" className="border-b border-line px-3 py-2 font-semibold">
+                  <th key={h} scope="col" role="columnheader" className="border-b border-line px-3 py-2 font-semibold">
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup" className="@max-4xl:grid @max-4xl:gap-2">
               {shown.map((c) => {
                 const at = c.kind === 'help' ? c.askedAt : c.disputedAt
                 return (
-                  <tr key={c.kind === 'help' ? `help-${c.helpRequestId}` : `dispute-${c.matchId}`} className="border-b border-line align-top last:border-b-0">
-                    <td className="px-3 py-2">
+                  <tr
+                    key={c.kind === 'help' ? `help-${c.helpRequestId}` : `dispute-${c.matchId}`}
+                    role="row"
+                    className="border-b border-line align-top last:border-b-0 @max-4xl:grid @max-4xl:grid-cols-[auto_minmax(0,1fr)_auto] @max-4xl:items-start @max-4xl:gap-x-2 @max-4xl:gap-y-1.5 @max-4xl:rounded @max-4xl:border @max-4xl:bg-card @max-4xl:px-3 @max-4xl:py-2.5 @max-4xl:last:border-b"
+                  >
+                    <td role="cell" className="px-3 py-2 @max-4xl:p-0">
                       <span
                         className={cx(
                           'inline-block rounded border px-1.5 text-xs font-semibold',
@@ -141,26 +147,33 @@ function CaseList() {
                         {c.kind === 'help' ? 'Help' : 'Dispute'}
                       </span>
                     </td>
-                    <td className="px-3 py-2">
+                    <td role="cell" className="px-3 py-2 @max-4xl:p-0">
                       <Link
                         to={c.kind === 'help' ? `/admin/help-requests/${c.helpRequestId}` : `/admin/cases/${c.matchId}`}
-                        className="font-semibold text-gold-note hover:text-crystal-soft"
+                        className="whitespace-nowrap font-semibold text-gold-note hover:text-crystal-soft"
                       >
                         Match #{c.matchId}
                       </Link>
-                      {c.kind === 'help' && <span className="mt-1 line-clamp-2 whitespace-pre-wrap text-fg-dim">{c.message}</span>}
+                      {c.kind === 'help' && <span className="mt-1 line-clamp-2 min-w-48 whitespace-pre-wrap text-fg-dim @max-4xl:min-w-0">{c.message}</span>}
                       {c.kind === 'dispute' && c.replayNotFinished && (
-                        <span className="mt-1 block font-semibold text-gold-note">Replay not finished</span>
+                        <span className="mt-1 block whitespace-nowrap font-semibold text-gold-note @max-4xl:whitespace-normal">Replay not finished</span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2">
+                    <td role="cell" className="break-words px-3 py-2 @max-4xl:col-span-full @max-4xl:row-start-2 @max-4xl:p-0 @max-4xl:font-semibold">
                       {c.players[0]} vs {c.players[1]}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2">
-                      {GAMES[c.game].name} · {c.platform}
+                    <td role="cell" className="px-3 py-2 @max-4xl:whitespace-nowrap @max-4xl:p-0 @max-4xl:text-right">
+                      <span className="@max-4xl:hidden">{GAMES[c.game].name}</span>
+                      <span className="hidden @max-4xl:inline">{GAMES[c.game].short}</span> · {c.platform}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-muted">{at ? `${since(at)} ago` : '—'}</td>
-                    <td className={cx('whitespace-nowrap px-3 py-2', c.claim ? 'text-fg-dim' : 'text-gold-note')}>
+                    <td role="cell" className="whitespace-nowrap px-3 py-2 text-muted @max-4xl:p-0">{at ? `${since(at)} ago` : '—'}</td>
+                    <td
+                      role="cell"
+                      className={cx(
+                        'whitespace-nowrap px-3 py-2 @max-4xl:col-start-2 @max-4xl:col-end-[-1] @max-4xl:p-0 @max-4xl:text-right',
+                        c.claim ? 'text-fg-dim' : 'text-gold-note',
+                      )}
+                    >
                       {c.claim ? `Claimed by ${c.claim.byYou ? 'you' : c.claim.by.displayName}` : 'Unclaimed'}
                     </td>
                   </tr>

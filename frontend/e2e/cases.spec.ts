@@ -254,3 +254,13 @@ test('the filter chips show the right cases', async ({ page }) => {
   await expect(list.locator('tbody tr')).toContainText('Claimed by you')
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 })
+
+test('at phone width each case stacks, with nothing off screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await onCase(page, 'admin', theCase({ claim: { by: ref(8, 'Kefka'), at: '2026-11-21T12:10:00Z', byYou: false } }))
+  await page.goto('/admin')
+  const table = page.getByRole('region', { name: 'Open cases' }).getByRole('table')
+  await expect(table.getByText('Claimed by Kefka')).toBeInViewport({ ratio: 1 })
+  expect(await table.evaluate((t) => t.parentElement!.scrollWidth - t.parentElement!.clientWidth)).toBe(0)
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+})
