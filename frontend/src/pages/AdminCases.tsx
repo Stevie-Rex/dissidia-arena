@@ -66,9 +66,22 @@ export default function AdminCases() {
   )
 }
 
+const FILTERS = ['All', 'Disputes', 'Help', 'Unclaimed', 'Mine'] as const
+type Filter = (typeof FILTERS)[number]
+
+/** Whether a case shows under a filter chip. The chips filter in the browser; nothing is fetched again. */
+function shows(c: CaseListRow, filter: Filter) {
+  if (filter === 'Disputes') return c.kind === 'dispute'
+  if (filter === 'Help') return c.kind === 'help'
+  if (filter === 'Unclaimed') return !c.claim
+  if (filter === 'Mine') return !!c.claim?.byYou
+  return true
+}
+
 function CaseList() {
   const [cases, setCases] = useState<CaseListRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<Filter>('All')
 
   useEffect(() => {
     let current = true
@@ -89,39 +102,74 @@ function CaseList() {
         <p className="m-0 text-sm">No Disputed matches or Help requests are waiting for an Admin.</p>
       </Card>
     )
+  const shown = cases.filter((c) => shows(c, filter))
   return (
-    <section aria-label="Open cases">
-      <ul className="m-0 flex list-none flex-col gap-2 p-0">
-        {cases.map((c) => (
-          <li key={c.kind === 'help' ? `help-${c.helpRequestId}` : `dispute-${c.matchId}`}>
-            <Card className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-col gap-1">
-                <Link
-                  to={c.kind === 'help' ? `/admin/help-requests/${c.helpRequestId}` : `/admin/cases/${c.matchId}`}
-                  className="font-semibold text-gold-note hover:text-crystal-soft"
-                >
-                  {c.kind === 'help' && 'Help request: '}Match #{c.matchId}: {c.players[0]} vs {c.players[1]}
-                </Link>
-                <Sub>
-                  {GAMES[c.game].name} · {c.platform}
-                  {c.kind === 'help' ? (
-                    <> · asked {since(c.askedAt)} ago</>
-                  ) : (
-                    c.disputedAt && <> · disputed {since(c.disputedAt)} ago</>
-                  )}
-                </Sub>
-                {c.kind === 'help' && <span className="line-clamp-2 whitespace-pre-wrap text-sm">{c.message}</span>}
-                {c.kind === 'dispute' && c.replayNotFinished && (
-                  <span className="text-sm font-semibold text-gold-note">Replay not finished</span>
-                )}
-              </div>
-              <span className={cx('text-sm', c.claim ? 'text-fg-dim' : 'text-gold-note')}>
-                {c.claim ? `Claimed by ${c.claim.byYou ? 'you' : c.claim.by.displayName}` : 'Unclaimed'}
-              </span>
-            </Card>
-          </li>
+    <section aria-label="Open cases" className="flex flex-col gap-3">
+      <div role="group" aria-label="Filter cases" className="flex flex-wrap gap-2">
+        {FILTERS.map((f) => (
+          <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)} className="da-pill rounded-full px-3 py-1 text-xs">
+            {f}
+          </button>
         ))}
-      </ul>
+      </div>
+      {shown.length === 0 ? (
+        <Sub>No cases match this filter.</Sub>
+      ) : (
+        <div className="overflow-x-auto rounded border border-line">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead className="text-xs uppercase tracking-wide text-muted">
+              <tr>
+                {['Type', 'Match', 'Players', 'Game', 'Age', 'Claim'].map((h) => (
+                  <th key={h} scope="col" className="border-b border-line px-3 py-2 font-semibold">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((c) => {
+                const at = c.kind === 'help' ? c.askedAt : c.disputedAt
+                return (
+                  <tr key={c.kind === 'help' ? `help-${c.helpRequestId}` : `dispute-${c.matchId}`} className="border-b border-line align-top last:border-b-0">
+                    <td className="px-3 py-2">
+                      <span
+                        className={cx(
+                          'inline-block rounded border px-1.5 text-xs font-semibold',
+                          c.kind === 'help' ? 'border-crystal-soft text-crystal-soft' : 'border-chaos-soft text-chaos-soft',
+                        )}
+                      >
+                        {c.kind === 'help' ? 'Help' : 'Dispute'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <Link
+                        to={c.kind === 'help' ? `/admin/help-requests/${c.helpRequestId}` : `/admin/cases/${c.matchId}`}
+                        className="font-semibold text-gold-note hover:text-crystal-soft"
+                      >
+                        Match #{c.matchId}
+                      </Link>
+                      {c.kind === 'help' && <span className="mt-1 line-clamp-2 whitespace-pre-wrap text-fg-dim">{c.message}</span>}
+                      {c.kind === 'dispute' && c.replayNotFinished && (
+                        <span className="mt-1 block font-semibold text-gold-note">Replay not finished</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      {c.players[0]} vs {c.players[1]}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      {GAMES[c.game].name} · {c.platform}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-muted">{at ? `${since(at)} ago` : '—'}</td>
+                    <td className={cx('whitespace-nowrap px-3 py-2', c.claim ? 'text-fg-dim' : 'text-gold-note')}>
+                      {c.claim ? `Claimed by ${c.claim.byYou ? 'you' : c.claim.by.displayName}` : 'Unclaimed'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   )
 }
