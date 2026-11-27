@@ -7,11 +7,10 @@ export type Role = 'player' | 'admin' | 'master'
 /** Admins and the Master can use the Admin area. */
 export const isAdmin = (role: Role | undefined) => role === 'admin' || role === 'master'
 
-/** Nav links by role: the Admin area for Admins and the Master, the Master panel for the Master only. */
+/** Nav links by role: the Admin panel for Admins and the Master. The Master finds the Admins tab inside it. */
 export function roleLinks(role: Role | undefined) {
   return [
     ...(isAdmin(role) ? [{ to: '/admin', label: 'Admin', help: 'Disputed matches to rule on, and the Admin log.' }] : []),
-    ...(role === 'master' ? [{ to: '/master', label: 'Master panel', help: 'Appoint and remove Admins.' }] : []),
   ]
 }
 
