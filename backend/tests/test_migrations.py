@@ -2,12 +2,11 @@
 
 import os
 
-import pytest
 import sqlalchemy as sa
 from flask_migrate import downgrade, upgrade
 
 from app import create_app
-from tests.conftest import TestConfig
+from tests.conftest import TestConfig, db_refuses
 
 MIGRATIONS = os.path.join(os.path.dirname(__file__), "..", "migrations")
 
@@ -128,7 +127,7 @@ def test_unsettled_at_migration_keeps_every_row_and_the_one_live_row_rule(tmp_pa
                 "SELECT winner_id, unsettled_at IS NULL FROM settlements WHERE match_id = 1 ORDER BY id"
             )).all()
         assert [tuple(r) for r in rows] == [(1, 1), (2, 0)]
-        with pytest.raises(sa.exc.IntegrityError), db.engine.begin() as conn:
+        with db_refuses(), db.engine.begin() as conn:
             conn.execute(sa.text(
                 "INSERT INTO settlements (match_id, outcome, ladder, settled_at) VALUES (1, 'voided', 'nt/PS4', '2026-11-02 10:00:00')"
             ))

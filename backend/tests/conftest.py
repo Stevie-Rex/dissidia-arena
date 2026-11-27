@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 from datetime import timedelta
 
 # Config reads these at import time; give tests safe defaults so they don't need a real .env.
@@ -6,6 +7,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret")
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 
 import pytest
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import create_app
 from app.config import Config
@@ -27,6 +29,21 @@ class TestConfig(Config):
     DISCORD_REDIRECT_URI = "http://localhost:5173/api/auth/discord/callback"
     FRONTEND_URL = "http://localhost:5173"
     MASTER_DISCORD_ID = str(MASTER_DISCORD_ID)
+
+
+# MariaDB reports a failed CHECK constraint as this OperationalError; everything else is an IntegrityError.
+MARIADB_CHECK_FAILED = 4025
+
+
+@contextmanager
+def db_refuses():
+    """Expect the database to refuse a write in the block (a unique, foreign-key or CHECK constraint),
+    then roll the session back. Works the same on SQLite and MariaDB, which raise different errors."""
+    with pytest.raises((IntegrityError, OperationalError)) as e:
+        yield
+    if isinstance(e.value, OperationalError):
+        assert e.value.orig.args[0] == MARIADB_CHECK_FAILED, e.value
+    db.session.rollback()
 
 
 @pytest.fixture
