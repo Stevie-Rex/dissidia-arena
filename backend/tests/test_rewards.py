@@ -4,7 +4,7 @@ import pytest
 
 from app import rewards
 from app.extensions import db
-from app.models import Match, User, UserUnlock
+from app.models import User, UserUnlock
 
 NT = {"game": "nt", "mode": "1v1", "bestOf": 3, "platform": "PS4"}
 R012 = {"game": "012", "mode": "1v1", "bestOf": 3, "platform": "PPSSPP"}
@@ -161,48 +161,3 @@ def test_grant_unlocks_is_idempotent(make_player):
     assert rewards.grant_unlocks(u.id, 22) == []
     db.session.commit()
     assert keys(u) == {"classic_interface", "window_crystal", "window_magitek"}
-
-
-# ---------------------------------------------------------------- backfill
-
-
-def test_backfill_recounts_and_grants(make_player, app):
-    w, l = make_player(), make_player()
-    for _ in range(3):
-        play(w, l)
-    # Simulate the pre-rewards world: counts and unlocks wiped.
-    db.session.query(UserUnlock).delete()
-    db.session.query(User).update({User.ranked_wins: 0})
-    # Pretend the winner had 12 completed wins before this feature shipped.
-    m = db.session.query(Match).first()
-    for _ in range(12):
-        db.session.add(Match(
-            game="nt", mode="1v1", best_of=3, platform="PS4", region="NA", status="completed",
-            player_a_id=w[0].id, player_b_id=l[0].id, accept_deadline=m.accept_deadline, winner_id=w[0].id,
-        ))
-    db.session.add(Match(
-        game="nt", mode="1v1", best_of=3, platform="PS4", region="NA", status="disputed",
-        player_a_id=w[0].id, player_b_id=l[0].id, accept_deadline=m.accept_deadline, winner_id=w[0].id,
-    ))
-    db.session.commit()
-
-    result = app.test_cli_runner().invoke(args=["backfill-rewards"])
-    assert result.exit_code == 0, result.output
-    assert "2 unlocks granted" in result.output
-    db.session.expire_all()
-    assert db.session.get(User, w[0].id).ranked_wins == 15
-    assert keys(w[0]) == {"classic_interface", "window_crystal"}
-    assert keys(l[0]) == set()
-
-    # Running it again changes nothing.
-    result = app.test_cli_runner().invoke(args=["backfill-rewards"])
-    assert "0 unlocks granted" in result.output
-
-
-def test_backfill_never_removes_unlocks(make_player):
-    (u, _) = make_player()
-    rewards.grant_unlocks(u.id, 30)
-    db.session.commit()
-    rewards.backfill()  # u has no completed matches, so the recount is 0
-    db.session.commit()
-    assert "window_garden" in keys(u)

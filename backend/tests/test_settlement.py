@@ -1,11 +1,12 @@
 """The Settlement module: who won a series, and settling a match (completed with a winner, or Voided)."""
 
 import pytest
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import clock, rewards, settlement
 from app.errors import MatchmakingError
 from app.extensions import db
-from app.models import Match, MatchGame
+from app.models import Match, MatchGame, Settlement, User
 
 
 def build(make_player, games: str, status: str = "reported", reported_by: str = "a"):
@@ -109,6 +110,22 @@ def test_a_completed_match_is_never_settled_twice(make_player):
     assert a.ranked_wins == 1
 
 
+def rows(match):
+    return db.session.query(Settlement).filter_by(match_id=match.id).all()
+
+
+@pytest.mark.parametrize("game, platform, ladder", [("nt", "PS4", "nt/PS4"), ("nt", "PC", "nt/PC"), ("012", "PPSSPP", "012/PPSSPP")])
+def test_complete_writes_one_row_with_the_winner_the_loser_and_the_ladder(make_player, game, platform, ladder):
+    match, a, b = build(make_player, "bab")
+    match.game, match.platform = game, platform
+    settlement.complete(match, "Result confirmed.")
+    db.session.commit()
+    [row] = rows(match)
+    assert (row.outcome, row.winner_id, row.loser_id, row.ladder) == ("completed", b.id, a.id, ladder)
+    assert row.settled_at == match.finished_at
+    assert row.undone_at is None
+
+
 # ---------------------------------------------------------------- void
 
 
@@ -116,7 +133,8 @@ def test_a_completed_match_is_never_settled_twice(make_player):
 def test_void_counts_for_no_one(make_player, status, games):
     match, a, b = build(make_player, games, status=status)
     match.winner_id = a.id if status in ("reported", "disputed") else None
-    settlement.void(match, "Ruling: the match is void. It counts for no one.")
+    result = settlement.void(match, "Ruling: the match is void. It counts for no one.")
+    assert result == settlement.Settled(winner_id=None, unlocked=())
     assert (match.status, match.winner_id) == ("voided", None)
     assert match.finished_at is not None
     assert (a.ranked_wins, b.ranked_wins) == (0, 0)
@@ -128,3 +146,114 @@ def test_void_counts_for_no_one(make_player, status, games):
 def test_void_refuses_a_match_that_is_not_open(make_player, status):
     match, a, b = build(make_player, "aa", status=status)
     refuses("bad_status", settlement.void, match, a, b)
+
+
+def test_void_writes_one_row_with_no_winner_or_loser(make_player):
+    match, a, b = build(make_player, "aba", status="disputed")
+    settlement.void(match, "Ruling: the match is void. It counts for no one.")
+    db.session.commit()
+    [row] = rows(match)
+    assert (row.outcome, row.winner_id, row.loser_id, row.ladder) == ("voided", None, None, "nt/PS4")
+    assert row.settled_at == match.finished_at
+
+
+# ---------------------------------------------------------------- one live row per match
+
+
+def add_row(match, undone_at=None):
+    db.session.add(Settlement(match_id=match.id, outcome="voided", ladder="nt/PS4",
+                              settled_at=clock.now(), undone_at=undone_at))
+    db.session.commit()
+
+
+def test_the_database_refuses_a_second_live_row_for_a_match(make_player):
+    match, a, b = build(make_player, "aa")
+    settlement.complete(match, "Result confirmed.")
+    db.session.commit()
+    with pytest.raises(IntegrityError):
+        add_row(match)
+    db.session.rollback()
+    assert len(rows(match)) == 1
+
+
+def test_an_undone_row_leaves_room_for_the_next_settle(make_player):
+    match, a, b = build(make_player, "aa")
+    add_row(match, undone_at=clock.now())
+    add_row(match, undone_at=clock.now())
+    settlement.complete(match, "Result confirmed.")
+    db.session.commit()
+    assert sorted(r.undone_at is None for r in rows(match)) == [False, False, True]
+
+
+def test_the_database_refuses_an_unknown_outcome(make_player):
+    match, a, b = build(make_player, "aa")
+    db.session.add(Settlement(match_id=match.id, outcome="void", ladder="nt/PS4", settled_at=clock.now()))
+    with pytest.raises((IntegrityError, OperationalError)):  # MariaDB reports a failed CHECK as error 4025
+        db.session.commit()
+    db.session.rollback()
+
+
+# ---------------------------------------------------------------- ranked wins and losses
+
+
+def settle(make_player, games, how="complete"):
+    match, a, b = build(make_player, games, status="disputed")
+    getattr(settlement, how)(match, "Settled.")
+    db.session.commit()
+    return match, a, b
+
+
+def test_a_settle_with_a_winner_is_a_ranked_loss_for_the_other_player(make_player):
+    _, a, b = settle(make_player, "aa")
+    assert (settlement.ranked_losses(a.id), settlement.ranked_losses(b.id)) == (0, 1)
+
+
+def test_a_void_is_a_ranked_loss_for_no_one(make_player):
+    _, a, b = settle(make_player, "aa", how="void")
+    assert (settlement.ranked_losses(a.id), settlement.ranked_losses(b.id)) == (0, 0)
+
+
+def test_an_undone_settle_is_no_longer_a_ranked_loss(make_player):
+    match, a, b = settle(make_player, "aa")
+    rows(match)[0].undone_at = clock.now()
+    db.session.commit()
+    assert settlement.ranked_losses(b.id) == 0
+
+
+def test_backfill_recounts_ranked_wins_from_the_rows_and_grants(make_player, app):
+    w, l = make_player(), make_player()
+    t = clock.now()
+
+    def settled(**row):
+        m = Match(game="nt", mode="1v1", best_of=3, platform="PS4", region="NA", status="completed",
+                  player_a_id=w[0].id, player_b_id=l[0].id, accept_deadline=t, winner_id=w[0].id)
+        db.session.add(m)
+        db.session.flush()
+        db.session.add(Settlement(match_id=m.id, ladder="nt/PS4", settled_at=t, **row))
+
+    for _ in range(15):
+        settled(outcome="completed", winner_id=w[0].id, loser_id=l[0].id)
+    settled(outcome="completed", winner_id=w[0].id, loser_id=l[0].id, undone_at=t)  # reopened: doesn't count
+    settled(outcome="voided")
+    db.session.commit()
+
+    result = app.test_cli_runner().invoke(args=["backfill-rewards"])
+    assert result.exit_code == 0, result.output
+    assert "2 unlocks granted" in result.output
+    db.session.expire_all()
+    assert (db.session.get(User, w[0].id).ranked_wins, db.session.get(User, l[0].id).ranked_wins) == (15, 0)
+    assert rewards.unlocked_keys(w[0].id) == {"classic_interface", "window_crystal"}
+    assert settlement.ranked_losses(l[0].id) == 15
+
+    # Running it again changes nothing.
+    result = app.test_cli_runner().invoke(args=["backfill-rewards"])
+    assert "0 unlocks granted" in result.output
+
+
+def test_backfill_never_removes_unlocks(make_player):
+    (u, _) = make_player()
+    rewards.grant_unlocks(u.id, 30)
+    db.session.commit()
+    settlement.backfill()  # u has no settles, so the recount is 0
+    db.session.commit()
+    assert "window_garden" in rewards.unlocked_keys(u.id)

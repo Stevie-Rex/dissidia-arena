@@ -126,8 +126,9 @@ class Match(db.Model):
 
     @hybrid_property
     def completed_with_winner(self) -> bool:
-        """What counts for ranked wins and unlocks. Narrower than Settled: a Voided match is
-        Settled too, but has no winner. Works in queries as well as on a loaded match."""
+        """Settled with a winner. Narrower than Settled: a Voided match is Settled too, but has no
+        winner. Ranked counts come from the settlements rows, not from this. Works in queries as
+        well as on a loaded match."""
         return self.status == "completed"
 
     @property

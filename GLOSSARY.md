@@ -29,11 +29,11 @@ An Admin putting one player's Rating on one Ladder back to the starting Rating, 
 _Avoid_: Rank reset, player wipe
 
 **Settled match**:
-A match whose result is final: completed with a winner, or Voided. Only a Settled match moves ranked wins, Ratings or Placement, and only the Master reopening it unsettles it.
+A match whose result is final: completed with a winner, or Voided. Only a Settled match moves ranked wins, Ratings or Placement, and only the Master reopening it unsettles it. A settle with a winner (confirmed, auto-confirmed, Uphold or Overturn) is a ranked win for one player and a ranked loss for the other. A Void counts for no one. Abandoned and cancelled matches aren't Settled.
 _Avoid_: Finished, closed, resolved
 
 **Placement**:
-A player's first 5 Settled matches on a Ladder in a Season. Until Placement is done, the player has a Rating but isn't shown on that Ladder.
+A player's first 5 Settled matches with a winner on a Ladder in a Season. Until Placement is done, the player has a Rating but isn't shown on that Ladder.
 _Avoid_: Provisional, calibration, unranked
 
 **Ladder position**:
