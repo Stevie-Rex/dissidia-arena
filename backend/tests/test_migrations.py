@@ -91,5 +91,5 @@ def test_settlements_migration_adds_a_row_for_every_settled_match(tmp_path):
         assert [str(r[5]).startswith(d) for r, d in zip(rows, ["2026-11-01 10", "2026-11-02 10", "2026-11-03 10"])] == [True] * 3
         assert all(r[6] is None for r in rows)
 
-        downgrade(directory=MIGRATIONS, revision="-1")
+        downgrade(directory=MIGRATIONS, revision="d4f6a8c0e2b1")
         assert "settlements" not in sa.inspect(db.engine).get_table_names()
