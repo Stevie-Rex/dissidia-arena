@@ -1,10 +1,11 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
+import AdminTabs from '../components/AdminTabs'
 import RoleGate from '../components/RoleGate'
 import { Avatar, Btn, Card, PageTitle, Sub } from '../components/ui'
 import { MAX_REASON, api, errorMessage, type AdminInfo, type PlayerResult } from '../lib/api'
 import { FIELD } from '../lib/format'
 
-/** The Master appoints and removes Admins. */
+/** The Admin panel's Admins tab: the Master appoints and removes Admins. */
 export default function MasterPanel() {
   return (
     <RoleGate allow={['master']} who="the Master">
@@ -30,7 +31,8 @@ function Panel() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageTitle>Master panel</PageTitle>
+      <PageTitle>Admins</PageTitle>
+      <AdminTabs />
       <section aria-labelledby="admins-title" className="flex flex-col gap-3">
         <h2 id="admins-title" className="m-0 text-lg font-semibold">
           Admins
