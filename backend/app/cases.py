@@ -16,7 +16,7 @@ from collections.abc import Callable
 
 from sqlalchemy import or_, select
 
-from . import admin_log, clock, help_requests, screenshots, settlement
+from . import admin_log, clock, help_requests, lifecycle, screenshots, settlement
 from . import admin
 from .admin import is_master, require_reason
 from . import matchmaking as mm
@@ -66,8 +66,7 @@ def _require_open(case: Case) -> None:
     match = case
     if match.ruling is not None:
         raise MatchmakingError("already_ruled", "this case already has a Ruling")
-    if match.status != "disputed":
-        raise MatchmakingError("not_open", f"match is {match.status}")
+    lifecycle.require_status(match, "disputed")
 
 
 _played_in = help_requests.played_in
@@ -148,111 +147,19 @@ def take_over(case: Case, master: User) -> None:
 
 # ---------------------------------------------------------------- Rulings
 
-OUTCOMES = ("uphold", "overturn", "replay", "void")
-
-
-def _is_int(v: object) -> bool:
-    return isinstance(v, int) and not isinstance(v, bool)
-
-
-def _corrections(match: Match, games: object) -> dict[int, int]:
-    """The Overturn's corrected games, as {game number: winner id}. Any reported game can be
-    corrected, once, to either player."""
-    reported = {g.game_no for g in match.games}
-    players = (match.player_a_id, match.player_b_id)
-    if (
-        isinstance(games, list)
-        and games
-        and all(
-            isinstance(g, dict) and _is_int(g.get("n")) and g["n"] in reported and _is_int(g.get("winner")) and g["winner"] in players
-            for g in games
-        )
-        and len({g["n"] for g in games}) == len(games)
-    ):
-        return {g["n"]: g["winner"] for g in games}
-    raise MatchmakingError(
-        "validation",
-        "correct the winner of one or more reported games",
-        400,
-        {"games": f"give each corrected game once, from {sorted(reported)}, won by one of the players"},
-    )
-
-
-def _overturn(match: Match, games: object) -> list[dict]:
-    """Save the corrected games and settle the match with the winner they give. Returns the
-    corrections that changed a game, for the Admin log.
-
-    Refuses, changing nothing, when the corrections leave nobody on the winning score
-    (no_series_winner: that's a Replay) or leave the reported winner (that's an Uphold)."""
-    corrected = _corrections(match, games)
-    winner = settlement.series_winner(match, corrected)
-    if winner is None:
-        raise MatchmakingError("no_series_winner", "nobody wins with these corrections: choose Replay")
-    if winner is settlement.series_winner(match):
-        raise MatchmakingError(
-            "validation", "the reported winner still wins: choose Uphold", 400, {"games": "these corrections don't change the winner"}
-        )
-    changes = []
-    for g in match.games:
-        if corrected.get(g.game_no, g.winner_id) != g.winner_id:
-            changes.append({"n": g.game_no, "from": g.winner_id, "to": corrected[g.game_no]})
-            g.winner_id = corrected[g.game_no]
-    settlement.complete(match, "Ruling: the result is overturned.")
-    return changes
-
-
-def replay_choices(match: Match) -> dict:
-    """The games a Replay can start from, and the default: the first disputed game still played.
-
-    Any reported game can be replayed. While nobody has won the series (a Replay that wasn't
-    finished), so can the next unplayed game, which keeps every played game standing."""
-    games = sorted(g.game_no for g in match.games)
-    if settlement.series_winner(match) is None:
-        games.append(len(games) + 1)
-    disputed = [n for n in sorted(match.dispute_games or []) if n in games]
-    return {"games": games, "default": disputed[0] if disputed else games[0]}
-
-
-def _replay_from(match: Match, from_game: object) -> int:
-    choices = replay_choices(match)
-    if from_game is None:
-        return choices["default"]
-    if not _is_int(from_game) or from_game not in choices["games"]:
-        raise MatchmakingError(
-            "validation", "pick the game to replay from", 400, {"fromGame": f"must be one of {choices['games']}"}
-        )
-    return from_game
-
-
 def rule(
     match: Match, user: User, outcome: object, reason: object, games: object = None, from_game: object = None
 ) -> None:
-    """Give the Ruling on a Disputed match. The first Ruling saved wins: the match row is locked,
-    and once it has a Ruling every later attempt gets already_ruled."""
+    """Give the Ruling on a Disputed match: check the Admin may, apply it (see lifecycle.rule),
+    release the Claim and log it. The first Ruling saved wins: the match row is locked, and once it
+    has a Ruling every later attempt gets already_ruled."""
     _require_open(match)
     _forbid_own_match(match, user)
     if not (_holds_claim(match, user) or is_master(user)):
         raise MatchmakingError("not_claimed_by_you", "Claim the case before giving a Ruling", 403)
-    if outcome not in OUTCOMES:
-        raise MatchmakingError("validation", "invalid Ruling", 400, {"outcome": f"must be one of {list(OUTCOMES)}"})
+    lifecycle.require_outcome(outcome)
     reason = require_reason(reason)
-
-    details = {}
-    if outcome == "uphold":
-        # Settles just as a confirm does, so the ranked win and unlocks are credited the same way.
-        settlement.complete(match, "Ruling: the reported result stands.")
-    elif outcome == "overturn":
-        details["corrections"] = _overturn(match, games)
-    elif outcome == "replay":
-        details["fromGame"] = _replay_from(match, from_game)
-        mm.replay(match, details["fromGame"])
-        details["deadline"] = clock.iso(match.replay_deadline)
-    else:
-        settlement.void(match, "Ruling: the match is void. It counts for no one.")
-    match.ruling = outcome
-    match.ruling_reason = reason
-    match.ruled_by_id = user.id
-    match.ruled_at = clock.now()
+    done = lifecycle.rule(match, user, outcome, reason, games, from_game)
     claimed_by = match.claimed_by_id  # not the ruler when the Master rules on an Admin's Claim
     _set_claim(match, None)
     admin_log.record(
@@ -260,7 +167,7 @@ def rule(
         reason,
         actor=user,
         match_id=match.id,
-        details={"outcome": outcome, "winnerId": match.winner_id, "claimedById": claimed_by, **details},
+        details={"outcome": outcome, "winnerId": match.winner_id, "claimedById": claimed_by, **done},
     )
 
 
@@ -270,13 +177,12 @@ def rule(
 def void_open(match: Match, user: User, reason: object) -> None:
     """An Admin Voids a match that is still open (pending, active or reported), for example one a
     player vanished from. Both players are free to queue again and nothing counts against anyone.
-    Not a Ruling: a Disputed match is Voided by a Void Ruling, so it gets not_open here."""
-    if match.status not in mm.OPEN_STATUSES:
-        raise MatchmakingError("not_open", f"match is {match.status}")
+    Not a Ruling: a Disputed match is Voided by a Void Ruling, so it gets bad_status here."""
+    lifecycle.require_status(match, *lifecycle.OPEN)  # first: a settled match is refused as that, whoever asks
     _forbid_own_match(match, user)
     reason = require_reason(reason)
     previous = match.status
-    settlement.void(match, "An Admin voided this match. It counts for no one.")
+    lifecycle.void_open(match)
     admin_log.record("void_match", reason, actor=user, match_id=match.id, details={"from": previous})
 
 
@@ -339,7 +245,7 @@ def help_case_dict(help_request: HelpRequest, viewer: User) -> dict:
     """The Help request page: the request and enough of the match to act on it."""
     match = help_request.match
     s = settlement.score(match)
-    can_void = match.status in mm.OPEN_STATUSES and (is_master(viewer) or not _played_in(match, viewer))
+    can_void = match.status in lifecycle.OPEN and (is_master(viewer) or not _played_in(match, viewer))
     return {
         **help_summary_dict(help_request, viewer),
         "match": {
@@ -474,8 +380,8 @@ def case_dict(match: Match, viewer: User) -> dict:
         "records": {str(p.id): dispute_record(p) for p in players},
         "ruling": None
         if match.ruling is None
-        else {**mm.ruling_dict(match), "by": _ref(db.session.get(User, match.ruled_by_id))},
-        "replayFrom": replay_choices(match),
+        else {**lifecycle.ruling_dict(match), "by": _ref(db.session.get(User, match.ruled_by_id))},
+        "replayFrom": lifecycle.replay_choices(match),
         "playedIn": _played_in(match, viewer),
         "canAct": can_act(match, viewer),
     }

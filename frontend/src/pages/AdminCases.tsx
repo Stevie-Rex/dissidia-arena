@@ -18,7 +18,7 @@ import {
 import { FIELD, cx, since } from '../lib/format'
 import { useApp } from '../state/AppState'
 
-/** How long a Replay has to settle before it comes back as a case (matchmaking.REPLAY_HOURS). */
+/** How long a Replay has to settle before it comes back as a case (lifecycle.REPLAY_HOURS). */
 const REPLAY_HOURS = 48
 
 const OUTCOMES: { value: RulingOutcome; label: string; help: string }[] = [

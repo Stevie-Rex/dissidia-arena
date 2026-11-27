@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
@@ -10,8 +11,11 @@ from .user import User
 # Where a queue entry came from. The bot (phase 2) will add "discord".
 SOURCES = ("web", "discord")
 
-# A match still being played: neither settled nor with the Admins. Its players can't queue again.
-OPEN_STATUSES = ("pending", "active", "reported")
+# The status sets. Code above app.lifecycle reads them from there.
+# A match still being played: neither Settled nor with the Admins. Its players can't queue again.
+OPEN = ("pending", "active", "reported")
+# A Settled match (see GLOSSARY.md): its result is final.
+SETTLED = ("completed", "voided")
 
 
 class QueueEntry(db.Model):
@@ -37,7 +41,7 @@ class QueueEntry(db.Model):
 
 class Match(db.Model):
     """
-    Lifecycle:
+    Lifecycle (every change of status is in app.lifecycle):
       pending   -> both players must accept before accept_deadline
       active    -> games are being played and reported
       reported  -> one side reached the winning score; the other player confirms or disputes
@@ -119,6 +123,12 @@ class Match(db.Model):
     help_requests: Mapped[list["HelpRequest"]] = relationship(
         back_populates="match", order_by="HelpRequest.id", cascade="all, delete-orphan"
     )
+
+    @hybrid_property
+    def completed_with_winner(self) -> bool:
+        """What counts for ranked wins and unlocks. Narrower than Settled: a Voided match is
+        Settled too, but has no winner. Works in queries as well as on a loaded match."""
+        return self.status == "completed"
 
     @property
     def dispute_round(self) -> int:

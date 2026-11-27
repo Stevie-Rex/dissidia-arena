@@ -238,7 +238,7 @@ def save_preferences(user_id: int, changes: dict) -> None:
 def ranked_losses(user_id: int) -> int:
     return db.session.scalar(
         select(func.count()).select_from(Match).where(
-            Match.status == "completed",
+            Match.completed_with_winner,
             or_(Match.player_a_id == user_id, Match.player_b_id == user_id),
             Match.winner_id != user_id,
         )
@@ -266,7 +266,7 @@ def backfill() -> dict[str, int]:
     Idempotent. Unlocks are never removed, even if a recount comes out lower.
     """
     counts = dict(db.session.execute(
-        select(Match.winner_id, func.count()).where(Match.status == "completed", Match.winner_id.is_not(None))
+        select(Match.winner_id, func.count()).where(Match.completed_with_winner, Match.winner_id.is_not(None))
         .group_by(Match.winner_id)
     ).all())
     users = granted = 0

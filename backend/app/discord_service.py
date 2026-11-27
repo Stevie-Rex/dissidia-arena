@@ -12,7 +12,7 @@ from datetime import timedelta
 
 from sqlalchemy import or_, select
 
-from . import clock
+from . import clock, lifecycle
 from . import matchmaking as mm
 from .extensions import db
 from .models import GuildConfig, HelpRequest, Match, User
@@ -59,9 +59,9 @@ def _recipients(match: Match) -> list[User]:
     """Who hears about this status: a reported result goes to the player who must answer it, a
     dispute to the player whose result was rejected. An unfinished Replay goes to both."""
     if match.status == "reported":
-        return [mm.non_reporter(match)]
+        return [lifecycle.non_reporter(match)]
     if match.status == "disputed" and not match.replay_not_finished:
-        return [mm.reporter(match)]
+        return [lifecycle.reporter(match)]
     return [match.player_a, match.player_b]
 
 
@@ -210,7 +210,7 @@ def collect_notifications() -> list[dict]:
             # deadline is a fixed time after it), the end of the match, or a Ruling.
             or_(
                 Match.created_at >= t - NOTIFY_WINDOW,
-                Match.confirm_deadline >= t - NOTIFY_WINDOW + timedelta(seconds=mm.CONFIRM_SECONDS),
+                Match.confirm_deadline >= t - NOTIFY_WINDOW + timedelta(seconds=lifecycle.CONFIRM_SECONDS),
                 Match.finished_at >= t - NOTIFY_WINDOW,
                 Match.ruled_at >= t - NOTIFY_WINDOW,  # a Replay Ruling reopens the match
             ),

@@ -61,11 +61,12 @@ def test_a_match_that_isnt_open_cant_be_voided(make_player, make_admin):
     *_, mid = disputed(make_player)  # a Void Ruling is how a Disputed match is voided
     _, admin_client = make_admin()
     res = void(admin_client, mid)
-    assert res.status_code == 409 and res.get_json()["error"] == "not_open"
+    assert res.status_code == 409 and res.get_json()["error"] == "bad_status"
 
     *_, mid = active(make_player)
-    void(admin_client, mid)
-    assert void(admin_client, mid).get_json()["error"] == "not_open"  # already voided
+    assert void(admin_client, mid).get_json()["status"] == "voided"
+    res = void(admin_client, mid)  # already voided
+    assert res.status_code == 409 and res.get_json()["error"] == "bad_status"
 
 
 def test_players_cant_void_and_unknown_matches_are_not_found(make_player, make_admin):

@@ -99,13 +99,13 @@ def test_complete_refuses_a_series_with_no_winner(make_player, status):
 @pytest.mark.parametrize("status", ["pending", "active", "completed", "voided", "cancelled", "abandoned"])
 def test_complete_refuses_a_match_that_is_not_reported_or_disputed(make_player, status):
     match, a, b = build(make_player, "aa", status=status)
-    refuses("not_open", settlement.complete, match, a, b)
+    refuses("bad_status", settlement.complete, match, a, b)
 
 
 def test_a_completed_match_is_never_settled_twice(make_player):
     match, a, b = build(make_player, "aa")
     settlement.complete(match, "Result confirmed.")
-    refuses("not_open", settlement.complete, match, a, b)
+    refuses("bad_status", settlement.complete, match, a, b)
     assert a.ranked_wins == 1
 
 
@@ -127,4 +127,4 @@ def test_void_counts_for_no_one(make_player, status, games):
 @pytest.mark.parametrize("status", ["completed", "voided", "cancelled", "abandoned"])
 def test_void_refuses_a_match_that_is_not_open(make_player, status):
     match, a, b = build(make_player, "aa", status=status)
-    refuses("not_open", settlement.void, match, a, b)
+    refuses("bad_status", settlement.void, match, a, b)
