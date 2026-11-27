@@ -11,6 +11,10 @@ Every UI change starts as a prototype: build it in the dev-only `/lab` route (or
 
 The pull request for a UI change opens as a draft with before and after screenshots at desktop and phone width, and leaves draft only when the owner signs it off. See "How the work runs" in `docs/prd/beta.md`.
 
+## Local agents (OpenCode)
+
+This section is for a local model run through OpenCode. Your shell is Windows PowerShell. List, search and read files with your built-in glob, list and read tools, and when a ticket's Implementer notes name files, read those exact files directly. Never use shell commands (`ls`, `find`, `grep`, `&&`) to list or search files.
+
 ## Checks
 
 Run these in a POSIX shell (Git Bash on Windows; Windows PowerShell 5.1 has no `&&`). Backend: `cd backend && .venv/bin/python -m pytest` (on Windows, `.venv/Scripts/python`; setup in `backend/README.md`). Frontend: `cd frontend && npm run lint && npm run build && npm run test:e2e`.
