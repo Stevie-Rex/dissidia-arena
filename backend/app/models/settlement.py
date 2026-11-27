@@ -18,8 +18,8 @@ class Settlement(db.Model):
     """One settle of a match (see GLOSSARY.md: Settled match), written only by app.settlement.
 
     A settle with a winner is a ranked win for winner_id and a ranked loss for loser_id; a Void has
-    neither. undone_at is set when the Master reopens the match, so the row stops counting.
-    A match has at most one row whose undone_at is empty."""
+    neither. unsettled_at is set when the Master reopens the match, which unsettles it, so the row
+    stops counting. A match has at most one row whose unsettled_at is empty."""
 
     __tablename__ = "settlements"
     __table_args__ = (CheckConstraint(f"outcome IN {OUTCOMES}", name="ck_settlements_outcome"),)
@@ -32,9 +32,9 @@ class Settlement(db.Model):
     loser_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
     ladder: Mapped[str] = mapped_column(String(16), nullable=False)
     settled_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    undone_at: Mapped[datetime | None] = mapped_column(DateTime)
-    # The match id while the row counts, NULL once undone. Its unique index is the "one live row per
+    unsettled_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # The match id while the row counts, NULL once unsettled. Its unique index is the "one live row per
     # match" rule: MariaDB has no partial unique indexes, but both it and SQLite allow many NULLs.
     live_match_id: Mapped[int | None] = mapped_column(
-        Integer, Computed("CASE WHEN undone_at IS NULL THEN match_id END", persisted=True), unique=True
+        Integer, Computed("CASE WHEN unsettled_at IS NULL THEN match_id END", persisted=True), unique=True
     )

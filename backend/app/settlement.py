@@ -129,11 +129,11 @@ def _credit_win(winner: User, match: Match) -> list[str]:
 
 
 def _live():
-    return Settlement.undone_at.is_(None)
+    return Settlement.unsettled_at.is_(None)
 
 
 def ranked_losses(user_id: int) -> int:
-    """Settles with a winner that this player lost. Voids and undone settles don't count."""
+    """Settles with a winner that this player lost. Voids and settles the Master has unsettled don't count."""
     return db.session.scalar(
         select(func.count()).select_from(Settlement).where(_live(), Settlement.loser_id == user_id)
     ) or 0
