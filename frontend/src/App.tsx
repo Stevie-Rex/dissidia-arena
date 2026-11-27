@@ -55,7 +55,8 @@ export default function App() {
           <Route path="admin/cases/:id" element={<CasePage />} />
           <Route path="admin/help-requests/:id" element={<HelpRequestPage />} />
           <Route path="admin/log" element={<AdminLog />} />
-          <Route path="master" element={<MasterPanel />} />
+          <Route path="admin/admins" element={<MasterPanel />} />
+          <Route path="master" element={<Navigate to="/admin/admins" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

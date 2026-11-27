@@ -1,11 +1,16 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useApp } from '../state/AppState'
 
-/** Switches between the Admin area's pages: cases (/admin and each case) and the Admin log. */
+/** The Admin panel's tabs: Cases (/admin and each case), Log, and Admins for the Master only. */
 export default function AdminTabs() {
-  const onLog = useLocation().pathname.startsWith('/admin/log')
+  const { pathname } = useLocation()
+  const { user } = useApp()
+  const onLog = pathname.startsWith('/admin/log')
+  const onAdmins = pathname.startsWith('/admin/admins')
   const tabs = [
-    { to: '/admin', label: 'Cases', current: !onLog },
-    { to: '/admin/log', label: 'Admin log', current: onLog },
+    { to: '/admin', label: 'Cases', current: !onLog && !onAdmins },
+    { to: '/admin/log', label: 'Log', current: onLog },
+    ...(user?.role === 'master' ? [{ to: '/admin/admins', label: 'Admins', current: onAdmins }] : []),
   ]
   return (
     <nav aria-label="Admin area" className="flex gap-2">
