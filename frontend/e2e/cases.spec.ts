@@ -151,8 +151,8 @@ test('the case list shows which cases are claimed', async ({ page }) => {
   await onCase(page, 'admin', theCase({ claim: { by: ref(8, 'Kefka'), at: '2026-11-21T12:10:00Z', byYou: false } }))
   await page.goto('/admin')
   const list = page.getByRole('region', { name: 'Open cases' })
-  await expect(list.getByRole('listitem')).toContainText('Claimed by Kefka')
-  await list.getByRole('link', { name: 'Match #42: Ashe vs Rival' }).click()
+  await expect(list.locator('tbody tr')).toContainText('Claimed by Kefka') // changed: the case list is a table
+  await list.getByRole('link', { name: 'Match #42', exact: true }).click() // changed: the players have their own column
   await expect(page).toHaveURL(/\/admin\/cases\/42$/)
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 })
@@ -180,7 +180,7 @@ test('an unfinished Replay is marked in the case list and on the case', async ({
   await expect(page.getByRole('region', { name: 'Reported games' })).toContainText('1–1 so far: nobody has won yet')
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
   await page.goto('/admin')
-  await expect(page.getByRole('region', { name: 'Open cases' }).getByRole('listitem')).toContainText('Replay not finished')
+  await expect(page.getByRole('region', { name: 'Open cases' }).locator('tbody tr')).toContainText('Replay not finished') // changed: the case list is a table
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 })
 
@@ -228,5 +228,29 @@ test('the case page shows every screenshot, with a placeholder for deleted ones'
   await expect(dispute.getByText('Earlier dispute')).toHaveCount(1) // only the first one, from before a Replay
   await expect(dispute.getByText('Screenshot removed after 90 days')).toHaveCount(1)
   await expect(dispute.getByText('No screenshots.')).toHaveCount(0)
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+})
+
+test('the filter chips show the right cases', async ({ page }) => {
+  await mockApi(page, { wins: 0, role: 'admin' })
+  const dispute = (matchId: number, claim: unknown) => ({ kind: 'dispute', matchId, game: 'nt', platform: 'PS4',
+    players: ['Ashe', 'Rival'], disputedAt: '2026-11-21T12:00:00Z', replayNotFinished: false, claim })
+  const cases = [
+    dispute(42, { by: ref(1, 'Tester'), at: '2026-11-21T12:10:00Z', byYou: true }),
+    { kind: 'help', helpRequestId: 5, matchId: 43, game: '012', platform: 'PC', players: ['Tester', 'Rival'],
+      message: 'The room closed.', askedBy: ref(2, 'Rival'), askedAt: '2026-11-21T12:00:00Z',
+      claim: { by: ref(8, 'Kefka'), at: '2026-11-21T12:10:00Z', byYou: false } },
+    dispute(44, null),
+  ]
+  await page.route('**/api/admin/cases', (r) => r.fulfill(json({ cases })))
+  await page.goto('/admin')
+  const list = page.getByRole('region', { name: 'Open cases' })
+  await expect(list.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  for (const [chip, count] of [['All', 3], ['Disputes', 2], ['Help', 1], ['Unclaimed', 1], ['Mine', 1]] as const) {
+    await list.getByRole('button', { name: chip, exact: true }).click()
+    await expect(list.getByRole('button', { name: chip, exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(list.locator('tbody tr')).toHaveCount(count)
+  }
+  await expect(list.locator('tbody tr')).toContainText('Claimed by you')
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 })
