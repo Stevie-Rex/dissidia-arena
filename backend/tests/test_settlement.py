@@ -123,7 +123,7 @@ def test_complete_writes_one_row_with_the_winner_the_loser_and_the_ladder(make_p
     [row] = rows(match)
     assert (row.outcome, row.winner_id, row.loser_id, row.ladder) == ("completed", b.id, a.id, ladder)
     assert row.settled_at == match.finished_at
-    assert row.undone_at is None
+    assert row.unsettled_at is None
 
 
 # ---------------------------------------------------------------- void
@@ -160,9 +160,9 @@ def test_void_writes_one_row_with_no_winner_or_loser(make_player):
 # ---------------------------------------------------------------- one live row per match
 
 
-def add_row(match, undone_at=None):
+def add_row(match, unsettled_at=None):
     db.session.add(Settlement(match_id=match.id, outcome="voided", ladder="nt/PS4",
-                              settled_at=clock.now(), undone_at=undone_at))
+                              settled_at=clock.now(), unsettled_at=unsettled_at))
     db.session.commit()
 
 
@@ -176,13 +176,13 @@ def test_the_database_refuses_a_second_live_row_for_a_match(make_player):
     assert len(rows(match)) == 1
 
 
-def test_an_undone_row_leaves_room_for_the_next_settle(make_player):
+def test_an_unsettled_row_leaves_room_for_the_next_settle(make_player):
     match, a, b = build(make_player, "aa")
-    add_row(match, undone_at=clock.now())
-    add_row(match, undone_at=clock.now())
+    add_row(match, unsettled_at=clock.now())
+    add_row(match, unsettled_at=clock.now())
     settlement.complete(match, "Result confirmed.")
     db.session.commit()
-    assert sorted(r.undone_at is None for r in rows(match)) == [False, False, True]
+    assert sorted(r.unsettled_at is None for r in rows(match)) == [False, False, True]
 
 
 def test_the_database_refuses_an_unknown_outcome(make_player):
@@ -213,9 +213,9 @@ def test_a_void_is_a_ranked_loss_for_no_one(make_player):
     assert (settlement.ranked_losses(a.id), settlement.ranked_losses(b.id)) == (0, 0)
 
 
-def test_an_undone_settle_is_no_longer_a_ranked_loss(make_player):
+def test_unsettling_a_match_takes_back_its_ranked_loss(make_player):
     match, a, b = settle(make_player, "aa")
-    rows(match)[0].undone_at = clock.now()
+    rows(match)[0].unsettled_at = clock.now()
     db.session.commit()
     assert settlement.ranked_losses(b.id) == 0
 
@@ -233,7 +233,7 @@ def test_backfill_recounts_ranked_wins_from_the_rows_and_grants(make_player, app
 
     for _ in range(15):
         settled(outcome="completed", winner_id=w[0].id, loser_id=l[0].id)
-    settled(outcome="completed", winner_id=w[0].id, loser_id=l[0].id, undone_at=t)  # reopened: doesn't count
+    settled(outcome="completed", winner_id=w[0].id, loser_id=l[0].id, unsettled_at=t)  # reopened: doesn't count
     settled(outcome="voided")
     db.session.commit()
 
