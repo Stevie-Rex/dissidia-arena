@@ -17,6 +17,8 @@ Rules for reviewing a change. Each one is a judgement call; anything mechanical 
 
 ## Frontend
 
+- **Owner sign-off.** A change to what players see links the prototype the owner signed off (in `/lab` or on a throwaway branch), or says it's a bug fix restoring the signed-off look. It stays a draft until the owner signs it off. A UI change without either is a finding.
+
 - **State that belongs to one entity resets with it.** When a component holds form or UI state for a case, match or player, and the route can swap that entity without unmounting it, key the component on the entity's id. The same goes for a part that can be replaced inside one match, such as a new dispute after a Replay.
 - **Colours** come from the theme's tokens and Tailwind theme colours.
 - **Browser checks** mock every `/api` call and run axe on the page under test.
