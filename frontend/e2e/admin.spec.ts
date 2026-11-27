@@ -63,26 +63,23 @@ test('the sidebar shows Admin to Admins and the Master, and Admins to the Master
   await signedInAs(page, 'master')
   await page.goto('/rewards')
   await nav(page).getByRole('link', { name: 'Admins', exact: true }).click()
-  await expect(page).toHaveURL(/\/master$/)
+  await expect(page).toHaveURL(/\/admin\/admins$/) // changed: the Admins tab replaced the Master panel page
   await expect(nav(page).getByRole('link', { name: 'Admins', exact: true })).toHaveAttribute('aria-current', 'page')
   await nav(page).getByRole('link', { name: 'Admin log', exact: true }).click()
   await expect(page).toHaveURL(/\/admin\/log$/)
   await expect(nav(page).getByRole('link', { name: 'Admin log', exact: true })).toHaveAttribute('aria-current', 'page')
 })
 
-test('the Classic command menu lists Admin and Master panel for the right roles only', async ({ page }) => {
-  for (const [role, admin, master] of [['player', 0, 0], ['admin', 1, 0], ['master', 1, 1]] as const) {
+test('the Classic command menu lists Admin for Admins and the Master, and no Master panel', async ({ page }) => {
+  // changed: the Master panel command is gone; the Master reaches the Admins tab through Admin
+  for (const [role, admin] of [['player', 0], ['admin', 1], ['master', 1]] as const) {
     await mockApi(page, { wins: 10, role, prefs: { interface: 'classic' } })
     await page.goto('/rewards')
     await expect(nav(page).getByRole('button', { name: 'Rewards' })).toBeVisible()
     await expect(nav(page).getByRole('button', { name: 'Admin', exact: true })).toHaveCount(admin)
-    await expect(nav(page).getByRole('button', { name: 'Master panel' })).toHaveCount(master)
+    await expect(nav(page).getByRole('button', { name: 'Master panel' })).toHaveCount(0)
     await page.unrouteAll()
   }
-  await mockApi(page, { wins: 10, role: 'master', prefs: { interface: 'classic' } })
-  await page.goto('/rewards')
-  await nav(page).getByRole('button', { name: 'Master panel' }).click()
-  await expect(page).toHaveURL(/\/master$/)
 })
 
 test('Admins read the Admin log, page by page', async ({ page }) => {
@@ -124,7 +121,7 @@ test('the Master does not see a step-down form', async ({ page }) => {
 
 test('the Master appoints and removes Admins, each with a reason', async ({ page }) => {
   const sent = await signedInAs(page, 'master')
-  await page.goto('/master')
+  await page.goto('/admin/admins') // changed: the Admins tab replaced the Master panel page
   const admins = page.getByRole('region', { name: 'Admins' })
   await expect(admins.getByText('Kefka', { exact: true })).toBeVisible()
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
@@ -163,6 +160,23 @@ test('players and Admins see "Not available" on pages that are not theirs', asyn
   await page.unrouteAll()
 
   await signedInAs(page, 'admin')
-  await page.goto('/master')
+  await page.goto('/admin/admins') // changed: the Admins tab replaced the Master panel page
   await expect(page.getByText('This page is only for the Master.')).toBeVisible()
+})
+
+test('the Admin panel shows the Admins tab to the Master only, and /master leads to it', async ({ page }) => {
+  for (const [role, count] of [['admin', 0], ['master', 1]] as const) {
+    await signedInAs(page, role)
+    await page.goto('/admin/log')
+    const tabs = page.getByRole('navigation', { name: 'Admin area' })
+    await expect(tabs.getByRole('link', { name: 'Log', exact: true })).toHaveAttribute('aria-current', 'page')
+    await expect(tabs.getByRole('link', { name: 'Admins', exact: true })).toHaveCount(count)
+    await page.unrouteAll()
+  }
+  await signedInAs(page, 'master')
+  await page.goto('/master')
+  await expect(page).toHaveURL(/\/admin\/admins$/)
+  const adminTabs = page.getByRole('navigation', { name: 'Admin area' })
+  await expect(adminTabs.getByRole('link', { name: 'Admins', exact: true })).toHaveAttribute('aria-current', 'page')
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 })
