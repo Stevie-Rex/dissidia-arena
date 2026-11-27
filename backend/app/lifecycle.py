@@ -27,7 +27,7 @@ from .errors import MatchmakingError
 from .extensions import db
 from .match_room import post_system
 from .models import Match, MatchGame, QueueEntry, User
-from .models.match import OPEN, SETTLED  # noqa: F401  (the status sets: beside the model so settlement and rewards can read them)
+from .models.match import OPEN, SETTLED  # noqa: F401  (the status sets: beside the model so settlement can read them)
 from .settlement import require_status
 
 # Long enough to notice a Discord DM, not so long a no-show stalls the queue.
