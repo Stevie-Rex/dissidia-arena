@@ -1,33 +1,50 @@
 """Checks on the test suite itself, for mistakes that only show up later: on MariaDB in CI, or when
-the next migration lands."""
+the next migration lands. They read each file's syntax tree, so line breaks, spacing and how a name
+was imported don't matter."""
 
-import re
+import ast
 from pathlib import Path
 
 TESTS = Path(__file__).parent
+REFUSALS = {"IntegrityError", "OperationalError"}
 
 
-def offenders(pattern: str, files) -> list[str]:
-    """Each match of pattern, as file:line. Matched against the whole file, so a call split over
-    several lines is caught too."""
-    rx = re.compile(pattern)
-    out = []
-    for f in files:
-        text = f.read_text(encoding="utf-8")
-        for m in rx.finditer(text):
-            n = text.count("\n", 0, m.start()) + 1
-            out.append(f"{f.name}:{n}: {' '.join(m.group(0).split())}")
-    return out
+def calls(path: Path, name: str):
+    """Every call in the file to a function whose name, or last attribute, is name."""
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Call):
+            f = node.func
+            if (isinstance(f, ast.Name) and f.id == name) or (isinstance(f, ast.Attribute) and f.attr == name):
+                yield node
+
+
+def names_in(node) -> set[str]:
+    """The bare names and last attributes anywhere in an expression: sa.exc.IntegrityError gives IntegrityError."""
+    return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)} | {
+        n.attr for n in ast.walk(node) if isinstance(n, ast.Attribute)
+    }
 
 
 def test_database_refusals_are_expected_with_db_refuses():
     """SQLite and MariaDB raise different errors for the same refusal (MariaDB reports a failed CHECK
     as an OperationalError), so tests expect one with conftest.db_refuses()."""
-    files = [f for f in TESTS.glob("test_*.py") if f.name != Path(__file__).name]
-    assert offenders(r"pytest\.raises\(\s*\(?\s*(sa\.exc\.|sqlalchemy\.exc\.)?(IntegrityError|OperationalError)", files) == []
+    offenders = [
+        f"{f.name}:{call.lineno}"
+        for f in sorted(TESTS.glob("test_*.py"))
+        for call in calls(f, "raises")
+        if call.args and names_in(call.args[0]) & REFUSALS
+    ]
+    assert offenders == []
 
 
 def test_migration_tests_downgrade_to_a_named_revision():
-    """A relative revision ("-1") moves with the head, so the next migration would change what the test
-    checks. Name the revision the test means."""
-    assert offenders(r"""revision\s*=\s*["'][-+]\d""", [TESTS / "test_migrations.py"]) == []
+    """A relative revision ("-1", also downgrade()'s default) moves with the head, so the next
+    migration would change what the test checks. Name the revision the test means."""
+    offenders = []
+    for call in calls(TESTS / "test_migrations.py", "downgrade"):
+        kw = {k.arg: k.value for k in call.keywords}
+        revision = kw.get("revision", call.args[1] if len(call.args) > 1 else None)
+        named = isinstance(revision, ast.Constant) and isinstance(revision.value, str) and revision.value[:1] not in "-+"
+        if not named:
+            offenders.append(f"test_migrations.py:{call.lineno}")
+    assert offenders == []
