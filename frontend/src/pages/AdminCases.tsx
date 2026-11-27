@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useId, useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import AdminTabs from '../components/AdminTabs'
+import { Link, useOutletContext, useParams } from 'react-router-dom'
 import RoleGate from '../components/RoleGate'
 import { ScreenshotList } from '../components/Screenshots'
-import { Btn, Card, PageTitle, Select, Sub } from '../components/ui'
+import { Btn, Card, Select, Sub } from '../components/ui'
 import { GAMES } from '../data/mock'
 import {
   MAX_REASON,
@@ -53,22 +52,33 @@ export function Alert({ children }: { children: string }) {
 
 // ---------------------------------------------------------------- the case list
 
-/** The Admin area's front page: open Disputed matches and Help requests, and whether each is claimed. */
+/** The Admin panel's Cases tab: open Disputed matches and Help requests, and whether each is claimed. */
 export default function AdminCases() {
   return (
     <RoleGate allow={['admin', 'master']} who="Admins">
-      <div className="flex flex-col gap-6">
-        <PageTitle>Cases</PageTitle>
-        <AdminTabs />
-        <CaseList />
-      </div>
+      <CaseList />
     </RoleGate>
   )
+}
+
+const FILTERS = ['All', 'Disputes', 'Help', 'Unclaimed', 'Mine'] as const
+export type CaseFilter = (typeof FILTERS)[number]
+/** The picked chip, held by the Admin panel so it outlasts the case list. */
+export type CaseFilterState = { filter: CaseFilter; setFilter: (filter: CaseFilter) => void }
+
+/** Whether a case shows under a filter chip. The chips filter in the browser; nothing is fetched again. */
+function shows(c: CaseListRow, filter: CaseFilter) {
+  if (filter === 'Disputes') return c.kind === 'dispute'
+  if (filter === 'Help') return c.kind === 'help'
+  if (filter === 'Unclaimed') return !c.claim
+  if (filter === 'Mine') return !!c.claim?.byYou
+  return true
 }
 
 function CaseList() {
   const [cases, setCases] = useState<CaseListRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { filter, setFilter } = useOutletContext<CaseFilterState>()
 
   useEffect(() => {
     let current = true
@@ -89,39 +99,85 @@ function CaseList() {
         <p className="m-0 text-sm">No Disputed matches or Help requests are waiting for an Admin.</p>
       </Card>
     )
+  const shown = cases.filter((c) => shows(c, filter))
   return (
-    <section aria-label="Open cases">
-      <ul className="m-0 flex list-none flex-col gap-2 p-0">
-        {cases.map((c) => (
-          <li key={c.kind === 'help' ? `help-${c.helpRequestId}` : `dispute-${c.matchId}`}>
-            <Card className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-col gap-1">
-                <Link
-                  to={c.kind === 'help' ? `/admin/help-requests/${c.helpRequestId}` : `/admin/cases/${c.matchId}`}
-                  className="font-semibold text-gold-note hover:text-crystal-soft"
-                >
-                  {c.kind === 'help' && 'Help request: '}Match #{c.matchId}: {c.players[0]} vs {c.players[1]}
-                </Link>
-                <Sub>
-                  {GAMES[c.game].name} · {c.platform}
-                  {c.kind === 'help' ? (
-                    <> · asked {since(c.askedAt)} ago</>
-                  ) : (
-                    c.disputedAt && <> · disputed {since(c.disputedAt)} ago</>
-                  )}
-                </Sub>
-                {c.kind === 'help' && <span className="line-clamp-2 whitespace-pre-wrap text-sm">{c.message}</span>}
-                {c.kind === 'dispute' && c.replayNotFinished && (
-                  <span className="text-sm font-semibold text-gold-note">Replay not finished</span>
-                )}
-              </div>
-              <span className={cx('text-sm', c.claim ? 'text-fg-dim' : 'text-gold-note')}>
-                {c.claim ? `Claimed by ${c.claim.byYou ? 'you' : c.claim.by.displayName}` : 'Unclaimed'}
-              </span>
-            </Card>
-          </li>
+    <section aria-label="Open cases" className="@container flex flex-col gap-3">
+      <div role="group" aria-label="Filter cases" className="flex flex-wrap gap-2">
+        {FILTERS.map((f) => (
+          <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)} className="da-pill rounded-full px-3 py-1 text-xs">
+            {f}
+          </button>
         ))}
-      </ul>
+      </div>
+      {shown.length === 0 ? (
+        <Sub>No cases match this filter.</Sub>
+      ) : (
+        // When the table doesn't fit, each row stacks as a card. The explicit roles keep the table
+        // semantics that changing `display` would otherwise drop.
+        <div className="overflow-x-auto rounded border border-line @max-xl:border-0">
+          <table role="table" className="w-full border-collapse text-left text-sm @max-xl:block">
+            <thead role="rowgroup" className="text-xs uppercase tracking-wide text-muted @max-xl:sr-only">
+              <tr role="row">
+                {['Type', 'Match', 'Players', 'Game', 'Age', 'Claim'].map((h) => (
+                  <th key={h} scope="col" role="columnheader" className="border-b border-line px-3 py-2 font-semibold">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody role="rowgroup" className="@max-xl:grid @max-xl:gap-2">
+              {shown.map((c) => {
+                const at = c.kind === 'help' ? c.askedAt : c.disputedAt
+                return (
+                  <tr
+                    key={c.kind === 'help' ? `help-${c.helpRequestId}` : `dispute-${c.matchId}`}
+                    role="row"
+                    className="border-b border-line align-top last:border-b-0 @max-xl:grid @max-xl:grid-cols-[auto_minmax(0,1fr)_auto] @max-xl:items-start @max-xl:gap-x-2 @max-xl:gap-y-1.5 @max-xl:rounded @max-xl:border @max-xl:bg-card @max-xl:px-3 @max-xl:py-2.5 @max-xl:last:border-b"
+                  >
+                    <td role="cell" className="px-3 py-2 @max-xl:p-0">
+                      <span
+                        className={cx(
+                          'inline-block rounded border px-1.5 text-xs font-semibold',
+                          c.kind === 'help' ? 'border-crystal-soft text-crystal-soft' : 'border-chaos-soft text-chaos-soft',
+                        )}
+                      >
+                        {c.kind === 'help' ? 'Help' : 'Dispute'}
+                      </span>
+                    </td>
+                    <td role="cell" className="px-3 py-2 @max-xl:p-0">
+                      <Link
+                        to={c.kind === 'help' ? `/admin/help-requests/${c.helpRequestId}` : `/admin/cases/${c.matchId}`}
+                        className="whitespace-nowrap font-semibold text-gold-note hover:text-crystal-soft"
+                      >
+                        Match #{c.matchId}
+                      </Link>
+                      {c.kind === 'help' && <span className="mt-1 line-clamp-2 min-w-48 whitespace-pre-wrap text-fg-dim @max-xl:min-w-0">{c.message}</span>}
+                      {c.kind === 'dispute' && c.replayNotFinished && (
+                        <span className="mt-1 block whitespace-nowrap font-semibold text-gold-note @max-xl:whitespace-normal">Replay not finished</span>
+                      )}
+                    </td>
+                    <td role="cell" className="wrap-anywhere px-3 py-2 @max-xl:col-span-full @max-xl:row-start-2 @max-xl:p-0 @max-xl:font-semibold">
+                      {c.players[0]} vs {c.players[1]}
+                    </td>
+                    <td role="cell" className="whitespace-nowrap px-3 py-2 @max-xl:p-0 @max-xl:text-right">{GAMES[c.game].short}</td>
+                    <td role="cell" className="whitespace-nowrap px-3 py-2 text-muted @max-xl:p-0">{at ? `${since(at)} ago` : '—'}</td>
+                    <td
+                      role="cell"
+                      className={cx(
+                        'px-3 py-2 @max-xl:col-start-2 @max-xl:col-end-[-1] @max-xl:p-0 @max-xl:text-right',
+                        !c.claim && 'text-muted',
+                      )}
+                    >
+                      <span className="hidden text-muted @max-xl:inline">Claim · </span>
+                      {c.claim ? <span className="wrap-anywhere">{c.claim.by.displayName}</span> : 'Unclaimed'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   )
 }
@@ -154,8 +210,7 @@ function CaseLoader() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageTitle>Case: Match #{id}</PageTitle>
-      <AdminTabs />
+      <h2 className="m-0 text-xl font-semibold">Case: Match #{id}</h2>
       {error && !data && <Alert>{error}</Alert>}
       {!data && !error && <Sub>Loading…</Sub>}
       {/* keyed so following a dispute record to another case starts its Ruling form afresh */}

@@ -1,8 +1,7 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import AdminTabs from '../components/AdminTabs'
 import RoleGate from '../components/RoleGate'
-import { Btn, Card, PageTitle, Sub } from '../components/ui'
+import { Btn, Card, Sub } from '../components/ui'
 import { MAX_REASON, api, errorMessage, type AdminLogEntry, type AdminLogPage } from '../lib/api'
 import { FIELD } from '../lib/format'
 import { useApp } from '../state/AppState'
@@ -21,7 +20,7 @@ const ACTIONS: Record<string, string> = {
   purge_screenshots: 'deleted dispute screenshots',
 }
 
-/** The Admin log, in the Admin area. */
+/** The Admin panel's Log tab: the Admin log. */
 export default function AdminLog() {
   return (
     <RoleGate allow={['admin', 'master']} who="Admins">
@@ -34,8 +33,6 @@ function AdminArea() {
   const { user } = useApp()
   return (
     <div className="flex flex-col gap-6">
-      <PageTitle>Admin log</PageTitle>
-      <AdminTabs />
       <p className="m-0 max-w-2xl text-sm text-muted">
         Every Admin, Master and system action, with the reason given. Nobody can edit or delete an entry.
       </p>

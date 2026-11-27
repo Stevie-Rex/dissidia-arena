@@ -119,10 +119,10 @@ async function asAdmin(page: Page, role: Role, start: Record<string, unknown>) {
 test('Help requests sit in the case list and open their own page', async ({ page }) => {
   await asAdmin(page, 'admin', helpPage())
   await page.goto('/admin')
-  const link = page.getByRole('link', { name: /Help request: Match #42: Tester vs Rival/ })
+  const link = page.getByRole('region', { name: 'Open cases' }).getByRole('link', { name: 'Match #42', exact: true }) // changed: the case list is a table
   await expect(link).toBeVisible()
   await expect(page.getByText('Rival left and is not answering.')).toBeVisible()
-  await expect(page.getByText('Unclaimed')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Open cases' }).locator('tbody tr')).toContainText('Unclaimed') // changed: Unclaimed is also a filter chip
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
   await link.click()
   await expect(page).toHaveURL(/\/admin\/help-requests\/5$/)

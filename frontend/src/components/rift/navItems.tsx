@@ -25,7 +25,7 @@ export function navItems(game: GameId, role: Role | undefined) {
       children: [
         { key: 'cases', label: 'Cases', to: '/admin', hint: 'Disputed matches and Help requests waiting for an Admin.' },
         { key: 'log', label: 'Admin log', to: '/admin/log', hint: 'Every Admin action, newest first.' },
-        ...(role === 'master' ? [{ key: 'admins' as const, label: 'Admins', to: '/master', hint: 'Appoint and remove Admins. Only the Master sees this.' }] : []),
+        ...(role === 'master' ? [{ key: 'admins' as const, label: 'Admins', to: '/admin/admins', hint: 'Appoint and remove Admins. Only the Master sees this.' }] : []),
       ],
     })
   return items

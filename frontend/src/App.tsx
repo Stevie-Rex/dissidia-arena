@@ -24,6 +24,7 @@ import AdminCases, { CasePage } from './pages/AdminCases'
 import { HelpRequestPage } from './pages/AdminHelp'
 import AdminLog from './pages/AdminLog'
 import MasterPanel from './pages/MasterPanel'
+import AdminPanel from './pages/AdminPanel'
 
 export default function App() {
   return (
@@ -51,11 +52,14 @@ export default function App() {
           <Route path="more" element={<More />} />
           <Route path="credits" element={<Credits />} />
           <Route path="config" element={<Config />} />
-          <Route path="admin" element={<AdminCases />} />
-          <Route path="admin/cases/:id" element={<CasePage />} />
-          <Route path="admin/help-requests/:id" element={<HelpRequestPage />} />
-          <Route path="admin/log" element={<AdminLog />} />
-          <Route path="master" element={<MasterPanel />} />
+          <Route path="admin" element={<AdminPanel />}>
+            <Route index element={<AdminCases />} />
+            <Route path="cases/:id" element={<CasePage />} />
+            <Route path="help-requests/:id" element={<HelpRequestPage />} />
+            <Route path="log" element={<AdminLog />} />
+            <Route path="admins" element={<MasterPanel />} />
+          </Route>
+          <Route path="master" element={<Navigate to="/admin/admins" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

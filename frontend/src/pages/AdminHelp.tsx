@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
-import AdminTabs from '../components/AdminTabs'
 import RoleGate from '../components/RoleGate'
-import { Btn, Card, PageTitle, Sub } from '../components/ui'
+import { Btn, Card, Sub } from '../components/ui'
 import { GAMES } from '../data/mock'
 import { MAX_REASON, api, errorMessage, type HelpRequestCase } from '../lib/api'
 import { FIELD, cx, since } from '../lib/format'
@@ -47,8 +46,7 @@ function HelpRequestLoader() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageTitle>Help request</PageTitle>
-      <AdminTabs />
+      <h2 className="m-0 text-xl font-semibold">Help request</h2>
       {error && !data && <Alert>{error}</Alert>}
       {!data && !error && <Sub>Loading…</Sub>}
       {/* keyed so moving to another request starts its forms afresh */}
