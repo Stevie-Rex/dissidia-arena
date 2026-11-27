@@ -1,9 +1,9 @@
 """
 Settlement (see GLOSSARY.md: Settled match): a match's final result and its ranked effects.
 
-Callers say *that* a match is settled and how the players are told. This module decides who won,
-from the stored games, and applies every effect: the status, the winner, the finish time, the
-match-room system message, the ranked win and the unlocks.
+Callers (app.lifecycle) say *that* a match is settled and how the players are told. This module
+decides who won, from the stored games, and applies every effect: the status, the winner, the finish
+time, the match-room system message, the ranked win and the unlocks.
 
 It knows nothing of Rulings, Claims, permissions or the Admin log; those stay with the callers.
 Like matchmaking.py, it works on the current db.session and leaves committing to the caller, it
@@ -17,10 +17,11 @@ from . import clock, rewards
 from .errors import MatchmakingError
 from .match_room import post_system
 from .models import Match, User
+from .models.match import OPEN
 
 # A match can only be settled from these statuses, so a Settled match is never settled again.
 COMPLETABLE = ("reported", "disputed")
-VOIDABLE = ("pending", "active", "reported", "disputed")
+VOIDABLE = (*OPEN, "disputed")
 
 
 @dataclass(frozen=True)
@@ -56,18 +57,19 @@ def series_winner(match: Match, corrections: Mapping[int, int] | None = None) ->
     return None
 
 
-def _require_status(match: Match, statuses: tuple[str, ...]) -> None:
+def require_status(match: Match, *statuses: str) -> None:
+    """Refuse (bad_status) an action the match's status doesn't allow."""
     if match.status not in statuses:
-        raise MatchmakingError("not_open", f"match is {match.status}")
+        raise MatchmakingError("bad_status", f"match is {match.status}")
 
 
 def complete(match: Match, message: str) -> Settled:
     """Settle a match with the winner its stored games say: completed, ranked win credited, unlocks
     granted (tagged with the match), and message posted in the match room.
 
-    Refuses (changing nothing) unless the match is reported or disputed (not_open), and when no
+    Refuses (changing nothing) unless the match is reported or disputed (bad_status), and when no
     player has reached the winning score (no_series_winner)."""
-    _require_status(match, COMPLETABLE)
+    require_status(match, *COMPLETABLE)
     winner = series_winner(match)
     if winner is None:
         raise MatchmakingError("no_series_winner", "nobody has won this series")
@@ -81,8 +83,8 @@ def complete(match: Match, message: str) -> Settled:
 def void(match: Match, message: str) -> None:
     """Settle a match so it counts for no one: no winner, no ranked win, nothing against anyone.
 
-    Refuses (changing nothing) unless the match is still open (not_open)."""
-    _require_status(match, VOIDABLE)
+    Refuses (changing nothing) unless the match is open or disputed (bad_status)."""
+    require_status(match, *VOIDABLE)
     match.status = "voided"
     match.winner_id = None
     match.finished_at = clock.now()

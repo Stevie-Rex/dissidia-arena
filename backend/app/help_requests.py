@@ -13,11 +13,10 @@ from datetime import timedelta
 
 from sqlalchemy import select
 
-from . import clock
+from . import clock, lifecycle
 from .errors import MatchmakingError
 from .extensions import db
 from .models import HelpRequest, Match, User
-from .models.match import OPEN_STATUSES
 
 # A completed match can be asked about for this long after it finished.
 WINDOW = timedelta(days=90)
@@ -31,9 +30,9 @@ def played_in(match: Match, user: User) -> bool:
 def _askable(match: Match) -> bool:
     """Open, or completed within the last 90 days. Not Disputed (that is a case already), and not
     one that ended without being played."""
-    if match.status in OPEN_STATUSES:
+    if match.status in lifecycle.OPEN:
         return True
-    return match.status == "completed" and match.finished_at is not None and clock.now() - match.finished_at < WINDOW
+    return match.completed_with_winner and match.finished_at is not None and clock.now() - match.finished_at < WINDOW
 
 
 def open_by(match: Match, user: User) -> HelpRequest | None:

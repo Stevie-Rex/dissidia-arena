@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 
-from .. import help_requests
+from .. import help_requests, lifecycle
 from .. import matchmaking as mm
 from ..auth import current_user, login_required
 from ..extensions import db
@@ -56,7 +56,9 @@ def get_match(match_id: int):
     match = mm.lock_match(match_id)
     if match is None:
         raise mm.MatchmakingError("not_found", "match not found", 404)
-    mm.expire_if_due(match)
+    # Reading a match only ends an overdue accept window; the matchmaker applies the later deadlines.
+    if match.status == "pending":
+        lifecycle.advance(match)
     result = mm.match_dict(match, current_user())
     db.session.commit()
     return jsonify(result)
@@ -65,13 +67,13 @@ def get_match(match_id: int):
 @bp.post("/matches/<int:match_id>/accept")
 @login_required
 def accept(match_id: int):
-    return _match_action(match_id, mm.accept)
+    return _match_action(match_id, lifecycle.accept)
 
 
 @bp.post("/matches/<int:match_id>/decline")
 @login_required
 def decline(match_id: int):
-    return _match_action(match_id, mm.decline)
+    return _match_action(match_id, lifecycle.decline)
 
 
 @bp.post("/matches/<int:match_id>/games")
@@ -81,7 +83,7 @@ def report_game(match_id: int):
     game_no, winner_id = data.get("gameNo"), data.get("winnerId")
     if not isinstance(game_no, int) or not isinstance(winner_id, int):
         raise mm.MatchmakingError("validation", "gameNo and winnerId must be integers", 400)
-    return _match_action(match_id, mm.report_game, game_no, winner_id, data.get("details"))
+    return _match_action(match_id, lifecycle.report_game, game_no, winner_id, data.get("details"))
 
 
 @bp.post("/matches/<int:match_id>/confirm")
@@ -91,7 +93,7 @@ def confirm(match_id: int):
     user = current_user()
     if match is None:
         raise mm.MatchmakingError("not_found", "match not found", 404)
-    new = list(mm.confirm(match, user).unlocked)
+    new = list(lifecycle.confirm(match, user).unlocked)
     db.session.commit()
     body = mm.match_dict(match, user)
     # Spec: the result response lists rewards this match unlocked for the viewer.
@@ -103,7 +105,7 @@ def confirm(match_id: int):
 @login_required
 def dispute(match_id: int):
     data = json_body()
-    return _match_action(match_id, mm.dispute, data.get("games"), data.get("reason"))
+    return _match_action(match_id, lifecycle.dispute, data.get("games"), data.get("reason"))
 
 
 @bp.put("/matches/<int:match_id>/statement")
@@ -115,7 +117,7 @@ def add_statement(match_id: int):
 @bp.post("/matches/<int:match_id>/leave")
 @login_required
 def leave(match_id: int):
-    return _match_action(match_id, mm.leave)
+    return _match_action(match_id, lifecycle.leave)
 
 
 @bp.post("/matches/<int:match_id>/messages")

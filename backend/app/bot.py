@@ -25,6 +25,7 @@ from discord.ext import tasks
 from flask import Flask
 
 from . import discord_service as svc
+from . import lifecycle
 from . import matchmaking as mm
 from .extensions import db
 from .models.user import REGIONS
@@ -229,7 +230,7 @@ def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.
                 f"{title_line}\n\nAn Admin ruled that your disputed match against **{opp_name}** is replayed "
                 f"from game {len(m['games']) + 1}. Earlier games stand.\n\n"
                 f"Reason: {discord.utils.escape_markdown(m['ruling']['reason'])}\n\n"
-                f"You have {mm.REPLAY_HOURS} hours, until {_ts(m['replayDeadline'], 'f')} ({_ts(m['replayDeadline'])}), "
+                f"You have {lifecycle.REPLAY_HOURS} hours, until {_ts(m['replayDeadline'], 'f')} ({_ts(m['replayDeadline'])}), "
                 f"to play and report the games in the [match room]({room}). If the match isn't settled by then, "
                 "it goes back to the Admins."
             ),
@@ -257,7 +258,7 @@ def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.
             title="Confirm the result",
             description=(
                 f"{title_line}\n\n**{opp_name}** reported {m['score']['you']}–{m['score']['opponent']} ({winner}). "
-                f"You have {mm.CONFIRM_HOURS} hours to confirm or dispute it in the [match room]({room}). "
+                f"You have {lifecycle.CONFIRM_HOURS} hours to confirm or dispute it in the [match room]({room}). "
                 f"If you don't, it confirms itself {_ts(m['confirmDeadline'])}."
             ),
             color=discord.Color.gold(),
@@ -299,7 +300,7 @@ def render_match(status: str, player: dict, frontend_url: str) -> tuple[discord.
         )
         return embed, None
 
-    if status in ("completed", "voided") and m["ruling"]:
+    if status in lifecycle.SETTLED and m["ruling"]:
         r = m["ruling"]
         winner = "you win." if m["winner"] == "you" else f"**{opp_name}** wins."
         if r["outcome"] == "void":
@@ -356,7 +357,7 @@ class MatchButton(discord.ui.DynamicItem[discord.ui.Button], template=r"arena:(?
 
     async def callback(self, interaction: discord.Interaction) -> None:
         bot: ArenaBot = interaction.client  # type: ignore[assignment]
-        fn = mm.accept if self.action == "accept" else mm.decline
+        fn = lifecycle.accept if self.action == "accept" else lifecycle.decline
         try:
             m = await bot.db(svc.match_action, interaction.user.id, self.match_id, fn)
         except mm.MatchmakingError as e:

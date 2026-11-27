@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 # Config reads these at import time; give tests safe defaults so they don't need a real .env.
 os.environ.setdefault("SECRET_KEY", "test-secret")
@@ -10,7 +11,7 @@ from app import create_app
 from app.config import Config
 from app.extensions import db
 from app import clock
-from app.models import User
+from app.models import Match, MatchGame, User
 
 MASTER_DISCORD_ID = 4242
 
@@ -65,6 +66,53 @@ def make_player(app):
         with client.session_transaction() as s:
             s["user_id"] = user.id
         return user, client
+
+    return make
+
+
+# Each status's games, as each game's winner in order. A reports every game.
+_GAMES = {
+    "pending": "",
+    "active": "a",
+    "reported": "aa",
+    "disputed": "aba",
+    "completed": "aa",
+    "voided": "a",
+    "cancelled": "",
+    "abandoned": "a",
+}
+
+
+@pytest.fixture
+def make_match(make_player):
+    """Returns (match, a, b): a ranked NT Bo3 between two fresh players, already in the given status,
+    with the games, winner and deadlines a match in that status has. No deadline has passed."""
+
+    def make(status):
+        (a, _), (b, _) = make_player(), make_player()
+        t = clock.now()
+        accepted = status not in ("pending", "cancelled")
+        match = Match(
+            game="nt", mode="1v1", best_of=3, platform="PS4", region="NA", status=status,
+            player_a_id=a.id, player_b_id=b.id, a_accepted=accepted, b_accepted=accepted,
+            accept_deadline=t + timedelta(minutes=1), created_at=t,
+        )
+        for n, w in enumerate(_GAMES[status], start=1):
+            match.games.append(MatchGame(game_no=n, winner_id={"a": a, "b": b}[w].id, reported_by_id=a.id, details={}))
+        if status in ("reported", "disputed", "completed"):
+            match.reported_by_id = match.winner_id = a.id
+        if status == "reported":
+            match.confirm_deadline = t + timedelta(hours=2)
+        if status == "disputed":
+            match.dispute_games, match.dispute_reason, match.ended_by_id = [3], "Game 3 was mine.", b.id
+            match.disputed_at = t
+        if status == "abandoned":
+            match.ended_by_id = b.id
+        if status not in ("pending", "active", "reported"):
+            match.finished_at = t
+        db.session.add(match)
+        db.session.commit()
+        return match, a, b
 
     return make
 

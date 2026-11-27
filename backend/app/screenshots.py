@@ -22,7 +22,7 @@ from flask import current_app
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import select
 
-from . import admin_log, clock
+from . import admin_log, clock, lifecycle
 from .errors import MatchmakingError
 from .extensions import db
 from .models import DisputeScreenshot, Match, User
@@ -163,7 +163,7 @@ def purge() -> list[Match]:
     due = db.session.scalars(
         select(Match)
         .where(
-            Match.status.in_(("completed", "voided")),
+            Match.status.in_(lifecycle.SETTLED),
             Match.ruled_at <= cutoff,
             Match.finished_at <= cutoff,
             Match.id.in_(waiting),
