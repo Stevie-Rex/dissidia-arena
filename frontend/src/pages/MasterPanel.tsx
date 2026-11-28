@@ -3,9 +3,10 @@ import RoleGate from '../components/RoleGate'
 import { Avatar, Btn, Sub } from '../components/ui'
 import { MAX_REASON, api, errorMessage, type AdminInfo, type PlayerResult } from '../lib/api'
 import { FIELD } from '../lib/format'
+import { Reopen, Seasons } from './MasterSeasonsReopen'
 
 /** A player and their action on one line; an open reason form wraps below. */
-const ROW = 'flex flex-wrap items-center justify-between gap-2 border-b border-line py-2 last:border-b-0'
+export const ROW = 'flex flex-wrap items-center justify-between gap-2 border-b border-line py-2 last:border-b-0'
 
 /** The Admin panel's Admins tab: the Master appoints and removes Admins. */
 export default function MasterPanel() {
@@ -64,6 +65,8 @@ function Panel() {
           </ul>
         )}
       </section>
+      <Reopen />
+      <Seasons />
     </div>
   )
 }
@@ -156,7 +159,7 @@ function PlayerLine({ player, extra }: { player: PlayerResult; extra?: string })
 }
 
 /** A button that opens a required-reason form before acting. */
-function ReasonAction({
+export function ReasonAction({
   open,
   label,
   confirm,

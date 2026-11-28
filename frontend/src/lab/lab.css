@@ -1,0 +1,61 @@
+/* Lab, round 3 (#70). Lab chrome only: deliberately plain, so it reads as not part of the design. */
+
+.lab-index {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+  font-family: system-ui, sans-serif;
+  color: #e8e8ee;
+  background: #15161c;
+  min-height: 100vh;
+}
+.lab-index h1 { font-size: 1.8rem; margin: 0 0 8px; }
+.lab-index h2 { font-size: 1.2rem; margin: 28px 0 8px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+.lab-index p { color: #b8b8c4; max-width: 46rem; }
+.lab-index ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.lab-index li { display: flex; flex-direction: column; gap: 4px; }
+.lab-index li > span { color: #b8b8c4; font-size: 0.92rem; }
+.lab-index__links { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.lab-index a { color: #8fc1ff; }
+.lab-index button,
+.lab-bar button,
+.lab-bar select {
+  font: inherit;
+  color: inherit;
+  background: #2a2c36;
+  border: 1px solid #4a4c58;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.lab-bar button[aria-pressed='true'] { background: #3d5f99; border-color: #6d8fcc; }
+.lab-bar button:disabled { opacity: 0.4; cursor: default; }
+
+.lab-bar {
+  position: fixed;
+  z-index: 1000;
+  left: 8px;
+  right: 8px;
+  /* above the phone bottom bar */
+  bottom: calc(var(--rift-phone-bar-h, 0px) + 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  font: 12px/1.4 system-ui, sans-serif;
+  color: #f0f0f4;
+  background: rgb(20 20 26 / 0.94);
+  border: 1px dashed #f5c542;
+  border-radius: 6px;
+}
+@media (min-width: 768px) {
+  .lab-bar { bottom: 8px; left: auto; max-width: 46rem; }
+}
+.lab-bar--closed { left: auto; right: 8px; width: auto; padding: 4px 10px; }
+.lab-bar__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lab-bar__row select { max-width: 18rem; min-width: 0; flex: 1 1 10rem; }
+.lab-bar__row a { color: #8fc1ff; }
+.lab-bar__home { font-weight: 700; color: #f5c542 !important; }
+.lab-bar__group { display: inline-flex; align-items: center; gap: 4px; }
+.lab-bar__note { margin: 0; color: #c8c8d2; }
+.lab-bar .da-mode-toggle { font-size: 12px; }

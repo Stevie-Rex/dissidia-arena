@@ -31,6 +31,61 @@ export interface Me {
   gameIds: Partial<Record<GameId, string>>
   rankedWins: number
   role: Role
+  /** Lab round 3 (#71): your standing on each Ladder in its game's live Season. Empty before Season 1. */
+  ladders?: LadderStanding[]
+}
+
+/** A Ladder is a game plus a platform. Fixed in code. */
+export type LadderId = '012/PPSSPP' | 'nt/PS4' | 'nt/PC'
+
+/** Lab round 3 (#71): one Ladder in the live Season. rating is rounded; a player appears on the Ladder once placed (5 matches). */
+export interface LadderStanding {
+  ladder: LadderId
+  game: GameId
+  platform: string
+  rating: number
+  placements: number
+  placed: boolean
+}
+
+/** Placement matches before a player appears on a Ladder. */
+export const PLACEMENT_MATCHES = 5
+
+/** Lab round 3 (#14): a game's live Season. NT's one Season covers both NT Ladders. */
+export interface Season {
+  game: GameId
+  number: number
+  startedAt: string
+  endsAt: string
+}
+
+/** Lab round 3 (#13): a match as the Master sees it when looking one up to reopen. */
+export interface SettledMatchInfo {
+  id: number
+  game: GameId
+  platform: string
+  players: [string, string]
+  score: [number, number]
+  status: MatchStatus
+  /** Display name of the winner, or null for a void. */
+  winner: string | null
+  /** How it was settled: 'confirmed', 'auto-confirmed', 'forfeit', or a Ruling outcome. Null while it is open or Disputed. */
+  settledBy: 'confirmed' | 'auto-confirmed' | 'forfeit' | RulingOutcome | null
+  settledAt: string | null
+  /** The last day it can be reopened (90 days after its last settlement). */
+  reopenUntil: string | null
+  /** Set once reopened. */
+  reopened: { at: string; reason: string } | null
+}
+
+/** Lab round 3 (#71): one player's Rating change from a settled match. */
+export interface RatingChange {
+  before: number
+  after: number
+  change: number
+  /** Placement matches played on this Ladder in this Season, counting this one. */
+  placements: number
+  placed: boolean
 }
 
 /** A player found from the Master panel. */
@@ -318,6 +373,20 @@ export interface Match extends QueueSettings {
   rewardsUnlocked: Pick<RewardDef, 'key' | 'name' | 'goal'>[]
   /** Only on the confirm response: reward keys you unlocked just now. */
   newlyUnlocked?: string[]
+  /** Lab round 3 (#71): each player's Rating change, once the match is settled in a live Season. */
+  ratingChanges?: Record<Side, RatingChange> | null
+  /** Lab round 3 (#64, #72): who forfeited, by pressing Leave or by not coming back in time. */
+  forfeit?: { by: Side; how: 'left' | 'countdown' } | null
+  /** Lab round 3 (#13): the Master reopened this settled match. tookBackFrom is whose ranked win was taken back. */
+  reopened?: { at: string; reason: string; tookBackFrom: Side | null } | null
+  /** Lab round 3 (#72): "My opponent's gone", only while the match is active. */
+  gone?: {
+    /** When the button can be pressed: 2 minutes after the match (or a Replay) starts, 5 minutes after the last "I'm here". */
+    availableAt: string
+    /** Why it's waiting: the start of play, or a recent "I'm here". */
+    waitingFor: 'start' | 'here'
+    countdown: { absent: Side; endsAt: string } | null
+  } | null
 }
 
 export interface QueueState {
@@ -372,7 +441,7 @@ export const api = {
   joinQueue: (settings: QueueSettings) => request<QueueState>('POST', '/queue', settings),
   leaveQueue: () => request<QueueState>('DELETE', '/queue'),
   match: (id: number) => request<Match>('GET', `/matches/${id}`),
-  matchAction: (id: number, action: 'accept' | 'decline' | 'confirm' | 'leave') =>
+  matchAction: (id: number, action: 'accept' | 'decline' | 'confirm' | 'leave' | 'gone' | 'here') =>
     request<Match>('POST', `/matches/${id}/${action}`),
   reportGame: (id: number, gameNo: number, winnerId: number, details: GameDetails) =>
     request<Match>('POST', `/matches/${id}/games`, { gameNo, winnerId, details }),
@@ -408,6 +477,14 @@ export const api = {
     request<{ admins: AdminInfo[] }>('POST', '/admin/admins', { userId, reason }),
   removeAdmin: (userId: number, reason: string) =>
     request<{ admins: AdminInfo[] }>('POST', `/admin/admins/${userId}/remove`, { reason }),
+
+  /** Lab round 3 (#14): each game's live Season, or null before Season 1. */
+  seasons: () => request<{ seasons: Record<GameId, Season | null> }>('GET', '/seasons'),
+  startSeason: (game: GameId, reason: string) =>
+    request<{ seasons: Record<GameId, Season | null> }>('POST', `/admin/seasons/${game}/start`, { reason }),
+  /** Lab round 3 (#13): look up any match by number, to reopen it. */
+  findMatch: (id: number) => request<SettledMatchInfo>('GET', `/admin/matches/${id}`),
+  reopenMatch: (id: number, reason: string) => request<SettledMatchInfo>('POST', `/admin/matches/${id}/reopen`, { reason }),
 
   /** Full-page redirect into Discord's OAuth flow; comes back to `next`. */
   discordLoginUrl: (next: string) => `/api/auth/discord/login?next=${encodeURIComponent(next)}`,

@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { FriendsList } from './components/Layout'
 import Shell from './layouts/Shell'
 import { AppStateProvider } from './state/AppState'
@@ -26,10 +27,27 @@ import AdminLog from './pages/AdminLog'
 import MasterPanel from './pages/MasterPanel'
 import AdminPanel from './pages/AdminPanel'
 
+// Lab, round 3 (#70): dev-only, never merges. /lab lists the scenarios outside the providers, so it makes no API calls.
+const LabIndex = import.meta.env.DEV ? lazy(() => import('./lab/LabIndex')) : null
+const LabBar = import.meta.env.DEV ? lazy(() => import('./lab/LabBar')) : null
+const labOn = () => import.meta.env.DEV && !!sessionStorage.getItem('da-lab')
+
 export default function App() {
+  const { pathname } = useLocation()
+  if (LabIndex && pathname.startsWith('/lab'))
+    return (
+      <Suspense fallback={null}>
+        <LabIndex />
+      </Suspense>
+    )
   return (
     <AppStateProvider>
       <AppearanceProvider>
+      {LabBar && labOn() && (
+        <Suspense fallback={null}>
+          <LabBar />
+        </Suspense>
+      )}
       <Routes>
         <Route element={<Shell />}>
           <Route index element={<Home />} />

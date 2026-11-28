@@ -10,6 +10,8 @@ import { Art, Btn, Card, Sub, TextLink } from '../components/ui'
 import { FacetBackdrop } from '../components/rift/FacetBackdrop'
 import { Panel } from '../components/rift/menus'
 import '../theme/css/rift-hub.css'
+import { laddersFor, seasonEnds, useSeasons } from '../state/useSeasons'
+import { PLACEMENT_MATCHES } from '../lib/api'
 
 const RULES: Record<GameId, string> = {
   nt: "Latest patch · stage list: Kefka's Tower, Pandaemonium, Orphan's Cradle, Midgar · disconnect = replay the game once, then forfeit",
@@ -43,10 +45,12 @@ function Banner({ tone, kicker, children, action }: { tone: 'queue' | 'match' | 
 function RiftHub() {
   const game = useGameParam()
   const info = GAMES[game]
-  const { signedIn, startQueue, setQueue, region, searching, live } = useApp()
+  const { signedIn, startQueue, setQueue, region, searching, live, user } = useApp()
   const navigate = useNavigate()
   const open = live && OPEN_STATUSES.includes(live.status) ? live : null
   const count = searching[game]
+  const season = useSeasons()[game]
+  const standings = laddersFor(user, game)
 
   const queue = () => {
     setQueue({ game })
@@ -93,8 +97,30 @@ function RiftHub() {
           </Banner>
         )}
 
-        <Banner tone="season" kicker="Season status">
-          <span className="rift-banner__text">Pre-season: wins still count before Season 1</span>
+        {/* Lab round 3 (#71): your Rating, or Placement n/5, for this game's Ladders. */}
+        <Banner tone="season" kicker={season ? `Season ${season.number} · ${info.short}` : 'Season status'}>
+          {!season ? (
+            <span className="rift-banner__text">Pre-season: wins still count before Season 1</span>
+          ) : !signedIn ? (
+            <span className="rift-banner__text">Sign in to see your Rating</span>
+          ) : standings.length === 0 ? (
+            <span className="rift-banner__text">Play {PLACEMENT_MATCHES} matches to appear on the Ladder</span>
+          ) : (
+            <div className="rift-standings">
+              {standings.map((l) => (
+                <div key={l.ladder} className="rift-standing">
+                  <span className="rift-standing__label">{game === 'nt' ? `${l.platform} ` : ''}{l.placed ? 'Rating' : 'Placement'}</span>
+                  <strong className="rift-banner__big">{l.placed ? l.rating : `${l.placements}/${PLACEMENT_MATCHES}`}</strong>
+                  {!l.placed && (
+                    <span className="rift-standing__hint">
+                      {l.placements === 0 ? 'Not played yet' : `${PLACEMENT_MATCHES - l.placements} more to appear on the Ladder`}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {season && <span className="rift-standing__ends">Ends {seasonEnds(season)}</span>}
         </Banner>
       </div>
 

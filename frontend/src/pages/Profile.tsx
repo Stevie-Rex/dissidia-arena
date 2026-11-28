@@ -7,6 +7,7 @@ import { Panel } from '../components/rift/menus'
 import { useAppearance } from '../state/Appearance'
 import { cx } from '../lib/format'
 import { ACCENTS, BANNERS, loadCustom, type BlockId } from './profileCustom'
+import { laddersFor, standingText, useSeasons } from '../state/useSeasons'
 
 /** 1s — banner profile with per-game stats. Your own profile uses your saved customisation. */
 export default function Profile() {
@@ -15,6 +16,7 @@ export default function Profile() {
   const { ui } = useAppearance()
   const navigate = useNavigate()
   const [game, setGame] = useState<GameId>(currentGame)
+  const seasons = useSeasons()
   const p = playerById(id)
   if (!p) return <Sub>Player not found.</Sub>
   const isMe = p.id === 'me'
@@ -38,9 +40,28 @@ export default function Profile() {
   const blocks: Record<BlockId, ReactNode> = {
     rank: (
       <div className="rift-profile-stats flex gap-3">
-        <Stat label={`S${GAMES[game].season} rank`} value={`#${s.rank} · ${s.rating}`} />
+        {/* Lab round 3 (#71): your own Rating, or Placement n/5, per Ladder. Other players' stats are still mock. */}
+        {isMe ? (
+          seasons[game] ? (
+            laddersFor(user, game).length ? (
+              laddersFor(user, game).map((l) => (
+                <Stat
+                  key={l.ladder}
+                  label={`Season ${seasons[game]!.number} · ${game === 'nt' ? `NT ${l.platform}` : '012'} Rating`}
+                  value={standingText(l)}
+                />
+              ))
+            ) : (
+              <Stat label={`Season ${seasons[game]!.number} Rating`} value="Placement 0/5" />
+            )
+          ) : (
+            <Stat label="Rating" value="Starts with Season 1" />
+          )
+        ) : (
+          <Stat label={`S${GAMES[game].season} rank`} value={`#${s.rank} · ${s.rating}`} />
+        )}
         <Stat label="W–L" value={`${s.wins}–${s.losses}`} />
-        <Stat label="best season" value={s.best ?? `#${s.rank} S${GAMES[game].season}`} />
+        {!isMe && <Stat label="best season" value={s.best ?? `#${s.rank} S${GAMES[game].season}`} />}
       </div>
     ),
     mains: (

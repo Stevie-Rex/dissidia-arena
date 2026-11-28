@@ -10,6 +10,8 @@ import { PendingMatchRoom } from '../components/rift/MatchStatus'
 import AskAdmin from '../components/AskAdmin'
 import { ScreenshotList, ScreenshotUpload } from '../components/Screenshots'
 import { FIELD, cx } from '../lib/format'
+import { GoneCountdown, LeaveDialog, OpponentGone, RatingChanges } from '../components/rift/MatchEnding'
+import { forfeitResult } from '../lib/matchEnding'
 import './match-flow.css'
 
 const RULING_NOTES: Record<RulingOutcome, string> = {
@@ -23,7 +25,7 @@ const RULING_NOTES: Record<RulingOutcome, string> = {
 export default function MatchRoom() {
   const {
     live: current, pending, viewed, matchError, sendChat, reportGame, confirmResult, disputeResult, saveStatement, askAdmin, uploadScreenshot, openMatch,
-    abandonMatch, closeMatch, startQueue,
+    abandonMatch, opponentGone, imHere, closeMatch, startQueue,
   } = useApp()
   const { ui } = useAppearance()
   const rift = ui === 'rift'
@@ -31,6 +33,7 @@ export default function MatchRoom() {
   const [text, setText] = useState('')
   const [copied, setCopied] = useState(false)
   const [disputing, setDisputing] = useState(false)
+  const [leaving, setLeaving] = useState(false)
   const transcript = useRef<HTMLDivElement>(null)
   const chatEnd = useRef<HTMLDivElement>(null)
 
@@ -81,6 +84,7 @@ export default function MatchRoom() {
   return (
     <div className={cx('flex flex-col gap-4', rift && 'rift-match')}>
       {rift && <h1>Match room</h1>}
+      <GoneCountdown match={live} onHere={imHere} />
       <VictoryReward match={live} />
       <ScoreBar match={live} rift={rift} />
       <div className={rift ? 'match-columns' : 'grid gap-4 md:grid-cols-[260px_1fr]'}>
@@ -169,19 +173,27 @@ export default function MatchRoom() {
           {/* keyed so the form starts empty (and closed) on another match */}
           <AskAdmin key={live.id} match={live} onAsk={(message) => askAdmin(live.id, message)} />
 
+          <OpponentGone match={live} onGone={opponentGone} />
+
           {live.status === 'active' && (
-            <button
-              type="button"
-              className="self-start text-xs text-muted hover:text-chaos-soft"
-              onClick={() => {
-                const warning = live.replayDeadline
-                  ? 'Leave this Replay? It goes back to the Admins, who rule on it.'
-                  : 'Leave this match? It will count as abandoned.'
-                if (window.confirm(warning)) abandonMatch()
-              }}
-            >
-              Leave match
-            </button>
+            <>
+              <button
+                type="button"
+                className="self-start text-xs text-muted hover:text-chaos-soft"
+                onClick={() => setLeaving(true)}
+              >
+                Leave match
+              </button>
+              <LeaveDialog
+                open={leaving}
+                replay={!!live.replayDeadline}
+                onStay={() => setLeaving(false)}
+                onLeave={() => {
+                  setLeaving(false)
+                  abandonMatch()
+                }}
+              />
+            </>
           )}
         </div>
 
@@ -314,11 +326,18 @@ function ScoreBar({ match, rift }: { match: Match; rift: boolean }) {
 
 function Finished({ match, onDone, onAgain }: { match: Match; onDone: () => void; onAgain: () => void }) {
   const opp = match.opponent.displayName
+  // Lab round 3 (#71): the Rating change replaces "Ratings are coming soon". Before Season 1 there is none.
+  const confirmed = match.ratingChanges ? 'Result confirmed.' : 'Result confirmed. Ratings start with Season 1.'
+  const forfeited = match.status === 'completed' ? forfeitResult(match) : null
   const [tone, title, note] =
-    match.status === 'completed'
+    forfeited
+      ? forfeited
+      : match.status === 'completed'
       ? match.winner === 'you'
-        ? (['cosmos', `You won ${match.score.you}–${match.score.opponent}`, 'Result confirmed. Ratings are coming soon.'] as const)
-        : (['chaos', `You lost ${match.score.you}–${match.score.opponent}`, 'Result confirmed. Ratings are coming soon.'] as const)
+        ? (['cosmos', `You won ${match.score.you}–${match.score.opponent}`, confirmed] as const)
+        : (['chaos', `You lost ${match.score.you}–${match.score.opponent}`, confirmed] as const)
+      : match.status === 'disputed' && match.reopened
+        ? (['gold', 'Match reopened', 'The Master reopened this match. An Admin will give a fresh Ruling.'] as const)
       : match.status === 'disputed'
         ? (['gold', 'Result disputed', 'An Admin will review this match.'] as const)
         : match.status === 'voided'
@@ -327,11 +346,26 @@ function Finished({ match, onDone, onAgain }: { match: Match; onDone: () => void
           ? (['chaos', match.endedBy === 'you' ? 'You left the match' : `${opp} left the match`, 'The match was abandoned.'] as const)
           : (['gold', 'Match cancelled', 'Not everyone accepted in time.'] as const)
   const ruling = match.ruling
+  const reopened = match.status === 'disputed' ? match.reopened : null
   return (
     <Card tone={tone}>
-      <Sub>{match.status}</Sub>
+      <Sub>{forfeited ? 'forfeit' : reopened ? 'reopened' : match.status}</Sub>
       <b className={tone === 'cosmos' ? 'text-crystal-soft' : tone === 'chaos' ? 'text-chaos-soft' : undefined}>{title}</b>
-      {ruling ? (
+      {reopened ? (
+        <div role="region" aria-label="Reopened" className="flex flex-col gap-1">
+          <Sub>{note}</Sub>
+          <span className="whitespace-pre-wrap text-sm">
+            Reason: <q>{reopened.reason}</q>
+          </span>
+          {reopened.tookBackFrom && (
+            <span className="text-sm">
+              {reopened.tookBackFrom === 'you'
+                ? 'Your ranked win from this match is taken back until the new Ruling. Unlocks you earned stay.'
+                : `The ranked win ${opp} got from this match is taken back until the new Ruling.`}
+            </span>
+          )}
+        </div>
+      ) : ruling && !forfeited ? (
         <div role="region" aria-label="Ruling" className="flex flex-col gap-1">
           <Sub>{RULING_NOTES[ruling.outcome]}</Sub>
           <span className="whitespace-pre-wrap text-sm">
@@ -341,6 +375,7 @@ function Finished({ match, onDone, onAgain }: { match: Match; onDone: () => void
       ) : (
         <Sub>{note}</Sub>
       )}
+      <RatingChanges match={match} />
       <div className="flex gap-2">
         <Btn onClick={onAgain}>Queue again</Btn>
         <Pill onClick={onDone}>Done</Pill>
@@ -585,7 +620,9 @@ function DisputePanel({ match, onSave, onUpload }: { match: Match; onSave: (text
     <Card tone="gold" role="region" aria-label="Dispute">
       <Sub>dispute</Sub>
       {replaying && <span className="text-sm text-muted">Read-only: this dispute led to a Replay.</span>}
-      {d.reason === null ? (
+      {match.reopened ? (
+        <span className="text-sm">Reopened by the Master. Add your side for the Admin who rules again.</span>
+      ) : d.reason === null ? (
         <span className="text-sm text-muted">No details (filed before the dispute form)</span>
       ) : (
         <>

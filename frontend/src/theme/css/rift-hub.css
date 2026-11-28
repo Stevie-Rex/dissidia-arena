@@ -196,3 +196,10 @@
 @media (prefers-reduced-motion: reduce) {
   .rift-banner:hover { transform: none; }
 }
+
+/* Lab round 3 (#71): your Rating, or Placement n/5, on the Season banner. NT shows PS4 and PC side by side. */
+.rift-standings { display: flex; flex-wrap: wrap; gap: 10px 36px; }
+.rift-standing { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rift-standing__label { font: 600 13px/1.2 var(--rift-font-heading); letter-spacing: 0.12em; text-transform: uppercase; }
+.rift-standing__hint { font-size: 13px; }
+.rift-standing__ends { flex-basis: 100%; font-size: 13px; }

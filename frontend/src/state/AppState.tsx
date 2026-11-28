@@ -83,6 +83,10 @@ interface AppState {
   /** Your Disputed matches. */
   disputes: DisputeSummary[]
   abandonMatch: () => void
+  /** Lab round 3 (#72): start the "My opponent's gone" countdown. */
+  opponentGone: () => void
+  /** Lab round 3 (#72): the absent player stops the countdown. */
+  imHere: () => void
   closeMatch: () => void
 
   party: PartyMember[]
@@ -374,6 +378,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(t)
   }, [disputedIds, applyMatch])
   const abandonMatch = useCallback(() => onLive((m) => api.matchAction(m.id, 'leave')), [onLive])
+  const opponentGone = useCallback(() => onLive((m) => api.matchAction(m.id, 'gone')), [onLive])
+  const imHere = useCallback(() => onLive((m) => api.matchAction(m.id, 'here')), [onLive])
   const closeMatch = useCallback(() => {
     setLive((m) => (m && OPEN_STATUSES.includes(m.status) ? m : null))
     setViewed(null)
@@ -448,6 +454,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       openMatch,
       disputes: server?.disputes ?? NO_DISPUTES,
       abandonMatch,
+      opponentGone,
+      imHere,
       closeMatch,
       party,
       inviteToParty,
@@ -461,7 +469,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       user, signedIn, onboarded, signIn, signOut, finishOnboarding, stepDown, myGames, region, ids, game, setGame,
       signInPrompt, requireSignIn, queue, setQueue, phase, elapsed, acceptLeft, server, queueError, pending,
       startQueue, cancelQueue, acceptMatch, acceptError, declineMatch, live, matchError, sendChat, reportGame, confirmResult,
-      disputeResult, saveStatement, askAdmin, uploadScreenshot, viewed, openMatch, abandonMatch, closeMatch, party,
+      disputeResult, saveStatement, askAdmin, uploadScreenshot, viewed, openMatch, abandonMatch, opponentGone, imHere, closeMatch, party,
       inviteToParty, removeFromParty, toggleReady, invite, dismissInvite, acceptInvite,
     ],
   )

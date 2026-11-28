@@ -146,3 +146,40 @@
 .rift-match .match-details select {
   border-radius: 0.25rem;
 }
+
+/* Lab round 3 (#70): Leave's dialog, the absent player's alert and the Rating change. */
+.leave-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  width: min(26rem, calc(100vw - 32px));
+  gap: 14px;
+  padding: 22px;
+  color: var(--color-fg, inherit);
+}
+.leave-dialog:not([open]) {
+  display: none;
+}
+.leave-dialog::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+.gone-alert {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rating-change {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 3.5rem;
+  align-items: baseline;
+  gap: 2px 12px;
+}
+.rating-change > :last-child {
+  grid-column: 1 / -1;
+}
+.rating-change > :last-child:empty {
+  display: none;
+}
