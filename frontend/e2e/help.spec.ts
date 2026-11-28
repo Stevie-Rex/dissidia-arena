@@ -141,6 +141,7 @@ test('an Admin claims a Help request, Voids its stuck match, and closes it with 
   await page.getByLabel('Reason (goes in the Admin log)').fill('Rival never came back.')
   await page.getByRole('button', { name: 'Void match' }).click()
   await expect(page.getByRole('region', { name: 'Match', exact: true })).toContainText('Voided')
+  await expect(page.getByRole('region', { name: 'Request status' })).toContainText('match Voided')
   await expect(page.getByRole('button', { name: 'Void match' })).toHaveCount(0)
 
   await page.getByLabel(/^Reason \(pass it to the Master/).fill('Voided it. Passing the no-show to the Master.')

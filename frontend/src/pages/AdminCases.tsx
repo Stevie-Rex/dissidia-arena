@@ -392,7 +392,7 @@ function CaseView({ data, onChange }: { data: Case; onChange: (c: Case) => void 
       {(showForm || data.ruling) && (
         <CaseSide title="Write ruling" ready={showForm && data.canAct} open={panelOpen} onOpenChange={setPanelOpen}>
           {showForm ? (
-            <RulingForm data={data} busy={busy} failure={error?.from === 'ruling' ? error.text : null} onRule={rule} />
+            <RulingForm key={data.disputedAt} data={data} busy={busy} failure={error?.from === 'ruling' ? error.text : null} onRule={rule} />
           ) : (
             <p className="m-0 text-sm">Action recorded in the Admin log.</p>
           )}
@@ -457,7 +457,8 @@ function RulingForm({
 }) {
   const [outcome, setOutcome] = useState<RulingOutcome | null>(null)
   const [fromGame, setFromGame] = useState(data.replayFrom.default)
-  const reason = useDraft(`case:${data.matchId}`)
+  // A match Disputed again after a Replay is a new case, so its draft is keyed by when it was Disputed too.
+  const reason = useDraft(`case:${data.matchId}:${data.disputedAt}`)
   const [winners, setWinners] = useState(() => proposedWinners(data))
   const [error, setError] = useState<string | null>(null)
   const id = useId()

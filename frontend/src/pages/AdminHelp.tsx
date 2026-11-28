@@ -135,7 +135,7 @@ function HelpRequestView({
         title={`Help request: Match #${match.id}`}
         players={[match.players[0].displayName, match.players[1].displayName]}
         headingRef={summaryHeading}
-        status={open ? 'Help requested' : 'Closed'}
+        status={`${open ? 'Help requested' : 'Closed'}${match.status === 'voided' ? ' · match Voided' : ''}`}
         claim={open && <ClaimText claim={claim} noun="request" />}
         actions={
           open && <ClaimButtons claim={claim} playedIn={data.playedIn} isMaster={isMaster} busy={busy} onAct={act} />

@@ -6,7 +6,8 @@
  */
 .case-page {
   --case-dock-bottom: 0px;
-  --case-panel-h: calc((100dvh - var(--case-dock-bottom)) / 2);
+  /* Half the room above the dock, but never so short that a phone held sideways can't use it. */
+  --case-panel-h: max(calc((100dvh - var(--case-dock-bottom)) / 2), min(13rem, calc(100dvh - var(--case-dock-bottom) - 4rem)));
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -69,19 +70,31 @@
      goes down over that column's 1rem bottom padding, or evidence would show through under it. */
   .rift-shell:has(> .rift-status) .case-page {
     --case-dock-bottom: -1rem;
-    --case-panel-h: calc(50dvh - 6rem);
+    --case-panel-h: max(calc(50dvh - 6rem), 12.5rem);
   }
 }
 @media (48rem <= width < 64rem) {
   [data-interface='rift'] .case-page {
     --case-dock-bottom: var(--rift-helpstrip-space);
   }
-  /* The floating match status card moves up off the bar, and steps aside while the panel is open. */
+  /* The floating match status card moves up off the bar, and above the panel while it is open. */
   .rift-shell:has(.case-side[data-ready]) > .rift-status {
     bottom: calc(var(--rift-helpstrip-space) + 6rem);
   }
   .rift-shell:has(.case-side[data-open]) > .rift-status {
-    visibility: hidden;
+    bottom: calc(var(--rift-helpstrip-space) + (100dvh - var(--rift-helpstrip-space)) / 2 + 1rem);
+  }
+}
+@media (width < 64rem) {
+  /* Classic's queue bar and chat dock float over the bottom of the window. They ride just above the bar or the
+     panel, wherever it is: stuck to the window, or resting over the footer at the end of the case. */
+  [data-interface='classic'] .case-side[data-ready] {
+    anchor-name: --case-side;
+  }
+  :root:has(.case-side[data-ready]) .classic-float {
+    bottom: 10rem; /* without anchor positioning: clear of the bar, if not of the open panel */
+    position-anchor: --case-side; /* the default anchor, so it follows the bar as the page scrolls */
+    bottom: calc(anchor(top, 10rem) + 0.75rem);
   }
 }
 

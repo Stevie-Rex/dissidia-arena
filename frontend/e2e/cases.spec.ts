@@ -534,6 +534,7 @@ test.describe('the Ruling panel at phone width', () => {
     await bar(page).click()
     await reasonBox(page).fill('The clip shows it.')
     await expect(panel(page)).toBeInViewport({ ratio: 1 })
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
     await panel(page).getByRole('button', { name: 'Hide panel' }).click()
     await expect(bar(page)).toBeInViewport({ ratio: 1 })
   })
@@ -570,6 +571,8 @@ for (const mode of ['chaos', 'cosmos'] as const) {
     await page.getByRole('radio', { name: /Uphold/ }).check()
     await reasonBox(page).fill('The clip shows it.')
     await page.getByRole('button', { name: 'Give Ruling' }).click({ trial: true })
+    await card.getByRole('button', { name: 'Cancel' }).click({ trial: true })
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
   })
 }
 
@@ -586,3 +589,85 @@ test('on desktop the match status card does not cover the Ruling form', async ({
   await reasonBox(page).fill('The clip shows it.')
   await page.getByRole('button', { name: 'Give Ruling' }).click({ trial: true })
 })
+
+test("a draft from an earlier dispute doesn't come back on the next one", async ({ page }) => {
+  await onCase(page, 'admin', theCase(mine))
+  await reasonBox(page).fill('About the first dispute.')
+  // Someone else ruled a Replay, and the match is Disputed again: the same match, a new case.
+  await page.route('**/api/admin/disputes/42', (r) => r.fulfill(json(theCase({ ...mine, disputedAt: '2026-11-23T09:00:00Z' }))))
+  await page.reload()
+  await expect(reasonBox(page)).toHaveValue('')
+})
+
+/** A route for onCase's `extraRoutes`: the Admin is also playing a match, so Classic shows its chat dock. */
+const playing = async (page: Page) => {
+  const me = { id: 1, displayName: 'Tester', avatarUrl: '', gameId: 'id1', accepted: true }
+  const match = { id: 99, game: 'nt', mode: '1v1', bestOf: 3, platform: 'PS4', region: 'EU', status: 'active',
+    acceptDeadline: '2026-11-21T10:00:00Z', createdAt: '2026-11-21T10:00:00Z', finishedAt: null, confirmDeadline: null,
+    replayDeadline: null, host: 'you', you: me, opponent: { ...me, id: 3, displayName: 'Other' }, winsNeeded: 2,
+    score: { you: 0, opponent: 0 }, games: [], winner: null, reportedBy: null, endedBy: null, dispute: null,
+    rewardsUnlocked: [], messages: [{ id: 1, from: 'opponent', text: 'ready?', at: '2026-11-21T10:00:00Z' }], canAskAdmin: true, helpRequest: null }
+  await page.route('**/api/queue', (r) => r.fulfill(json({ queue: null, match, searching: { '012': 0, nt: 0 }, disputes: [] })))
+}
+
+/** The box of the floating piece this control belongs to: its nearest fixed-position ancestor. */
+const floating = (control: Locator) =>
+  control.evaluate((el) => {
+    let node: Element = el
+    while (getComputedStyle(node).position !== 'fixed' && node.parentElement) node = node.parentElement
+    const { x, y, width, height } = node.getBoundingClientRect()
+    return { x, y, width, height }
+  })
+
+type Box = { x: number; y: number; width: number; height: number }
+const overlap = (a: Box, b: Box) =>
+  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+
+// Classic floats its own queue bar and chat dock over the bottom of the window.
+for (const [what, route, control] of [['queue bar', searching, 'Cancel'], ['chat dock', playing, 'Minimise']] as const) {
+  for (const width of [390, 1024, 1280]) {
+    test(`Classic's ${what} doesn't cover the Ruling form at ${width} wide`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await onCase(page, 'admin', longCase(), async () => {
+        await route(page)
+        await inInterface(page, 'classic')
+      })
+      const float = page.getByRole('button', { name: control, exact: true })
+      await expect(float).toBeVisible()
+      await page.getByRole('region', { name: 'Earlier disputes' }).evaluate((el) => el.scrollIntoView({ block: 'center' }))
+      const side = page.getByRole('region', { name: 'Write ruling' })
+      const clear = async () => expect(overlap(await box(side), await floating(float))).toBe(false)
+      await clear() // the closed bar, or the column
+      await float.click({ trial: true })
+      if (width < 1024) await page.getByRole('button', { name: 'Write ruling' }).click()
+      await clear()
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      if (width >= 1024) await clear()
+      await page.getByRole('radio', { name: /Uphold/ }).check()
+      await reasonBox(page).fill('The clip shows it.')
+      await page.getByRole('button', { name: 'Give Ruling' }).click({ trial: true })
+      await float.click({ trial: true })
+    })
+  }
+}
+
+for (const busy of [false, true]) {
+  test(`on a phone held sideways the panel is still tall enough to use${busy ? ', while searching' : ''}`, async ({ page }) => {
+    await page.setViewportSize({ width: 667, height: 375 })
+    await onCase(page, 'admin', longCase(), async () => {
+      if (busy) await searching(page)
+    })
+    if (busy) await expect(page.getByRole('region', { name: 'Match status' })).toBeVisible()
+    const bar = page.getByRole('button', { name: 'Write ruling' })
+    await bar.click()
+    const panel = page.getByRole('region', { name: 'Write ruling' })
+    expect((await box(panel)).height).toBeGreaterThanOrEqual(200)
+    await expect(panel.getByRole('heading', { name: 'Write ruling' })).toBeInViewport({ ratio: 1 })
+    await expect(panel.getByRole('button', { name: 'Hide panel' })).toBeInViewport({ ratio: 1 })
+    await page.getByRole('radio', { name: /Uphold/ }).check()
+    await reasonBox(page).fill('The clip shows it.')
+    await page.getByRole('button', { name: 'Give Ruling' }).click({ trial: true })
+    await panel.getByRole('button', { name: 'Hide panel' }).click()
+    if (busy) await expect(page.getByRole('region', { name: 'Match status' })).toBeVisible()
+  })
+}
