@@ -576,6 +576,19 @@ for (const mode of ['chaos', 'cosmos'] as const) {
   })
 }
 
+// A short tablet window, where the panel is taller than half the window: the card must still clear it.
+test('in a short tablet window the match status card stays above the open panel', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 420 })
+  await onCase(page, 'admin', longCase(), async () => {
+    await searching(page)
+    await inInterface(page, 'rift', 'chaos')
+  })
+  await page.getByRole('button', { name: 'Write ruling' }).click()
+  const panel = await box(page.getByRole('region', { name: 'Write ruling' }))
+  const card = await box(page.getByRole('region', { name: 'Match status' }))
+  expect(card.y + card.height).toBeLessThanOrEqual(panel.y)
+})
+
 test('on desktop the match status card does not cover the Ruling form', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
   await onCase(page, 'admin', longCase(), () => searching(page))

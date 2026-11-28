@@ -81,8 +81,16 @@
   .rift-shell:has(.case-side[data-ready]) > .rift-status {
     bottom: calc(var(--rift-helpstrip-space) + 6rem);
   }
+  /* The card is outside .case-page, so it can't read --case-panel-h: this is the same height, with the help strip
+     as the dock. Keep the two in step. */
   .rift-shell:has(.case-side[data-open]) > .rift-status {
-    bottom: calc(var(--rift-helpstrip-space) + (100dvh - var(--rift-helpstrip-space)) / 2 + 1rem);
+    bottom: calc(
+      var(--rift-helpstrip-space) + 1rem +
+        max(
+          calc((100dvh - var(--rift-helpstrip-space)) / 2),
+          min(13rem, calc(100dvh - var(--rift-helpstrip-space) - 4rem))
+        )
+    );
   }
 }
 @media (width < 64rem) {
