@@ -103,7 +103,7 @@ export function QueueBar() {
   const { phase, elapsed, queue, cancelQueue, region, searching } = useApp()
   if (phase !== 'searching') return null
   return (
-    <div className="fixed inset-x-0 bottom-[max(3.5rem,calc(var(--rift-phone-bar-h)+1rem))] z-40 px-3 md:bottom-4">
+    <div className="classic-float fixed inset-x-0 bottom-[max(3.5rem,calc(var(--rift-phone-bar-h)+1rem))] z-40 px-3 md:bottom-4">
       <Card tone="gold" className="mx-auto max-w-md shadow-2xl">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 animate-pulse rounded-full bg-gold" />
@@ -218,14 +218,14 @@ export function ChatDock() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-[max(4rem,calc(var(--rift-phone-bar-h)+1rem))] right-4 z-40 rounded-full border-[1.5px] border-muted bg-card px-3 py-1.5 text-sm shadow-lg md:bottom-4"
+        className="classic-float fixed bottom-[max(4rem,calc(var(--rift-phone-bar-h)+1rem))] right-4 z-40 rounded-full border-[1.5px] border-muted bg-card px-3 py-1.5 text-sm shadow-lg md:bottom-4"
       >
         💬 {opp}
       </button>
     )
   const last = live.messages.slice(-3)
   return (
-    <Card className="fixed bottom-[max(4rem,calc(var(--rift-phone-bar-h)+1rem))] right-4 z-40 w-64 border-muted shadow-2xl md:bottom-4">
+    <Card className="classic-float fixed bottom-[max(4rem,calc(var(--rift-phone-bar-h)+1rem))] right-4 z-40 w-64 border-muted shadow-2xl md:bottom-4">
       <div className="flex items-center gap-2">
         <Link to="/match/live" className="font-semibold hover:text-crystal-soft">
           {opp}

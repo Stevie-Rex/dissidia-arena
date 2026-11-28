@@ -905,6 +905,11 @@ body,
    height with the safe area (0 elsewhere): pad the page with it, and float things above it. */
 :root {
   --rift-phone-bar-h: 0px;
+  /* How much of the window's bottom the help strip covers while stuck there, so things can sit above it. */
+  --rift-helpstrip-space: 50px;
+}
+:root[data-rift-mode='cosmos'] {
+  --rift-helpstrip-space: 52px;
 }
 @media (width < 48rem) {
   [data-interface='rift'] {

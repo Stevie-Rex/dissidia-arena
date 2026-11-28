@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { Role } from '../src/lib/api'
-import { mockApi } from './mock'
+import { mockApi, modeName } from './mock'
 
 // The signed-in tester is user 1. Ashe (7) reported a 2-1 win over Rival (2), who disputed game 3.
 const json = (body: unknown, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -62,11 +62,20 @@ async function onCase(page: Page, role: Role, start: Record<string, unknown>, ex
 
 const status = (page: Page) => page.getByRole('region', { name: 'Case status' })
 
+/** A route for onCase's `extraRoutes`: shows the page in this interface. */
+const inInterface = async (page: Page, ui: 'rift' | 'classic', mode: 'chaos' | 'cosmos' = 'chaos') => {
+  await page.route('**/api/me/appearance', (r) =>
+    r.fulfill(json({ preferences: { interface: ui, window_theme: 'classic', menu_font: 'auto', cursor: 'glove', window_rgb: [6, 10, 26], rift_mode: mode },
+      ranked_wins: 60, ranked_losses: 0, unlocks: ['classic_interface'], rewards: [], next: null })),
+  )
+}
+
 test('another Admin sees "Being handled" and no resolve buttons', async ({ page }) => {
   await onCase(page, 'admin', theCase({ claim: { by: ref(8, 'Kefka'), at: new Date(Date.now() - 20 * 60_000).toISOString(), byYou: false } }))
   await expect(status(page)).toContainText('Being handled by Kefka')
-  for (const name of ['Claim', 'Take over', 'Release', 'Give Ruling'])
+  for (const name of ['Claim', 'Take over', 'Release'])
     await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Give Ruling' })).toBeDisabled() // changed: the form stays beside the evidence, greyed out until you may use it
   await expect(page.getByRole('region', { name: 'Dispute records' })).toContainText('Filed 3 disputes: 2 upheld, 1 waiting.')
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
 })
@@ -87,7 +96,7 @@ test('the Master can take over a Claim, and act on their own match', async ({ pa
 
 test('an Admin Claims the case and Upholds it with a reason', async ({ page }) => {
   const sent = await onCase(page, 'admin', theCase())
-  await expect(page.getByRole('region', { name: 'Reported games' })).toContainText('Game 3: Ashe wins (reported by Ashe) · disputed')
+  await expect(page.getByRole('region', { name: 'Reported games' }).getByRole('row', { name: '3 Ashe Ashe Disputed' })).toBeVisible() // changed: the reported games are a table
   await page.getByRole('button', { name: 'Claim', exact: true }).click()
   await expect(status(page)).toContainText('You hold the Claim')
 
@@ -191,7 +200,7 @@ test('Admins see the dispute from before a Replay, with both sides and the Rulin
       statements: { 7: { text: 'They rage quit, I won.', updatedAt: '2026-11-21T12:05:00Z' } },
       ruling: { outcome: 'replay', reason: 'Play game 3 again.', at: '2026-11-21T13:00:00Z', byId: 8, by: ref(8, 'Kefka') } }],
   }))
-  await expect(page.getByRole('region', { name: 'Dispute', exact: true })).toContainText('Lag again in the replay.')
+  await expect(page.getByRole('region', { name: 'Statements' })).toContainText('Lag again in the replay.') // changed: the statements have their own section
   const earlier = page.getByRole('region', { name: 'Earlier disputes' })
   await expect(earlier).toContainText('Disputed games: 3')
   await expect(earlier).toContainText('Rival wrote: They quit game 3.')
@@ -219,7 +228,7 @@ test('the case page shows every screenshot, with a placeholder for deleted ones'
         r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') }),
       ),
   )
-  const dispute = page.getByRole('region', { name: 'Dispute', exact: true })
+  const dispute = page.getByRole('region', { name: 'Screenshots' }) // changed: the Screenshots have their own section
   await expect(dispute.getByRole('img', { name: 'Screenshot 1 from Rival' })).toBeVisible()
   await expect(dispute.getByRole('img', { name: 'Screenshot 2 from Rival' })).toBeVisible()
   // Visible isn't enough: a broken image is visible too. Both must have actually loaded.
@@ -299,3 +308,396 @@ test('on a laptop the cases stay a table, with nothing off screen', async ({ pag
   await expect(table.locator('tbody tr')).toHaveCSS('display', 'table-row')
   expect(await table.evaluate((t) => t.parentElement!.scrollWidth - t.parentElement!.clientWidth)).toBe(0)
 })
+
+// ---------------------------------------------------------------- drafts
+
+const mine = { claim: { by: ref(1, 'Tester'), at: '2026-11-21T12:10:00Z', byYou: true }, canAct: true }
+const reasonBox = (page: Page) => page.getByLabel(/^Reason/)
+
+test('a Ruling draft survives a reload and is gone after the Ruling succeeds', async ({ page }) => {
+  await onCase(page, 'admin', theCase(mine))
+  await reasonBox(page).fill('Rival left mid-game; the clip shows it.')
+  await page.reload()
+  await expect(reasonBox(page)).toHaveValue('Rival left mid-game; the clip shows it.')
+
+  await page.getByRole('radio', { name: /Uphold/ }).check()
+  await page.getByRole('button', { name: 'Give Ruling' }).click()
+  await expect(status(page)).toContainText('Ruling: Upheld')
+
+  // Serve the case unruled again, as it would be on a device whose draft was never cleared: the form must start empty.
+  await page.route('**/api/admin/disputes/42', (r) => r.fulfill(json(theCase(mine))))
+  await page.reload()
+  await expect(reasonBox(page)).toHaveValue('')
+})
+
+test('blocked browser storage is ignored: the Admin still writes and gives the Ruling', async ({ page }) => {
+  const errors: Error[] = []
+  page.on('pageerror', (e) => errors.push(e))
+  // Only the drafts' own storage calls throw: the rest of the app's storage isn't what's under test here.
+  await page.addInitScript(() => {
+    for (const method of ['getItem', 'setItem', 'removeItem'] as const) {
+      const real = Storage.prototype[method] as (this: Storage, ...args: string[]) => unknown
+      Storage.prototype[method] = function (this: Storage, ...args: string[]) {
+        if (args[0].startsWith('da-draft:')) throw new DOMException('blocked', 'SecurityError')
+        return real.apply(this, args) as never
+      }
+    }
+  })
+  const sent = await onCase(page, 'admin', theCase(mine))
+  await page.getByRole('radio', { name: /Uphold/ }).check()
+  await reasonBox(page).fill('Rival left mid-game.')
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Give Ruling' }).click()
+  await expect(status(page)).toContainText('Ruling: Upheld')
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  expect(sent).toEqual([{ path: '/api/admin/disputes/42/ruling', body: { outcome: 'uphold', reason: 'Rival left mid-game.' } }])
+  expect(errors).toEqual([])
+})
+
+// ---------------------------------------------------------------- the case page's layout
+
+/** A case long enough to scroll: a full chat, and a dispute from before a Replay. */
+const longCase = (overrides: Record<string, unknown> = {}) =>
+  theCase({
+    ...mine,
+    messages: Array.from({ length: 40 }, (_, i) => ({ id: i + 1, from: i % 2 ? 7 : 2, text: `Message ${i + 1}`, at: '2026-11-21T11:00:00Z' })),
+    earlierDisputes: Array.from({ length: 4 }, () => ({ games: [3], reason: 'They quit game 3.', by: 2, at: '2026-11-21T12:00:00Z',
+      statements: { 7: { text: 'They rage quit, I won.', updatedAt: '2026-11-21T12:05:00Z' } }, ruling: null })),
+    ...overrides,
+  })
+
+test('a case reads in order: summary, evidence, chat, records, then the Ruling', async ({ page }) => {
+  await onCase(page, 'admin', longCase({ claim: null, canAct: false }))
+  const summary = status(page)
+  for (const text of ['Dispute', 'NT · PS4', 'Ashe vs Rival', 'Disputed', 'Unclaimed']) await expect(summary).toContainText(text)
+  await expect(summary.getByRole('button', { name: 'Claim', exact: true })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('heading', { level: 2 })).toHaveText([
+    /Case: Match #42.*Ashe vs Rival/, 'Reported games', 'Statements', 'Screenshots', 'Match chat', 'Dispute records',
+    'Earlier disputes', 'Write ruling',
+  ])
+})
+
+test('the Ruling form waits for the Claim', async ({ page }) => {
+  await onCase(page, 'admin', theCase())
+  const side = page.getByRole('region', { name: 'Write ruling' })
+  await expect(side).toContainText('Claim this case to start.')
+  await expect(side.getByRole('radio', { name: /Uphold/ })).toBeDisabled()
+  await expect(reasonBox(page)).toBeDisabled()
+  await expect(side.getByRole('button', { name: 'Give Ruling' })).toBeDisabled()
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+
+  await page.getByRole('button', { name: 'Claim', exact: true }).click()
+  await expect(reasonBox(page)).toBeEnabled()
+  await expect(side).not.toContainText('Claim this case to start.')
+})
+
+for (const ui of ['rift', 'classic'] as const) {
+  for (const height of [900, 720]) {
+    test(`on desktop the Ruling form stays usable with the evidence scrolled to the bottom (${ui}, ${height} high)`, async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height })
+      await onCase(page, 'admin', longCase(), () => inInterface(page, ui))
+      await expect(page.locator('html')).toHaveAttribute('data-interface', ui)
+      await expect(page.getByRole('region', { name: 'Earlier disputes' })).toBeVisible() // loaded, so there is something to scroll
+      await expect(page.getByRole('region', { name: 'Earlier disputes' })).not.toBeInViewport()
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      await expect(page.getByRole('region', { name: 'Earlier disputes' })).toBeInViewport()
+      const side = page.getByRole('region', { name: 'Write ruling' })
+      await expect(side).toBeInViewport({ ratio: 1 })
+      await expect(page.getByRole('button', { name: 'Write ruling' })).toBeHidden()
+
+      await page.getByRole('radio', { name: /Uphold/ }).check()
+      await reasonBox(page).fill('The clip shows it.')
+      // Reaching the controls may scroll the column itself, never the page away from the evidence.
+      const scrolled = await page.evaluate(() => window.scrollY)
+      await page.getByRole('button', { name: 'Give Ruling' }).scrollIntoViewIfNeeded()
+      await expect(page.getByRole('button', { name: 'Give Ruling' })).toBeInViewport({ ratio: 1 })
+      expect(await page.evaluate(() => window.scrollY)).toBe(scrolled)
+    })
+  }
+}
+
+/** A route for onCase's `extraRoutes`: the Admin is also searching for a match, so the match status card shows. */
+const searching = async (page: Page) => {
+  const queue = { game: 'nt', mode: '1v1', bestOf: 3, platform: 'PS4', region: 'EU', joinedAt: new Date().toISOString(), source: 'web' }
+  await page.route('**/api/queue', (r) => r.fulfill(json({ queue, match: null, searching: { '012': 0, nt: 1 }, disputes: [] })))
+}
+
+const box = async (locator: Locator) => (await locator.boundingBox())!
+const bottom = async (locator: Locator) => (await box(locator)).y + (await box(locator)).height
+
+/** Scrolls, as a finger would, until this part of the page ends just above the panel; then it must be there. */
+async function scrollAbove(page: Page, evidence: Locator, panel: Locator) {
+  const x = page.viewportSize()!.width / 2
+  await page.mouse.move(x, 150)
+  await expect(async () => {
+    const over = (await bottom(evidence)) - (await box(panel)).y + 8
+    if (over > 8) await page.mouse.wheel(0, over)
+    expect(await bottom(evidence)).toBeLessThanOrEqual((await box(panel)).y)
+  }).toPass({ timeout: 5000 })
+}
+
+test.describe('the Ruling panel at phone width', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  const bar = (page: Page) => page.getByRole('button', { name: 'Write ruling' })
+  const panel = (page: Page) => page.getByRole('region', { name: 'Write ruling' })
+  const phoneNav = (page: Page) => page.getByRole('navigation', { name: 'Phone navigation' })
+  const lastEvidence = (page: Page) => page.getByRole('region', { name: 'Earlier disputes' })
+  const intoView = (page: Page) => lastEvidence(page).evaluate((el) => el.scrollIntoView({ block: 'center' }))
+
+  test('a bar pinned to the bottom opens a half-height panel, with the evidence scrolling above it', async ({ page }) => {
+    await onCase(page, 'admin', longCase())
+    await expect(reasonBox(page)).toBeHidden()
+    const navTop = (await box(phoneNav(page))).y
+    for (const y of [0, 600]) {
+      await page.evaluate((to) => window.scrollTo(0, to), y)
+      await expect.poll(async () => {
+        const b = await box(panel(page))
+        return Math.abs(b.y + b.height - navTop)
+      }).toBeLessThanOrEqual(1)
+      await expect(bar(page)).toBeInViewport({ ratio: 1 })
+    }
+
+    await bar(page).click()
+    await expect(reasonBox(page)).toBeVisible()
+    await expect(bar(page)).toBeHidden()
+    await expect(panel(page).getByRole('heading', { name: 'Write ruling' })).toBeFocused()
+    const open = await box(panel(page))
+    expect(Math.abs(open.height - navTop / 2)).toBeLessThanOrEqual(2)
+    expect(Math.abs(open.y + open.height - navTop)).toBeLessThanOrEqual(1)
+
+    // The last of the evidence can be brought up clear of the panel, which doesn't move.
+    await scrollAbove(page, lastEvidence(page), panel(page))
+    expect((await box(panel(page))).y).toBeCloseTo(open.y, 0)
+    await expect(reasonBox(page)).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  })
+
+  test('the panel opens and closes without losing what was typed or picked', async ({ page }) => {
+    await onCase(page, 'admin', longCase())
+    await bar(page).click()
+    await page.getByRole('radio', { name: /Overturn/ }).check()
+    await page.getByLabel('Game 1 winner').selectOption({ label: 'Rival' })
+    await reasonBox(page).fill('The clip shows Rival won.')
+    await panel(page).getByRole('button', { name: 'Hide panel' }).click()
+    await expect(reasonBox(page)).toBeHidden()
+    await expect(bar(page)).toBeFocused()
+    await bar(page).click()
+    await expect(reasonBox(page)).toHaveValue('The clip shows Rival won.')
+    await expect(page.getByRole('radio', { name: /Overturn/ })).toBeChecked()
+    await expect(page.getByLabel('Game 1 winner')).toHaveValue('2')
+  })
+
+  test('a Ruling given from the panel puts it away and shows the result', async ({ page }) => {
+    await onCase(page, 'admin', longCase())
+    await intoView(page)
+    await bar(page).click()
+    await page.getByRole('radio', { name: /Uphold/ }).check()
+    await reasonBox(page).fill('The clip shows it.')
+    await page.getByRole('button', { name: 'Give Ruling' }).click()
+    await expect(status(page).getByText('Ruling: Upheld')).toBeInViewport()
+    await expect(panel(page)).toBeHidden()
+    await expect(bar(page)).toHaveCount(0)
+  })
+
+  test('there is no bar until the Admin holds the Claim', async ({ page }) => {
+    await onCase(page, 'admin', longCase({ claim: null, canAct: false }))
+    await expect(status(page)).toContainText('Unclaimed.')
+    await expect(bar(page)).toHaveCount(0)
+    await expect(panel(page)).toBeHidden()
+    await page.getByRole('button', { name: 'Claim', exact: true }).click()
+    await expect(bar(page)).toBeInViewport({ ratio: 1 })
+  })
+
+  test('the bar and panel stay clear of the match status card', async ({ page }) => {
+    await onCase(page, 'admin', longCase(), () => searching(page))
+    const card = page.getByRole('region', { name: 'Match status' })
+    await expect(card).toBeVisible()
+    await expect(bar(page)).toBeInViewport({ ratio: 1 })
+    expect((await box(panel(page))).y + (await box(panel(page))).height).toBeLessThanOrEqual((await box(card)).y + 1)
+    await bar(page).click()
+    const open = await box(panel(page))
+    expect(open.y + open.height).toBeLessThanOrEqual((await box(card)).y + 1)
+    await page.getByRole('radio', { name: /Uphold/ }).check()
+    await reasonBox(page).fill('The clip shows it.')
+    await page.getByRole('button', { name: 'Give Ruling' }).click({ trial: true })
+    await card.getByRole('button', { name: 'Cancel' }).click({ trial: true })
+    await scrollAbove(page, lastEvidence(page), panel(page))
+    await expect(reasonBox(page)).toBeVisible()
+  })
+
+  test('Classic gets the same bar and panel', async ({ page }) => {
+    await onCase(page, 'admin', longCase(), () => inInterface(page, 'classic'))
+    await expect(page.locator('html')).toHaveAttribute('data-interface', 'classic')
+    await intoView(page)
+    await expect(bar(page)).toBeInViewport({ ratio: 1 })
+    await bar(page).click()
+    await reasonBox(page).fill('The clip shows it.')
+    await expect(panel(page)).toBeInViewport({ ratio: 1 })
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+    await panel(page).getByRole('button', { name: 'Hide panel' }).click()
+    await expect(bar(page)).toBeInViewport({ ratio: 1 })
+  })
+
+  for (const mode of ['chaos', 'cosmos'] as const) {
+    test(`the case page passes axe in ${modeName(mode)}, with the panel closed and open`, async ({ page }) => {
+      await onCase(page, 'admin', longCase(), () => inInterface(page, 'rift', mode))
+      await expect(page.locator('html')).toHaveAttribute('data-rift-mode', mode)
+      expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+      await bar(page).click()
+      await expect(reasonBox(page)).toBeVisible()
+      expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+    })
+  }
+})
+
+// Between phone and desktop the bar stays, above Rift's help strip.
+for (const mode of ['chaos', 'cosmos'] as const) {
+  test(`at tablet width in ${modeName(mode)} the bar sits above the help strip, and the status card above the bar`, async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 1000 })
+    await onCase(page, 'admin', longCase(), async () => {
+      await searching(page)
+      await inInterface(page, 'rift', mode)
+    })
+    const bar = page.getByRole('button', { name: 'Write ruling' })
+    const card = page.getByRole('region', { name: 'Match status' })
+    await expect(card).toBeVisible()
+    await bar.click({ trial: true })
+    await card.getByRole('button', { name: 'Cancel' }).click({ trial: true })
+    const panel = page.getByRole('region', { name: 'Write ruling' })
+    const strip = await box(page.getByText('Point at or focus an item to see what it does.'))
+    expect((await box(panel)).y + (await box(panel)).height).toBeLessThanOrEqual(strip.y)
+    await bar.click()
+    await page.getByRole('radio', { name: /Uphold/ }).check()
+    await reasonBox(page).fill('The clip shows it.')
+    await page.getByRole('button', { name: 'Give Ruling' }).click({ trial: true })
+    await card.getByRole('button', { name: 'Cancel' }).click({ trial: true })
+    expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+  })
+}
+
+// A short tablet window, where the panel is taller than half the window: the card must still clear it.
+test('in a short tablet window the match status card stays above the open panel', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 420 })
+  await onCase(page, 'admin', longCase(), async () => {
+    await searching(page)
+    await inInterface(page, 'rift', 'chaos')
+  })
+  await page.getByRole('button', { name: 'Write ruling' }).click()
+  const panel = await box(page.getByRole('region', { name: 'Write ruling' }))
+  const card = await box(page.getByRole('region', { name: 'Match status' }))
+  expect(card.y + card.height).toBeLessThanOrEqual(panel.y)
+})
+
+test('on desktop the match status card does not cover the Ruling form', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await onCase(page, 'admin', longCase(), () => searching(page))
+  const card = page.getByRole('region', { name: 'Match status' })
+  await expect(card).toBeVisible()
+  // At the top of the page, where the column starts below the summary strip, then scrolled to the end.
+  for (const scrolled of [false, true]) {
+    if (scrolled) await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    await expect(async () => {
+      const side = await box(page.getByRole('region', { name: 'Write ruling' }))
+      expect(side.y).toBeGreaterThanOrEqual(0)
+      expect(side.y + side.height).toBeLessThanOrEqual((await box(card)).y)
+    }).toPass()
+  }
+  await page.getByRole('radio', { name: /Uphold/ }).check()
+  await reasonBox(page).fill('The clip shows it.')
+  await page.getByRole('button', { name: 'Give Ruling' }).click({ trial: true })
+})
+
+test('on desktop in Classic the Ruling column fits in the window at the top of the page', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await onCase(page, 'admin', longCase(), async () => {
+    await searching(page)
+    await inInterface(page, 'classic')
+  })
+  await expect(async () => {
+    const side = await box(page.getByRole('region', { name: 'Write ruling' }))
+    expect(side.y + side.height).toBeLessThanOrEqual(720)
+  }).toPass()
+})
+
+test("a draft from an earlier dispute doesn't come back on the next one", async ({ page }) => {
+  await onCase(page, 'admin', theCase(mine))
+  await reasonBox(page).fill('About the first dispute.')
+  // Someone else ruled a Replay, and the match is Disputed again: the same match, a new case.
+  await page.route('**/api/admin/disputes/42', (r) => r.fulfill(json(theCase({ ...mine, disputedAt: '2026-11-23T09:00:00Z' }))))
+  await page.reload()
+  await expect(reasonBox(page)).toHaveValue('')
+})
+
+/** A route for onCase's `extraRoutes`: the Admin is also playing a match, so Classic shows its chat dock. */
+const playing = async (page: Page) => {
+  const me = { id: 1, displayName: 'Tester', avatarUrl: '', gameId: 'id1', accepted: true }
+  const match = { id: 99, game: 'nt', mode: '1v1', bestOf: 3, platform: 'PS4', region: 'EU', status: 'active',
+    acceptDeadline: '2026-11-21T10:00:00Z', createdAt: '2026-11-21T10:00:00Z', finishedAt: null, confirmDeadline: null,
+    replayDeadline: null, host: 'you', you: me, opponent: { ...me, id: 3, displayName: 'Other' }, winsNeeded: 2,
+    score: { you: 0, opponent: 0 }, games: [], winner: null, reportedBy: null, endedBy: null, dispute: null,
+    rewardsUnlocked: [], messages: [{ id: 1, from: 'opponent', text: 'ready?', at: '2026-11-21T10:00:00Z' }], canAskAdmin: true, helpRequest: null }
+  await page.route('**/api/queue', (r) => r.fulfill(json({ queue: null, match, searching: { '012': 0, nt: 0 }, disputes: [] })))
+}
+
+/** The box of the floating piece this control belongs to: its nearest fixed-position ancestor. */
+const floating = (control: Locator) =>
+  control.evaluate((el) => {
+    let node: Element = el
+    while (getComputedStyle(node).position !== 'fixed' && node.parentElement) node = node.parentElement
+    const { x, y, width, height } = node.getBoundingClientRect()
+    return { x, y, width, height }
+  })
+
+type Box = { x: number; y: number; width: number; height: number }
+const overlap = (a: Box, b: Box) =>
+  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+
+// Classic floats its own queue bar and chat dock over the bottom of the window.
+for (const [what, route, control] of [['queue bar', searching, 'Cancel'], ['chat dock', playing, 'Minimise']] as const) {
+  for (const width of [390, 1024, 1280]) {
+    test(`Classic's ${what} doesn't cover the Ruling form at ${width} wide`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await onCase(page, 'admin', longCase(), async () => {
+        await route(page)
+        await inInterface(page, 'classic')
+      })
+      const float = page.getByRole('button', { name: control, exact: true })
+      await expect(float).toBeVisible()
+      await page.getByRole('region', { name: 'Earlier disputes' }).evaluate((el) => el.scrollIntoView({ block: 'center' }))
+      const side = page.getByRole('region', { name: 'Write ruling' })
+      const clear = async () => expect(overlap(await box(side), await floating(float))).toBe(false)
+      await clear() // the closed bar, or the column
+      await float.click({ trial: true })
+      if (width < 1024) await page.getByRole('button', { name: 'Write ruling' }).click()
+      await clear()
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+      if (width >= 1024) await clear()
+      await page.getByRole('radio', { name: /Uphold/ }).check()
+      await reasonBox(page).fill('The clip shows it.')
+      await page.getByRole('button', { name: 'Give Ruling' }).click({ trial: true })
+      await float.click({ trial: true })
+    })
+  }
+}
+
+for (const busy of [false, true]) {
+  test(`on a phone held sideways the panel is still tall enough to use${busy ? ', while searching' : ''}`, async ({ page }) => {
+    await page.setViewportSize({ width: 667, height: 375 })
+    await onCase(page, 'admin', longCase(), async () => {
+      if (busy) await searching(page)
+    })
+    if (busy) await expect(page.getByRole('region', { name: 'Match status' })).toBeVisible()
+    const bar = page.getByRole('button', { name: 'Write ruling' })
+    await bar.click()
+    const panel = page.getByRole('region', { name: 'Write ruling' })
+    expect((await box(panel)).height).toBeGreaterThanOrEqual(200)
+    await expect(panel.getByRole('heading', { name: 'Write ruling' })).toBeInViewport({ ratio: 1 })
+    await expect(panel.getByRole('button', { name: 'Hide panel' })).toBeInViewport({ ratio: 1 })
+    await page.getByRole('radio', { name: /Uphold/ }).check()
+    await reasonBox(page).fill('The clip shows it.')
+    await page.getByRole('button', { name: 'Give Ruling' }).click({ trial: true })
+    await panel.getByRole('button', { name: 'Hide panel' }).click()
+    if (busy) await expect(page.getByRole('region', { name: 'Match status' })).toBeVisible()
+  })
+}

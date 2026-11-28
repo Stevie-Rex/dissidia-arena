@@ -1,0 +1,150 @@
+/*
+ * The Admin case pages (#53). .case-page holds the summary strip, .case-evidence and .case-side, in that order.
+ * Below 64rem the forms are a bar stuck to the bottom of the window that opens a half-height panel; the page
+ * scrolls as usual above it, and at the end of the case the panel rests under the last record, hiding nothing.
+ * From 64rem they are a column beside the evidence that stays in view. Unlayered, so it outranks .da-card.
+ */
+.case-page {
+  --case-dock-bottom: 0px;
+  /* Half the room above the dock, but never so short that a phone held sideways can't use it. */
+  --case-panel-h: max(calc((100dvh - var(--case-dock-bottom)) / 2), min(13rem, calc(100dvh - var(--case-dock-bottom) - 4rem)));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.case-evidence {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.case-side {
+  position: sticky;
+  bottom: var(--case-dock-bottom);
+  z-index: 20;
+  margin-top: auto;
+}
+.case-side:not([data-ready]) {
+  display: none;
+}
+.case-side__panel {
+  display: none;
+}
+.case-side[data-open] > .case-side__bar {
+  display: none;
+}
+.case-side[data-open] > .case-side__panel {
+  display: flex;
+  height: var(--case-panel-h);
+}
+/* The heading stays put and the forms scroll under it. The room around them keeps focus rings from being cut off. */
+.case-side__body {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: -0.25rem;
+  padding: 0.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.case-side__body > * {
+  flex: none;
+}
+/* A short case must still reach the bottom of the window, or the bar would sit part way up it. */
+.case-page:has(> .case-side[data-ready]) {
+  min-height: calc(100dvh - 16rem);
+}
+
+/* Rift keeps its phone bar, and from 48rem its help strip, under the dock. */
+[data-interface='rift'] .case-page {
+  --case-dock-bottom: var(--rift-phone-bar-h);
+}
+@media (width < 48rem) {
+  /* Edge to edge, as a bottom sheet: this cancels the padding of Rift's <main>. */
+  [data-interface='rift'] .case-side {
+    margin-inline: calc(-1 * clamp(20px, 4vw, 56px));
+  }
+  /* The match status card takes its own row below a column that scrolls by itself (match-status.css). The dock
+     goes down over that column's 1rem bottom padding, or evidence would show through under it. */
+  .rift-shell:has(> .rift-status) .case-page {
+    --case-dock-bottom: -1rem;
+    --case-panel-h: max(calc(50dvh - 6rem), 12.5rem);
+  }
+}
+@media (48rem <= width < 64rem) {
+  [data-interface='rift'] .case-page {
+    --case-dock-bottom: var(--rift-helpstrip-space);
+  }
+  /* The floating match status card moves up off the bar, and above the panel while it is open. */
+  .rift-shell:has(.case-side[data-ready]) > .rift-status {
+    bottom: calc(var(--rift-helpstrip-space) + 6rem);
+  }
+  /* The card is outside .case-page, so it can't read --case-panel-h: this is the same height, with the help strip
+     as the dock. Keep the two in step. */
+  .rift-shell:has(.case-side[data-open]) > .rift-status {
+    bottom: calc(
+      var(--rift-helpstrip-space) + 1rem +
+        max(
+          calc((100dvh - var(--rift-helpstrip-space)) / 2),
+          min(13rem, calc(100dvh - var(--rift-helpstrip-space) - 4rem))
+        )
+    );
+  }
+}
+@media (width < 64rem) {
+  /* Classic's queue bar and chat dock float over the bottom of the window. They ride just above the bar or the
+     panel, wherever it is: stuck to the window, or resting over the footer at the end of the case. */
+  [data-interface='classic'] .case-side[data-ready] {
+    anchor-name: --case-side;
+  }
+  :root:has(.case-side[data-ready]) .classic-float {
+    bottom: 10rem; /* without anchor positioning: clear of the bar, if not of the open panel */
+    position-anchor: --case-side; /* the default anchor, so it follows the bar as the page scrolls */
+    bottom: calc(anchor(top, 10rem) + 0.75rem);
+  }
+}
+
+@media (width >= 64rem) {
+  .case-page,
+  .case-page:has(> .case-side[data-ready]) {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(17rem, 36%);
+    align-items: start;
+  }
+  .case-page > * {
+    grid-column: 1 / -1;
+  }
+  .case-page:has(> .case-side) > .case-evidence {
+    grid-column: 1;
+  }
+  .case-side,
+  .case-side:not([data-ready]) {
+    display: block;
+    grid-column: 2;
+    top: 1rem;
+    bottom: auto;
+    margin-top: 0;
+  }
+  .case-side > .case-side__bar,
+  .case-side .case-side__hide {
+    display: none;
+  }
+  /* Short enough to stay whole when the footer and the help strip come into view under it. Until the page scrolls
+     far enough for it to stick, it starts lower (CaseSide measures --case-side-top), and is shorter by as much. */
+  .case-side {
+    --case-side-below: max(0px, var(--case-side-top, 1rem) - 1rem);
+  }
+  .case-side > .case-side__panel,
+  .case-side[data-open] > .case-side__panel {
+    display: flex;
+    height: auto;
+    max-height: calc(100dvh - 13rem - var(--case-side-below));
+  }
+  /* Room for the match status card, which floats over the bottom of this column. */
+  .rift-shell:has(> .rift-status) .case-side > .case-side__panel {
+    max-height: calc(100dvh - 17rem - var(--case-side-below));
+  }
+}
