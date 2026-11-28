@@ -3,7 +3,7 @@
  * summary strip, sections of evidence and records, and the forms in a column or bottom panel beside them (#53,
  * approved in lab round 2).
  */
-import { useId, useRef, type ReactNode, type Ref } from 'react'
+import { useId, useLayoutEffect, useRef, type ReactNode, type Ref } from 'react'
 import { flushSync } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { GAMES, type GameId } from '../../data/mock'
@@ -264,8 +264,36 @@ export function CaseSide({
   children: ReactNode
 }) {
   const id = useId()
+  const section = useRef<HTMLElement>(null)
   const bar = useRef<HTMLButtonElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
+  // On a wide screen the column sticks 1rem from the top, but until the page scrolls that far it starts lower,
+  // under the summary strip. Where its top is now lets case-layout.css shorten it by the difference, so its
+  // bottom stays clear of whatever floats over the bottom of the window.
+  useLayoutEffect(() => {
+    const el = section.current
+    if (!el) return
+    let frame = 0
+    const measure = () => {
+      frame = 0
+      el.style.setProperty('--case-side-top', `${el.getBoundingClientRect().top}px`)
+    }
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(measure)
+    }
+    measure()
+    // Captured, so a scroll of any scroller counts. The page above the column can change height too.
+    document.addEventListener('scroll', schedule, { capture: true, passive: true })
+    window.addEventListener('resize', schedule)
+    const resized = new ResizeObserver(schedule)
+    if (el.parentElement) resized.observe(el.parentElement)
+    return () => {
+      cancelAnimationFrame(frame)
+      document.removeEventListener('scroll', schedule, { capture: true })
+      window.removeEventListener('resize', schedule)
+      resized.disconnect()
+    }
+  }, [])
   // Focus follows the panel: into it when it opens, back to the bar when it's hidden.
   const show = () => {
     flushSync(() => onOpenChange(true))
@@ -276,7 +304,7 @@ export function CaseSide({
     bar.current?.focus()
   }
   return (
-    <section aria-labelledby={`${id}-title`} className="case-side" data-ready={ready || undefined} data-open={(ready && open) || undefined}>
+    <section ref={section} aria-labelledby={`${id}-title`} className="case-side" data-ready={ready || undefined} data-open={(ready && open) || undefined}>
       {ready && (
         <Card className="case-side__bar">
           <Btn ref={bar} size="lg" aria-expanded={false} aria-controls={`${id}-panel`} onClick={show}>

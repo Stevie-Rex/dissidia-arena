@@ -132,15 +132,19 @@
   .case-side .case-side__hide {
     display: none;
   }
-  /* Short enough to stay whole when the footer and the help strip come into view under it. */
+  /* Short enough to stay whole when the footer and the help strip come into view under it. Until the page scrolls
+     far enough for it to stick, it starts lower (CaseSide measures --case-side-top), and is shorter by as much. */
+  .case-side {
+    --case-side-below: max(0px, var(--case-side-top, 1rem) - 1rem);
+  }
   .case-side > .case-side__panel,
   .case-side[data-open] > .case-side__panel {
     display: flex;
     height: auto;
-    max-height: calc(100dvh - 13rem);
+    max-height: calc(100dvh - 13rem - var(--case-side-below));
   }
   /* Room for the match status card, which floats over the bottom of this column. */
   .rift-shell:has(> .rift-status) .case-side > .case-side__panel {
-    max-height: calc(100dvh - 17rem);
+    max-height: calc(100dvh - 17rem - var(--case-side-below));
   }
 }

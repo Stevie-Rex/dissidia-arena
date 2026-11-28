@@ -594,13 +594,30 @@ test('on desktop the match status card does not cover the Ruling form', async ({
   await onCase(page, 'admin', longCase(), () => searching(page))
   const card = page.getByRole('region', { name: 'Match status' })
   await expect(card).toBeVisible()
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
-  const side = await box(page.getByRole('region', { name: 'Write ruling' }))
-  expect(side.y).toBeGreaterThanOrEqual(0)
-  expect(side.y + side.height).toBeLessThanOrEqual((await box(card)).y)
+  // At the top of the page, where the column starts below the summary strip, then scrolled to the end.
+  for (const scrolled of [false, true]) {
+    if (scrolled) await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    await expect(async () => {
+      const side = await box(page.getByRole('region', { name: 'Write ruling' }))
+      expect(side.y).toBeGreaterThanOrEqual(0)
+      expect(side.y + side.height).toBeLessThanOrEqual((await box(card)).y)
+    }).toPass()
+  }
   await page.getByRole('radio', { name: /Uphold/ }).check()
   await reasonBox(page).fill('The clip shows it.')
   await page.getByRole('button', { name: 'Give Ruling' }).click({ trial: true })
+})
+
+test('on desktop in Classic the Ruling column fits in the window at the top of the page', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await onCase(page, 'admin', longCase(), async () => {
+    await searching(page)
+    await inInterface(page, 'classic')
+  })
+  await expect(async () => {
+    const side = await box(page.getByRole('region', { name: 'Write ruling' }))
+    expect(side.y + side.height).toBeLessThanOrEqual(720)
+  }).toPass()
 })
 
 test("a draft from an earlier dispute doesn't come back on the next one", async ({ page }) => {
