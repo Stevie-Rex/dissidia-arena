@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, CSSProperties, HTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ComponentProps, CSSProperties, HTMLAttributes, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 import { cx } from '../lib/format'
@@ -32,7 +32,7 @@ export function Btn({
   variant = 'primary',
   main,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { size?: 'md' | 'lg'; variant?: 'primary' | 'chaos' | 'ghost'; main?: boolean }) {
+}: ComponentProps<'button'> & { size?: 'md' | 'lg'; variant?: 'primary' | 'chaos' | 'ghost'; main?: boolean }) {
   return (
     <button
       type="button"

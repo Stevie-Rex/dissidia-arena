@@ -131,7 +131,7 @@ test('Help requests sit in the case list and open their own page', async ({ page
 test('an Admin claims a Help request, Voids its stuck match, and closes it with a reason', async ({ page }) => {
   const sent = await asAdmin(page, 'admin', helpPage())
   await page.goto('/admin/help-requests/5')
-  await expect(page.getByRole('button', { name: 'Close request' })).toHaveCount(0) // needs the Claim first
+  await expect(page.getByRole('button', { name: 'Close request' })).toBeDisabled() // changed: the form stays beside the evidence, greyed out until the Claim
 
   await page.getByRole('button', { name: 'Claim', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Request status' })).toContainText('You hold the Claim on this request.')
@@ -160,4 +160,77 @@ test('an Admin who played in the match is told so and cannot Claim', async ({ pa
   await page.goto('/admin/help-requests/5')
   await expect(page.getByRole('region', { name: 'Request status' })).toContainText('You played in this match.')
   for (const name of ['Claim', 'Void match', 'Close request']) await expect(page.getByRole('button', { name })).toHaveCount(0)
+})
+
+const holding = { claim: { by: ref(9, 'Admin'), at: '2026-11-21T11:30:00Z', byYou: true }, canAct: true }
+const closeReason = (page: Page) => page.getByLabel(/^Reason \(pass it to the Master/)
+const voidReason = (page: Page) => page.getByLabel('Reason (goes in the Admin log)')
+
+test('close and Void drafts survive a reload, each gone once its own action succeeds', async ({ page }) => {
+  await asAdmin(page, 'admin', helpPage(holding))
+  await page.goto('/admin/help-requests/5')
+  await closeReason(page).fill('Passing the no-show to the Master.')
+  await voidReason(page).fill('Rival never came back.')
+  await page.reload()
+  await expect(closeReason(page)).toHaveValue('Passing the no-show to the Master.')
+  await expect(voidReason(page)).toHaveValue('Rival never came back.')
+
+  await page.getByRole('button', { name: 'Void match' }).click()
+  await expect(page.getByRole('region', { name: 'Match', exact: true })).toContainText('Voided')
+  await expect(closeReason(page)).toHaveValue('Passing the no-show to the Master.') // the other draft stays
+  await page.getByRole('button', { name: 'Close request' }).click()
+  await expect(page.getByRole('region', { name: 'Request status' })).toContainText('Closed')
+
+  // Serve the request open again, with a match that can be Voided: both forms must start empty.
+  await page.route('**/api/admin/help-requests/5', (r) => r.fulfill(json(helpPage(holding))))
+  await page.reload()
+  await expect(closeReason(page)).toHaveValue('')
+  await expect(voidReason(page)).toHaveValue('')
+})
+
+test('a failed action keeps the draft', async ({ page }) => {
+  await asAdmin(page, 'admin', helpPage(holding))
+  await page.route('**/api/admin/help-requests/5/close', (r) =>
+    r.fulfill(json({ error: 'already_closed', message: 'this Help request is already closed' }, 409)),
+  )
+  await page.goto('/admin/help-requests/5')
+  await closeReason(page).fill('Passing the no-show to the Master.')
+  await page.getByRole('button', { name: 'Close request' }).click()
+  await expect(page.getByRole('alert')).toContainText('already closed')
+  await page.reload()
+  await expect(closeReason(page)).toHaveValue('Passing the no-show to the Master.')
+})
+
+test('a Help request reads in order, with the close and Void forms beside it', async ({ page }) => {
+  await asAdmin(page, 'admin', helpPage())
+  await page.goto('/admin/help-requests/5')
+  const summary = page.getByRole('region', { name: 'Request status' })
+  for (const text of ['Help', 'NT · PS4', 'Tester vs Rival', 'Help requested', 'Unclaimed']) await expect(summary).toContainText(text)
+  await expect(page.getByRole('main').getByRole('heading', { level: 2 })).toHaveText([
+    /Help request: Match #42.*Tester vs Rival/, 'Match', 'Request', 'Match chat', 'Close or void',
+  ])
+  const side = page.getByRole('region', { name: 'Close or void' })
+  await expect(side).toContainText('Claim this request to close it.')
+  await expect(closeReason(page)).toBeDisabled()
+  await expect(voidReason(page)).toBeEnabled() // a Void never needed the Claim
+  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([])
+})
+
+test('on desktop the close and Void forms stay usable with the evidence scrolled to the bottom', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  const base = helpPage(holding)
+  await asAdmin(page, 'admin', { ...base, match: { ...base.match,
+    messages: Array.from({ length: 40 }, (_, i) => ({ id: i + 1, from: 2, text: `Message ${i + 1}`, at: '2026-11-21T10:30:00Z' })) },
+    message: 'Rival left and is not answering. '.repeat(15) })
+  await page.goto('/admin/help-requests/5')
+  await expect(page.getByRole('region', { name: 'Match chat' })).toBeVisible()
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+  await expect(page.getByRole('region', { name: 'Close or void' })).toBeInViewport({ ratio: 1 })
+  const scrolled = await page.evaluate(() => window.scrollY)
+  for (const name of ['Close request', 'Void match']) {
+    await page.getByRole('button', { name }).scrollIntoViewIfNeeded()
+    await expect(page.getByRole('button', { name })).toBeInViewport({ ratio: 1 })
+  }
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrolled)
 })

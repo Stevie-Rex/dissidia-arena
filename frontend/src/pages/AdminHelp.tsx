@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
+import {
+  BackToCases,
+  CaseSection,
+  CaseSide,
+  CaseSummary,
+  ClaimButtons,
+  ClaimText,
+  GamesTable,
+  MatchChat,
+  PlayedInNote,
+} from '../components/admin/CaseLayout'
 import RoleGate from '../components/RoleGate'
-import { Btn, Card, Sub } from '../components/ui'
-import { GAMES } from '../data/mock'
+import { Btn, Sub } from '../components/ui'
 import { MAX_REASON, api, errorMessage, type HelpRequestCase } from '../lib/api'
-import { FIELD, cx, since } from '../lib/format'
+import { FIELD, cx } from '../lib/format'
+import { useDraft } from '../lib/useDraft'
 import { useApp } from '../state/AppState'
 import { Alert } from './AdminCases'
 
@@ -45,8 +56,9 @@ function HelpRequestLoader() {
   const reload = useCallback(() => api.helpRequest(id).then(accept), [id, accept])
 
   return (
-    <div className="flex flex-col gap-6">
-      <h2 className="m-0 text-xl font-semibold">Help request</h2>
+    <div className="flex flex-col gap-4">
+      <BackToCases />
+      {!data && <h2 className="m-0 text-xl font-semibold">Help request</h2>}
       {error && !data && <Alert>{error}</Alert>}
       {!data && !error && <Sub>Loading…</Sub>}
       {/* keyed so moving to another request starts its forms afresh */}
@@ -55,6 +67,7 @@ function HelpRequestLoader() {
   )
 }
 
+/** The request in the order an Admin reads it: summary, the match, what was asked and the chat, with the forms beside them. */
 function HelpRequestView({
   data,
   onChange,
@@ -65,211 +78,211 @@ function HelpRequestView({
   reload: () => Promise<unknown>
 }) {
   const { user } = useApp()
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ from: 'claim' | 'close' | 'void'; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const summaryHeading = useRef<HTMLHeadingElement>(null)
   const isMaster = user?.role === 'master'
   const { match, claim } = data
-  const name = (uid: number | null) => match.players.find((p) => p.id === uid)?.displayName ?? 'Unknown player'
-  const heldByOther = claim !== null && !claim.byYou
+  const name = (uid: number) => match.players.find((p) => p.id === uid)?.displayName ?? 'Unknown player'
   const open = data.closed === null
+  const showClose = open && (!data.playedIn || isMaster)
+  const canClose = showClose && data.canAct
+  const failure = (from: 'close' | 'void') => (error?.from === from ? error.text : null)
 
-  const run = async (call: () => Promise<unknown>, then: () => Promise<unknown> | void) => {
+  const run = async (from: 'claim' | 'close' | 'void', call: () => Promise<unknown>, then?: () => Promise<unknown>) => {
     setBusy(true)
     setError(null)
     try {
       await call()
-      await then()
+      await then?.()
+      return true
     } catch (e) {
-      setError(errorMessage(e))
+      setError({ from, text: errorMessage(e) })
+      return false
     } finally {
       setBusy(false)
     }
   }
-  const act = (action: 'claim' | 'release' | 'takeover') =>
-    run(() => api.helpRequestAction(data.helpRequestId, action).then(onChange), () => {})
+  const act = (action: 'claim' | 'release' | 'takeover') => {
+    setPanelOpen(false)
+    run('claim', () => api.helpRequestAction(data.helpRequestId, action).then(onChange))
+  }
+  /** Puts the panel away and goes to the summary, where the result shows and which may be scrolled away. */
+  const showResult = () => {
+    setPanelOpen(false)
+    summaryHeading.current?.focus()
+  }
+  const close = async (reason: string, sent: () => void) => {
+    const saved = await run('close', () =>
+      api.closeHelpRequest(data.helpRequestId, reason).then((d) => (sent(), onChange(d))),
+    )
+    if (saved) showResult()
+  }
+  const voidMatch = async (reason: string, sent: () => void) => {
+    const saved = await run('void', () => api.voidMatch(match.id, reason).then(sent), reload)
+    // With the request still to close, the panel stays open for its reason.
+    if (saved && !canClose) showResult()
+  }
 
   return (
-    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <div className="flex flex-col gap-4">
-        <Card className="flex flex-col gap-2" role="region" aria-label="Request">
-          <Sub>
-            {GAMES[data.game].name} · {data.platform} · Match #{match.id}: {match.players[0].displayName} vs{' '}
-            {match.players[1].displayName}
-          </Sub>
+    <div className="case-page">
+      <CaseSummary
+        label="Request status"
+        kind="help"
+        game={data.game}
+        platform={data.platform}
+        title={`Help request: Match #${match.id}`}
+        players={[match.players[0].displayName, match.players[1].displayName]}
+        headingRef={summaryHeading}
+        status={open ? 'Help requested' : 'Closed'}
+        claim={open && <ClaimText claim={claim} noun="request" />}
+        actions={
+          open && <ClaimButtons claim={claim} playedIn={data.playedIn} isMaster={isMaster} busy={busy} onAct={act} />
+        }
+      >
+        {data.closed && (
+          <div className="flex flex-col gap-1">
+            <span className="wrap-anywhere whitespace-pre-wrap text-sm">{data.closed.reason}</span>
+            <Sub>
+              By {data.closed.by?.displayName ?? 'an Admin'} ·{' '}
+              <time dateTime={data.closed.at}>{new Date(data.closed.at).toLocaleString()}</time>
+            </Sub>
+          </div>
+        )}
+        {open && data.playedIn && <PlayedInNote isMaster={isMaster} />}
+        {error?.from === 'claim' && <Alert>{error.text}</Alert>}
+      </CaseSummary>
+
+      <div className="case-evidence">
+        <CaseSection title="Match">
+          <b className="text-sm">
+            {match.status === 'voided' ? 'Voided' : match.status[0].toUpperCase() + match.status.slice(1)}
+            {match.games.length > 0 && ` · ${match.score[0]}–${match.score[1]} (first to ${match.winsNeeded})`}
+          </b>
+          <GamesTable games={match.games} name={name} />
+        </CaseSection>
+
+        <CaseSection title="Request">
           <b className="text-sm">{data.askedBy.displayName} asked for help</b>
-          <span className="whitespace-pre-wrap text-sm">
+          <span className="wrap-anywhere whitespace-pre-wrap text-sm">
             <q>{data.message}</q>
           </span>
           <Sub>
             <time dateTime={data.askedAt}>{new Date(data.askedAt).toLocaleString()}</time>
           </Sub>
-        </Card>
+        </CaseSection>
 
-        <Card className="flex flex-col gap-2" role="region" aria-label="Request status">
-          {data.closed ? (
-            <>
-              <b>Closed</b>
-              <span className="whitespace-pre-wrap text-sm">{data.closed.reason}</span>
-              <Sub>
-                By {data.closed.by?.displayName ?? 'an Admin'} ·{' '}
-                <time dateTime={data.closed.at}>{new Date(data.closed.at).toLocaleString()}</time>
-              </Sub>
-            </>
-          ) : (
-            <>
-              {data.playedIn && (
-                <p className="m-0 text-sm font-semibold text-gold-note">
-                  You played in this match.
-                  {!isMaster && <span className="font-normal text-fg-dim"> Another Admin has to handle it.</span>}
-                </p>
-              )}
-              {heldByOther ? (
-                <p className="m-0 text-sm">
-                  <b>Being handled</b> by {claim.by.displayName}, for {since(claim.at)}.
-                </p>
-              ) : claim?.byYou ? (
-                <p className="m-0 text-sm">You hold the Claim on this request.</p>
-              ) : (
-                <p className="m-0 text-sm">Unclaimed.</p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {!claim && (!data.playedIn || isMaster) && (
-                  <Btn disabled={busy} onClick={() => act('claim')}>
-                    Claim
-                  </Btn>
-                )}
-                {isMaster && heldByOther && (
-                  <Btn disabled={busy} onClick={() => act('takeover')}>
-                    Take over
-                  </Btn>
-                )}
-                {claim && (claim.byYou || isMaster) && (
-                  <Btn variant="ghost" disabled={busy} onClick={() => act('release')}>
-                    Release
-                  </Btn>
-                )}
-              </div>
-            </>
-          )}
-          {error && <Alert>{error}</Alert>}
-        </Card>
-
-        {open && data.canAct && (
-          <ReasonForm
-            title="Close request"
-            label="Reason (pass it to the Master here if it needs them; the player doesn't see it)"
-            submit="Close request"
-            busy={busy}
-            onSubmit={(reason) =>
-              run(() => api.closeHelpRequest(data.helpRequestId, reason).then(onChange), () => {})
-            }
-          />
-        )}
+        <MatchChat messages={match.messages} name={name} />
       </div>
 
-      <div className="flex flex-col gap-4">
-        <Card className="flex flex-col gap-2" role="region" aria-label="Match">
-          <Sub>match</Sub>
-          <b className="text-sm">
-            {match.status === 'voided' ? 'Voided' : match.status[0].toUpperCase() + match.status.slice(1)}
-            {match.games.length > 0 && ` · ${match.score[0]}–${match.score[1]} (first to ${match.winsNeeded})`}
-          </b>
-          <ol className="m-0 flex list-none flex-col gap-1 p-0">
-            {match.games.map((g) => (
-              <li key={g.n} className="text-sm">
-                Game {g.n}: {name(g.winner)} wins (reported by {name(g.reportedBy)})
-              </li>
-            ))}
-          </ol>
-        </Card>
-
-        {match.canVoid && (
-          <ReasonForm
-            title="Void this match"
-            label="Reason (goes in the Admin log)"
-            help="Both players can queue again and nothing counts against anyone."
-            submit="Void match"
-            busy={busy}
-            onSubmit={(reason) => run(() => api.voidMatch(match.id, reason), reload)}
-          />
-        )}
-
-        <Card className="flex flex-col gap-2" role="region" aria-label="Match chat">
-          <Sub>match chat</Sub>
-          {match.messages.length === 0 ? (
-            <span className="text-sm text-muted">No messages.</span>
-          ) : (
-            <ol className="m-0 flex max-h-96 list-none flex-col gap-1 overflow-y-auto p-0">
-              {match.messages.map((m) => (
-                <li key={m.id} className={cx('text-sm', m.from === null && 'text-muted italic')}>
-                  {m.from !== null && <b>{name(m.from)}: </b>}
-                  {m.text}
-                </li>
-              ))}
-            </ol>
+      {(showClose || match.canVoid || !open) && (
+        <CaseSide title="Close or void" ready={canClose || match.canVoid} open={panelOpen} onOpenChange={setPanelOpen}>
+          {!open && <p className="m-0 text-sm">Action recorded in the Admin log.</p>}
+          {showClose && (
+            <ReasonForm
+              draftKey={`help:${data.helpRequestId}:close`}
+              title="Close request"
+              note={
+                canClose ? undefined : claim ? `Claimed by ${claim.by.displayName}.` : 'Claim this request to close it.'
+              }
+              disabled={!canClose}
+              label="Reason (pass it to the Master here if it needs them; the player doesn't see it)"
+              submit="Close request"
+              busy={busy}
+              failure={failure('close')}
+              onSubmit={close}
+            />
           )}
-        </Card>
-      </div>
+          {match.canVoid && (
+            <ReasonForm
+              draftKey={`help:${data.helpRequestId}:void`}
+              title="Void this match"
+              label="Reason (goes in the Admin log)"
+              help="Both players can queue again and nothing counts against anyone."
+              submit="Void match"
+              busy={busy}
+              failure={failure('void')}
+              onSubmit={voidMatch}
+            />
+          )}
+        </CaseSide>
+      )}
     </div>
   )
 }
 
 /** A form with one required reason, for closing a request and for Voiding a match. */
 function ReasonForm({
+  draftKey,
   title,
+  note,
+  disabled,
   label,
   help,
   submit,
   busy,
+  failure,
   onSubmit,
 }: {
+  draftKey: string
   title: string
+  /** Why the form can't be used yet. */
+  note?: string
+  disabled?: boolean
   label: string
   help?: string
   submit: string
   busy: boolean
-  onSubmit: (reason: string) => void
+  /** Why the server refused the last reason sent. */
+  failure: string | null
+  /** Call `sent` once the server has taken the reason, which forgets the draft. */
+  onSubmit: (reason: string, sent: () => void) => void
 }) {
-  const [reason, setReason] = useState('')
+  const reason = useDraft(draftKey)
   const [error, setError] = useState<string | null>(null)
   const id = useId()
   const send = (e: FormEvent) => {
     e.preventDefault()
-    if (!reason.trim()) return setError('Give a reason.')
-    onSubmit(reason.trim())
+    if (!reason.text.trim()) return setError('Give a reason.')
+    onSubmit(reason.text.trim(), reason.clear)
   }
   return (
-    <form onSubmit={send} noValidate className="da-card flex flex-col gap-3" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`} className="m-0 text-lg font-semibold">
+    <form onSubmit={send} noValidate className="flex flex-col gap-2 border-line [&+form]:border-t [&+form]:pt-3" aria-labelledby={`${id}-title`}>
+      <h3 id={`${id}-title`} className="m-0 text-base font-semibold">
         {title}
-      </h2>
-      {help && <p className="m-0 text-sm text-muted">{help}</p>}
-      <label htmlFor={`${id}-reason`} className="text-sm font-semibold">
-        {label}
-      </label>
-      <textarea
-        id={`${id}-reason`}
-        value={reason}
-        onChange={(e) => {
-          setReason(e.target.value)
-          setError(null)
-        }}
-        rows={3}
-        maxLength={MAX_REASON}
-        aria-describedby={error ? `${id}-error` : undefined}
-        aria-invalid={error ? true : undefined}
-        className={FIELD}
-      />
-      {error && (
-        <span id={`${id}-error`} role="alert" className="text-xs text-chaos-soft">
-          {error}
-        </span>
-      )}
-      <div>
-        <Btn type="submit" disabled={busy}>
-          {submit}
-        </Btn>
-      </div>
+      </h3>
+      {note && <p className="m-0 text-sm font-semibold">{note}</p>}
+      <fieldset disabled={disabled} className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
+        {help && <p className="m-0 text-sm text-muted">{help}</p>}
+        <label htmlFor={`${id}-reason`} className="text-sm font-semibold">
+          {label}
+        </label>
+        <textarea
+          id={`${id}-reason`}
+          value={reason.text}
+          onChange={(e) => {
+            reason.set(e.target.value)
+            setError(null)
+          }}
+          rows={3}
+          maxLength={MAX_REASON}
+          aria-describedby={error ? `${id}-error` : undefined}
+          aria-invalid={error ? true : undefined}
+          className={cx(FIELD, 'disabled:opacity-60')}
+        />
+        {error && (
+          <span id={`${id}-error`} role="alert" className="text-xs text-chaos-soft">
+            {error}
+          </span>
+        )}
+        {failure && <Alert>{failure}</Alert>}
+        <div>
+          <Btn type="submit" disabled={busy}>
+            {submit}
+          </Btn>
+        </div>
+      </fieldset>
     </form>
   )
 }

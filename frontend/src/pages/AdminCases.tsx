@@ -1,5 +1,17 @@
-import { useCallback, useEffect, useId, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useOutletContext, useParams } from 'react-router-dom'
+import {
+  BackToCases,
+  CaseBadge,
+  CaseSection,
+  CaseSide,
+  CaseSummary,
+  ClaimButtons,
+  ClaimText,
+  GamesTable,
+  MatchChat,
+  PlayedInNote,
+} from '../components/admin/CaseLayout'
 import RoleGate from '../components/RoleGate'
 import { ScreenshotList } from '../components/Screenshots'
 import { Btn, Card, Select, Sub } from '../components/ui'
@@ -16,6 +28,7 @@ import {
   type RulingOutcome,
 } from '../lib/api'
 import { FIELD, cx, since } from '../lib/format'
+import { useDraft } from '../lib/useDraft'
 import { useApp } from '../state/AppState'
 
 /** How long a Replay has to settle before it comes back as a case (lifecycle.REPLAY_HOURS). */
@@ -135,14 +148,7 @@ function CaseList() {
                     className="border-b border-line align-top last:border-b-0 @max-xl:grid @max-xl:grid-cols-[auto_minmax(0,1fr)_auto] @max-xl:items-start @max-xl:gap-x-2 @max-xl:gap-y-1.5 @max-xl:rounded @max-xl:border @max-xl:bg-card @max-xl:px-3 @max-xl:py-2.5 @max-xl:last:border-b"
                   >
                     <td role="cell" className="px-3 py-2 @max-xl:p-0">
-                      <span
-                        className={cx(
-                          'inline-block rounded border px-1.5 text-xs font-semibold',
-                          c.kind === 'help' ? 'border-crystal-soft text-crystal-soft' : 'border-chaos-soft text-chaos-soft',
-                        )}
-                      >
-                        {c.kind === 'help' ? 'Help' : 'Dispute'}
-                      </span>
+                      <CaseBadge kind={c.kind} />
                     </td>
                     <td role="cell" className="px-3 py-2 @max-xl:p-0">
                       <Link
@@ -209,8 +215,9 @@ function CaseLoader() {
   }, [id])
 
   return (
-    <div className="flex flex-col gap-6">
-      <h2 className="m-0 text-xl font-semibold">Case: Match #{id}</h2>
+    <div className="flex flex-col gap-4">
+      <BackToCases />
+      {!data && <h2 className="m-0 text-xl font-semibold">Case: Match #{id}</h2>}
       {error && !data && <Alert>{error}</Alert>}
       {!data && !error && <Sub>Loading…</Sub>}
       {/* keyed so following a dispute record to another case starts its Ruling form afresh */}
@@ -219,139 +226,121 @@ function CaseLoader() {
   )
 }
 
+/** The case in the order an Admin decides it: summary, evidence, chat and records, with the Ruling beside them. */
 function CaseView({ data, onChange }: { data: Case; onChange: (c: Case) => void }) {
   const { user } = useApp()
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ from: 'claim' | 'ruling'; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const summaryHeading = useRef<HTMLHeadingElement>(null)
   const isMaster = user?.role === 'master'
   const name = (uid: number | null) => data.players.find((p) => p.id === uid)?.displayName ?? 'Unknown player'
 
   const run = useCallback(
-    async (call: () => Promise<Case>) => {
+    async (from: 'claim' | 'ruling', call: () => Promise<Case>) => {
       setBusy(true)
       setError(null)
       try {
         onChange(await call())
+        return true
       } catch (e) {
-        setError(errorMessage(e))
+        setError({ from, text: errorMessage(e) })
+        return false
       } finally {
         setBusy(false)
       }
     },
     [onChange],
   )
+  const act = (action: 'claim' | 'release' | 'takeover') => {
+    setPanelOpen(false)
+    run('claim', () => api.caseAction(data.matchId, action))
+  }
+  const rule = async (outcome: RulingOutcome, reason: string, extra?: RulingExtra) => {
+    const saved = await run('ruling', () => api.rule(data.matchId, outcome, reason, extra))
+    if (saved) {
+      setPanelOpen(false)
+      summaryHeading.current?.focus() // the result is in the summary, which may be scrolled away
+    }
+    return saved
+  }
 
-  const open = data.status === 'disputed'
-  const claim = data.claim
-  const heldByOther = claim !== null && !claim.byYou
+  const waiting = data.status === 'disputed' && !data.ruling // for a Ruling
+  const showForm = waiting && (!data.playedIn || isMaster)
 
   return (
-    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <div className="flex flex-col gap-4">
-        <Card className="flex flex-col gap-2" role="region" aria-label="Case status">
-          <Sub>
-            {GAMES[data.game].name} · {data.platform}
-          </Sub>
-          {data.ruling ? (
-            <>
-              <b>Ruling: {OUTCOME_NAMES[data.ruling.outcome]}</b>
-              <span className="whitespace-pre-wrap text-sm">{data.ruling.reason}</span>
-              <Sub>
-                By {data.ruling.by?.displayName ?? 'an Admin'} ·{' '}
-                <time dateTime={data.ruling.at}>{new Date(data.ruling.at).toLocaleString()}</time>
-              </Sub>
-            </>
-          ) : !open ? (
-            <b>This match is {data.status}.</b>
-          ) : (
-            <>
-              {data.replayNotFinished && (
-                <p className="m-0 text-sm font-semibold text-gold-note">
-                  Replay not finished: the players didn't settle the Replay within {REPLAY_HOURS} hours. Rule again.
-                </p>
-              )}
-              {data.playedIn && (
-                <p className="m-0 text-sm font-semibold text-gold-note">
-                  You played in this match.
-                  {!isMaster && <span className="font-normal text-fg-dim"> Another Admin has to handle it.</span>}
-                </p>
-              )}
-              {heldByOther ? (
-                <p className="m-0 text-sm">
-                  <b>Being handled</b> by {claim.by.displayName}, for {since(claim.at)}.
-                </p>
-              ) : claim?.byYou ? (
-                <p className="m-0 text-sm">You hold the Claim on this case.</p>
-              ) : (
-                <p className="m-0 text-sm">Unclaimed.</p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {!claim && (!data.playedIn || isMaster) && (
-                  <Btn disabled={busy} onClick={() => run(() => api.caseAction(data.matchId, 'claim'))}>
-                    Claim
-                  </Btn>
-                )}
-                {isMaster && heldByOther && (
-                  <Btn disabled={busy} onClick={() => run(() => api.caseAction(data.matchId, 'takeover'))}>
-                    Take over
-                  </Btn>
-                )}
-                {claim && (claim.byYou || isMaster) && (
-                  <Btn variant="ghost" disabled={busy} onClick={() => run(() => api.caseAction(data.matchId, 'release'))}>
-                    Release
-                  </Btn>
-                )}
-              </div>
-            </>
-          )}
-          {error && <Alert>{error}</Alert>}
-        </Card>
-
-        {open && data.canAct && !data.ruling && (
-          <RulingForm
-            data={data}
-            busy={busy}
-            onRule={(outcome, reason, extra) => run(() => api.rule(data.matchId, outcome, reason, extra))}
-          />
+    <div className="case-page">
+      <CaseSummary
+        label="Case status"
+        kind="dispute"
+        game={data.game}
+        platform={data.platform}
+        title={`Case: Match #${data.matchId}`}
+        players={[data.players[0].displayName, data.players[1].displayName]}
+        headingRef={summaryHeading}
+        status={data.ruling ? `Ruling: ${OUTCOME_NAMES[data.ruling.outcome]}` : waiting ? 'Disputed' : `This match is ${data.status}.`}
+        claim={waiting && <ClaimText claim={data.claim} noun="case" />}
+        actions={
+          waiting && <ClaimButtons claim={data.claim} playedIn={data.playedIn} isMaster={isMaster} busy={busy} onAct={act} />
+        }
+      >
+        {data.ruling && (
+          <div className="flex flex-col gap-1">
+            <span className="wrap-anywhere whitespace-pre-wrap text-sm">{data.ruling.reason}</span>
+            <Sub>
+              By {data.ruling.by?.displayName ?? 'an Admin'} ·{' '}
+              <time dateTime={data.ruling.at}>{new Date(data.ruling.at).toLocaleString()}</time>
+            </Sub>
+          </div>
         )}
+        {waiting && data.replayNotFinished && (
+          <p className="m-0 text-sm font-semibold text-gold-note">
+            Replay not finished: the players didn't settle the Replay within {REPLAY_HOURS} hours. Rule again.
+          </p>
+        )}
+        {waiting && data.playedIn && <PlayedInNote isMaster={isMaster} />}
+        {error?.from === 'claim' && <Alert>{error.text}</Alert>}
+      </CaseSummary>
 
-        <Card className="flex flex-col gap-2" role="region" aria-label="Reported games">
-          <Sub>reported games</Sub>
+      <div className="case-evidence">
+        <CaseSection title="Reported games">
           <b className="text-sm">
             {data.winner === null
               ? `${data.score[0]}–${data.score[1]} so far: nobody has won yet (first to ${data.winsNeeded})`
               : `${name(data.reportedBy)} reported ${data.score[0]}–${data.score[1]} (${name(data.winner)} wins, first to ${data.winsNeeded})`}
           </b>
-          <ol className="m-0 flex list-none flex-col gap-1 p-0">
-            {data.games.map((g) => {
-              const doubted = data.dispute.games.includes(g.n)
-              return (
-                <li key={g.n} className={cx('text-sm', doubted && 'font-semibold text-gold-note')}>
-                  Game {g.n}: {name(g.winner)} wins (reported by {name(g.reportedBy)}){doubted && ' · disputed'}
-                </li>
-              )
-            })}
-          </ol>
-        </Card>
+          <GamesTable games={data.games} name={name} disputed={data.dispute.games} />
+        </CaseSection>
 
-        <Card className="flex flex-col gap-2" role="region" aria-label="Dispute">
-          <Sub>dispute</Sub>
+        <CaseSection title="Statements">
           {data.dispute.reason === null ? (
             <span className="text-sm text-muted">No details (filed before the dispute form)</span>
           ) : (
             <>
               <b className="text-sm">Disputed games: {data.dispute.games.join(', ')}</b>
-              <span className="whitespace-pre-wrap text-sm">
+              <span className="wrap-anywhere whitespace-pre-wrap text-sm">
                 {name(data.dispute.by)} wrote: <q>{data.dispute.reason}</q>
               </span>
             </>
           )}
+          <div className="@container">
+            <div className="grid gap-3 @lg:grid-cols-2">
+              {data.players.map((p) => (
+                <div key={p.id} className="flex min-w-0 flex-col gap-1 border-l-2 border-line-strong pl-3">
+                  <h3 className="wrap-anywhere m-0 text-sm font-semibold">{p.displayName}'s side</h3>
+                  <span className="wrap-anywhere whitespace-pre-wrap text-sm">
+                    {data.dispute.statements[p.id]?.text ?? `${p.displayName} has not added their side.`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CaseSection>
+
+        <CaseSection title="Screenshots">
           {data.players.map((p) => (
             <div key={p.id} className="flex flex-col gap-1">
-              <Sub>{p.displayName}'s side</Sub>
-              <span className="whitespace-pre-wrap text-sm">
-                {data.dispute.statements[p.id]?.text ?? `${p.displayName} has not added their side.`}
-              </span>
+              <h3 className="wrap-anywhere m-0 text-sm font-semibold">{p.displayName}</h3>
               <ScreenshotList
                 shots={data.dispute.screenshots[p.id] ?? []}
                 owner={p.displayName}
@@ -359,64 +348,56 @@ function CaseView({ data, onChange }: { data: Case; onChange: (c: Case) => void 
               />
             </div>
           ))}
-        </Card>
+        </CaseSection>
+
+        <MatchChat messages={data.messages} name={name} />
+
+        <CaseSection title="Dispute records">
+          {data.players.map((p) => (
+            <Record key={p.id} player={p} record={data.records[p.id]} current={data.matchId} />
+          ))}
+        </CaseSection>
 
         {data.earlierDisputes.length > 0 && (
-          <Card className="flex flex-col gap-3" role="region" aria-label="Earlier disputes">
-            <Sub>earlier disputes (players can't see these)</Sub>
+          <CaseSection title="Earlier disputes" note="Players can't see these.">
             {data.earlierDisputes.map((d, i) => (
-              <div key={i} className="flex flex-col gap-1 border-t border-line pt-2 first:border-t-0 first:pt-0">
+              <div key={i} className="flex flex-col gap-1 border-t border-line pt-2">
                 {d.reason === null ? (
                   <span className="text-sm text-muted">No details (filed before the dispute form)</span>
                 ) : (
                   <>
                     <b className="text-sm">Disputed games: {d.games.join(', ')}</b>
-                    <span className="whitespace-pre-wrap text-sm">
+                    <span className="wrap-anywhere whitespace-pre-wrap text-sm">
                       {name(d.by)} wrote: <q>{d.reason}</q>
                     </span>
                   </>
                 )}
                 {data.players.map((p) => (
-                  <span key={p.id} className="whitespace-pre-wrap text-sm">
+                  <span key={p.id} className="wrap-anywhere whitespace-pre-wrap text-sm">
                     <b>{p.displayName}'s side: </b>
                     {d.statements[p.id]?.text ?? `${p.displayName} did not add their side.`}
                   </span>
                 ))}
                 {d.ruling && (
-                  <span className="whitespace-pre-wrap text-sm">
+                  <span className="wrap-anywhere whitespace-pre-wrap text-sm">
                     Ruling: {OUTCOME_NAMES[d.ruling.outcome]} by {d.ruling.by?.displayName ?? 'an Admin'}: {d.ruling.reason}
                   </span>
                 )}
               </div>
             ))}
-          </Card>
+          </CaseSection>
         )}
       </div>
 
-      <div className="flex flex-col gap-4">
-        <Card className="flex flex-col gap-3" role="region" aria-label="Dispute records">
-          <Sub>dispute records</Sub>
-          {data.players.map((p) => (
-            <Record key={p.id} player={p} record={data.records[p.id]} current={data.matchId} />
-          ))}
-        </Card>
-
-        <Card className="flex flex-col gap-2" role="region" aria-label="Match chat">
-          <Sub>match chat</Sub>
-          {data.messages.length === 0 ? (
-            <span className="text-sm text-muted">No messages.</span>
+      {(showForm || data.ruling) && (
+        <CaseSide title="Write ruling" ready={showForm && data.canAct} open={panelOpen} onOpenChange={setPanelOpen}>
+          {showForm ? (
+            <RulingForm data={data} busy={busy} failure={error?.from === 'ruling' ? error.text : null} onRule={rule} />
           ) : (
-            <ol className="m-0 flex max-h-96 list-none flex-col gap-1 overflow-y-auto p-0">
-              {data.messages.map((m) => (
-                <li key={m.id} className={cx('text-sm', m.from === null && 'text-muted italic')}>
-                  {m.from !== null && <b>{name(m.from)}: </b>}
-                  {m.text}
-                </li>
-              ))}
-            </ol>
+            <p className="m-0 text-sm">Action recorded in the Admin log.</p>
           )}
-        </Card>
-      </div>
+        </CaseSide>
+      )}
     </div>
   )
 }
@@ -464,109 +445,119 @@ const proposedWinners = (data: Case) => {
 function RulingForm({
   data,
   busy,
+  failure,
   onRule,
 }: {
   data: Case
   busy: boolean
-  onRule: (outcome: RulingOutcome, reason: string, extra?: RulingExtra) => void
+  /** Why the server refused the last Ruling sent. */
+  failure: string | null
+  /** Resolves to whether the Ruling was saved. */
+  onRule: (outcome: RulingOutcome, reason: string, extra?: RulingExtra) => Promise<boolean>
 }) {
   const [outcome, setOutcome] = useState<RulingOutcome | null>(null)
   const [fromGame, setFromGame] = useState(data.replayFrom.default)
-  const [reason, setReason] = useState('')
+  const reason = useDraft(`case:${data.matchId}`)
   const [winners, setWinners] = useState(() => proposedWinners(data))
   const [error, setError] = useState<string | null>(null)
   const id = useId()
 
   const corrections = data.games.filter((g) => winners[g.n] !== g.winner).map((g) => ({ n: g.n, winner: winners[g.n] }))
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!outcome) return setError('Pick a Ruling.')
     if (outcome === 'overturn' && corrections.length === 0) return setError('Correct the winner of at least one game.')
-    if (!reason.trim()) return setError('Give a reason. Both players will see it.')
-    onRule(
+    if (!reason.text.trim()) return setError('Give a reason. Both players will see it.')
+    const saved = await onRule(
       outcome,
-      reason.trim(),
+      reason.text.trim(),
       outcome === 'overturn' ? { games: corrections } : outcome === 'replay' ? { fromGame } : undefined,
     )
+    if (saved) reason.clear()
   }
 
   return (
-    <form onSubmit={submit} noValidate className="da-card flex flex-col gap-3" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`} className="m-0 text-lg font-semibold">
-        Ruling
-      </h2>
-      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-1 text-sm font-semibold">Outcome</legend>
-        {OUTCOMES.map((o) => (
-          <label key={o.value} className="flex items-start gap-2 text-sm">
-            <input
-              type="radio"
-              name={`${id}-outcome`}
-              value={o.value}
-              checked={outcome === o.value}
-              onChange={() => {
-                setOutcome(o.value)
-                setError(null)
-              }}
-              className="mt-1"
-            />
-            <span>
-              <b>{o.label}</b>. {o.help}
-            </span>
-          </label>
-        ))}
-      </fieldset>
-      {outcome === 'replay' && (
-        <div className="flex items-center gap-2 text-sm">
-          <span aria-hidden="true">Replay from</span>
-          <Select
-            label="Replay from"
-            value={String(fromGame)}
-            options={data.replayFrom.games.map((n) => ({
-              value: String(n),
-              label: `Game ${n}${data.dispute.games.includes(n) ? ' (disputed)' : ''}`,
-            }))}
-            onChange={(v) => setFromGame(Number(v))}
-          />
-        </div>
+    <form onSubmit={submit} noValidate>
+      {!data.canAct && (
+        <p className="m-0 mb-3 text-sm font-semibold">
+          {data.claim ? `Claimed by ${data.claim.by.displayName}.` : 'Claim this case to start.'}
+        </p>
       )}
-      {outcome === 'overturn' && (
-        <Corrections
-          data={data}
-          winners={winners}
-          onChange={(n, winner) => {
-            setWinners((w) => ({ ...w, [n]: winner }))
+      <fieldset disabled={!data.canAct} className="m-0 flex min-w-0 flex-col gap-3 border-0 p-0">
+        <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
+          <legend className="mb-1 text-sm font-semibold">Outcome</legend>
+          {OUTCOMES.map((o) => (
+            <label key={o.value} className="flex items-start gap-2 text-sm">
+              <input
+                type="radio"
+                name={`${id}-outcome`}
+                value={o.value}
+                checked={outcome === o.value}
+                onChange={() => {
+                  setOutcome(o.value)
+                  setError(null)
+                }}
+                className="mt-1"
+              />
+              <span className="text-xs leading-5">
+                <b className="text-sm">{o.label}</b>. {o.help}
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        {outcome === 'replay' && (
+          <div className="flex items-center gap-2 text-sm">
+            <span aria-hidden="true">Replay from</span>
+            <Select
+              label="Replay from"
+              value={String(fromGame)}
+              options={data.replayFrom.games.map((n) => ({
+                value: String(n),
+                label: `Game ${n}${data.dispute.games.includes(n) ? ' (disputed)' : ''}`,
+              }))}
+              onChange={(v) => setFromGame(Number(v))}
+            />
+          </div>
+        )}
+        {outcome === 'overturn' && (
+          <Corrections
+            data={data}
+            winners={winners}
+            onChange={(n, winner) => {
+              setWinners((w) => ({ ...w, [n]: winner }))
+              setError(null)
+            }}
+          />
+        )}
+        <label htmlFor={`${id}-reason`} className="text-sm font-semibold">
+          Reason (both players see this, but not your name)
+        </label>
+        <textarea
+          id={`${id}-reason`}
+          value={reason.text}
+          onChange={(e) => {
+            reason.set(e.target.value)
             setError(null)
           }}
+          rows={4}
+          maxLength={MAX_REASON}
+          aria-describedby={error ? `${id}-error` : undefined}
+          aria-invalid={error ? true : undefined}
+          className={cx(FIELD, 'disabled:opacity-60')}
         />
-      )}
-      <label htmlFor={`${id}-reason`} className="text-sm font-semibold">
-        Reason (both players see this, but not your name)
-      </label>
-      <textarea
-        id={`${id}-reason`}
-        value={reason}
-        onChange={(e) => {
-          setReason(e.target.value)
-          setError(null)
-        }}
-        rows={3}
-        maxLength={MAX_REASON}
-        aria-describedby={error ? `${id}-error` : undefined}
-        aria-invalid={error ? true : undefined}
-        className={FIELD}
-      />
-      {error && (
-        <span id={`${id}-error`} role="alert" className="text-xs text-chaos-soft">
-          {error}
-        </span>
-      )}
-      <div>
-        <Btn type="submit" disabled={busy}>
-          Give Ruling
-        </Btn>
-      </div>
+        {error && (
+          <span id={`${id}-error`} role="alert" className="text-xs text-chaos-soft">
+            {error}
+          </span>
+        )}
+        {failure && <Alert>{failure}</Alert>}
+        <div>
+          <Btn type="submit" disabled={busy}>
+            Give Ruling
+          </Btn>
+        </div>
+      </fieldset>
     </form>
   )
 }
@@ -591,7 +582,7 @@ function Corrections({
         const disputed = data.dispute.games.includes(g.n)
         const label = `Game ${g.n} winner${disputed ? ' (disputed)' : ''}`
         return (
-          <div key={g.n} className={cx('flex items-center gap-2 text-sm', disputed && 'font-semibold text-gold-note')}>
+          <div key={g.n} className={cx('flex flex-wrap items-center gap-2 text-sm', disputed && 'font-semibold text-gold-note')}>
             <span aria-hidden="true" className="w-36">
               {label}
             </span>
