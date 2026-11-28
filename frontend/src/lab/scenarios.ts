@@ -117,6 +117,7 @@ const reopenable = () => [
   settled({ id: 188, finishedAt: at(-120 * DAY), createdAt: at(-120 * DAY - 40 * MIN), settledBy: 'uphold' }),
   baseMatch({ id: 215, game: 'nt', platform: 'PS4' }),
   settled({ id: 201, status: 'voided', winner: null, settledBy: 'void', finishedAt: at(-10 * DAY) }),
+  settled({ id: 209, settledBy: 'auto-confirmed', finishedAt: at(-30 * DAY), createdAt: at(-30 * DAY - 2 * 60 * MIN) }),
 ]
 
 const ladders = (placedNt: boolean): LadderStanding[] => [
@@ -131,7 +132,7 @@ export const SCENARIOS: Scenario[] = [
     id: 'reopen-control',
     group: 'Reopening (#13)',
     title: "The Master's reopen control",
-    note: 'Admins tab, "Reopen a settled match". Look up 212 (can be reopened), 188 (past 90 days), 201 (a void) or 215 (still being played). Reopen asks for a reason.',
+    note: 'Admins tab, "Reopen a settled match". Look up 212 (confirmed), 209 (auto-confirmed), 188 (past 90 days), 201 (a void) or 215 (still being played). Reopen asks for a reason.',
     path: '/admin/admins',
     sides: ['master'],
     build: (as) => world(as, reopenable(), { seasons: LIVE() }),
@@ -307,6 +308,24 @@ export const SCENARIOS: Scenario[] = [
           messages: [msg('system', 'Match started', 40_000)],
         }),
       ]),
+  },
+  {
+    id: 'gone-replay',
+    group: '"My opponent\'s gone" (#72)',
+    title: 'In a Replay',
+    note: 'A Replay restarted 30 seconds ago: the button waits 2 minutes again. "Run the countdown out" sends the match back to the Admins, not a Forfeit.',
+    path: '/match/live',
+    sides: ['a'],
+    build: (as) =>
+      world(as, [
+        baseMatch({
+          games: twoGames('b').slice(0, 1),
+          ruling: { outcome: 'replay', reason: 'Game 2 had a disconnect. Replay from game 2.', at: at(-30_000) },
+          replayDeadline: at(47 * 60 * MIN),
+          gone: { availableAt: at(90_000), waitingFor: 'start', countdown: null },
+        }),
+      ]),
+    actions: [{ label: 'Run the countdown out', run: (w) => countdownOut(w) }],
   },
   {
     id: 'gone-ready',

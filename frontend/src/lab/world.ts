@@ -49,6 +49,8 @@ export interface LabMatch {
   gone: { availableAt: string; waitingFor: 'start' | 'here'; countdown: { absent: Who; endsAt: string } | null } | null
   dispute: { round: number; games: number[]; reason: string | null; by: Who | null } | null
   settledBy: SettledMatchInfo['settledBy']
+  /** Back with the Admins because a Replay wasn't finished. */
+  replayNotFinished?: boolean
 }
 
 export interface LabWorld {
@@ -65,7 +67,7 @@ export const at = (msFromNow: number) => new Date(Date.now() + msFromNow).toISOS
 export const MIN = 60_000
 export const DAY = 24 * 60 * MIN
 
-/** Season 1 ends one calendar month after it starts, at 00:00 UTC. */
+/** Season 1 ends one calendar month after it starts, at the next 00:00 UTC. (Which midnight is for the owner to confirm on #70.) */
 export function seasonEnd(start: Date) {
   return new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, start.getUTCDate() + 1)).toISOString()
 }

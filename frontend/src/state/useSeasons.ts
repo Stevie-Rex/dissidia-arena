@@ -27,6 +27,6 @@ export const laddersFor = (user: Me | null | undefined, game: GameId): LadderSta
 /** "1548" once placed, "Placement 3/5" before. */
 export const standingText = (l: LadderStanding) => (l.placed ? String(l.rating) : `Placement ${l.placements}/${PLACEMENT_MATCHES}`)
 
-/** A Season's end, as players read it: "28 Dec 2026, 00:00 UTC". */
+/** A Season's end, as players read it, such as "29 Dec 2026, 00:00 UTC". */
 export const seasonEnds = (s: Season) =>
   `${new Date(s.endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}, 00:00 UTC`

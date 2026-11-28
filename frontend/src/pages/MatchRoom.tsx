@@ -360,8 +360,8 @@ function Finished({ match, onDone, onAgain }: { match: Match; onDone: () => void
           {reopened.tookBackFrom && (
             <span className="text-sm">
               {reopened.tookBackFrom === 'you'
-                ? 'Your ranked win from this match is taken back until the new Ruling. Unlocks you earned stay.'
-                : `The ranked win ${opp} got from this match is taken back until the new Ruling.`}
+                ? 'Your ranked win from this match is taken back. If the new Ruling upholds it, you get it back. Unlocks you earned stay.'
+                : `The ranked win ${opp} got from this match is taken back. The new Ruling decides who wins.`}
             </span>
           )}
         </div>

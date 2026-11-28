@@ -85,7 +85,7 @@ function view(m: LabMatch, w: LabWorld): Match {
     acceptDeadline: m.createdAt,
     confirmDeadline: null,
     replayDeadline: m.replayDeadline,
-    replayNotFinished: false,
+    replayNotFinished: !!m.replayNotFinished,
     createdAt: m.createdAt,
     finishedAt: m.finishedAt,
     host: side(m.host),
@@ -148,6 +148,7 @@ function tick() {
       if (m.replayDeadline) {
         m.status = 'disputed'
         m.gone = null
+        m.replayNotFinished = true
         m.messages.push(msg('system', 'The countdown ran out. The Replay goes back to the Admins.'))
         world.current = null
       } else forfeit(m, c.absent, 'countdown', world)
@@ -212,6 +213,7 @@ function handle(method: string, path: string, body: Record<string, unknown>): un
       if (m.replayDeadline) {
         m.status = 'disputed'
         m.endedBy = me
+        m.replayNotFinished = true
         m.messages.push(msg('system', 'A player left the Replay. It goes back to the Admins.'))
         w.current = null
       } else forfeit(m, me, 'left', w)
@@ -249,7 +251,7 @@ function handle(method: string, path: string, body: Record<string, unknown>): un
           platform: m.platform,
           players: [PLAYER_A.displayName, PLAYER_B.displayName],
           disputedAt: m.reopened?.at ?? at(-5 * MIN),
-          replayNotFinished: false,
+          replayNotFinished: !!m.replayNotFinished,
           claim: null,
         })),
     }

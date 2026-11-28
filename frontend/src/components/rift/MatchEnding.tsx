@@ -65,7 +65,7 @@ export function OpponentGone({ match, onGone }: { match: Match; onGone: () => vo
       <span id={hint} className="text-xs text-muted">
         {wait.seconds > 0
           ? g.waitingFor === 'here'
-            ? `Available again in ${wait.text}. ${opp} said "I'm here" just now.`
+            ? `Available again in ${wait.text}, 5 minutes after the last "I'm here".`
             : `Available in ${wait.text}, once you've had 2 minutes to play.`
           : `Starts a 5-minute countdown. If ${opp} doesn't come back, you win by Forfeit.`}
       </span>
